@@ -167,6 +167,28 @@ These rules are inspired by the books listed above. They are not official materi
 
 The files in this repository are practical engineering instructions written for AI coding tools. They intentionally avoid reproducing book text. Use them as lightweight working agreements, not as summaries or study notes.
 
+## FAQ
+
+### What are AI coding agent rules?
+
+AI coding agent rules are project-level instructions that guide tools like Codex, Cursor, Claude Code, and GitHub Copilot when generating, reviewing, or refactoring code.
+
+### What is AGENTS.md?
+
+AGENTS.md is a Markdown file used to give coding agents project-specific instructions, workflows, constraints, and coding standards.
+
+### Can I use these as Claude Code rules?
+
+Yes. You can copy selected rule sets into CLAUDE.md or use them as project memory for Claude Code.
+
+### Can I use these as Cursor rules?
+
+Yes. You can adapt the rule sets into Cursor project rules or keep them as AGENTS.md-style instructions.
+
+### Can I use these as GitHub Copilot custom instructions?
+
+Yes. The rules are plain Markdown and can be adapted into GitHub Copilot custom instructions.
+
 ## Related searches
 
 **AI coding agent rules**, **AGENTS.md** examples, Claude Code rules, Cursor rules, Codex rules, GitHub Copilot custom instructions, **CLAUDE.md**, software engineering **rules for AI coding** assistants, Clean Code rules for AI, **Refactoring** rules for AI agents, **Domain-Driven Design rules**, Clean **Architecture rules**.
