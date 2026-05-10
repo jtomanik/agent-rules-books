@@ -8,8 +8,8 @@ This is not a vibes-based comparison. You must compare the canonical `mini` vers
 
 Create and maintain:
 
-- `COMPATIBILITY.md`: legend, matrix, scoring definitions, verdict counts, and book name key.
-- `compatibility/<book-a>/<book-b>.md`: one detailed comparison file for each unordered pair.
+- `docs/COMPATIBILITY.md`: legend, matrix, scoring definitions, verdict counts, and book name key.
+- `docs/compatibility/<book-a>/<book-b>.md`: one detailed comparison file for each unordered pair.
 
 The matrix cell must contain one linked verdict:
 
@@ -46,7 +46,7 @@ Use these sources, in this order:
 
 1. Public canonical mini file: `<book>/<book>.mini.md`
 2. Equivalent workbench mini file: `_rule-workbench/<book>/mini.md`
-3. Helper local context only, after reading `mini`: `<book>/<book>.md`, `_rule-workbench/<book>/full.md`, `nano.md`, `traceability.md`, `README.md`, `USAGE.md`
+3. Helper local context only, after reading `mini`: `<book>/<book>.md`, `_rule-workbench/<book>/full.md`, `nano.md`, `traceability.md`, `README.md`, `docs/USAGE.md`
 4. External context only, after reading local `mini`: public/common knowledge, reviews, articles, or internet comparisons of the books
 
 `mini` is the evidence base because the matrix answers whether two active agent rule sets should be loaded together. `full` may be used to resolve ambiguity, but it should not turn the comparison into a full-book research project.
@@ -183,19 +183,19 @@ Create exactly one file per unordered pair.
 Use alphabetical slug order:
 
 ```text
-compatibility/<earlier-slug>/<later-slug>.md
+docs/compatibility/<earlier-slug>/<later-slug>.md
 ```
 
 Example:
 
 ```text
-compatibility/clean-architecture/domain-driven-design.md
+docs/compatibility/clean-architecture/domain-driven-design.md
 ```
 
 Do not also create:
 
 ```text
-compatibility/domain-driven-design/clean-architecture.md
+docs/compatibility/domain-driven-design/clean-architecture.md
 ```
 
 Both matrix directions, if both are shown, must link to the same canonical file. A triangular matrix is allowed only if it remains easy to scan and every non-diagonal relationship is linked.
@@ -215,8 +215,8 @@ The work queue must contain all 91 canonical pair paths as checkboxes:
 ```markdown
 # Compatibility Pair Work Queue
 
-- [ ] compatibility/a-philosophy-of-software-design/clean-architecture.md
-- [ ] compatibility/a-philosophy-of-software-design/clean-code.md
+- [ ] docs/compatibility/a-philosophy-of-software-design/clean-architecture.md
+- [ ] docs/compatibility/a-philosophy-of-software-design/clean-code.md
 - [ ] ...
 ```
 
@@ -225,7 +225,7 @@ Agent rules for the work queue:
 - Generate the complete 91-item checkbox list before starting pair analysis.
 - Work from the first unchecked item unless the user explicitly directs a different pair.
 - Analyze only one pair at a time. Do not work on multiple comparisons in parallel.
-- Do not start the next pair until the current pair file is written, cited, scored, linked from `COMPATIBILITY.md`, and checked against this instruction file.
+- Do not start the next pair until the current pair file is written, cited, scored, linked from `docs/COMPATIBILITY.md`, and checked against this instruction file.
 - Mark a checkbox as done only after the detailed comparison file and matrix cell both pass the quality bar.
 - Mark a checkbox as `[~]` when a pair file exists but is only `Status: draft`.
 - If interrupted, resume from the first unchecked item.
@@ -392,7 +392,7 @@ For each unordered pair:
 8. Score Conflict, Overlap, and Complementarity.
 9. Choose exactly one verdict.
 10. Write the canonical comparison file.
-11. Update `COMPATIBILITY.md` with a linked cell.
+11. Update `docs/COMPATIBILITY.md` with a linked cell.
 12. Re-check that the matrix verdict matches the detailed file verdict.
 13. Mark exactly that pair as done in `_rule-workbench/compatibility-pair-workqueue.md`.
 14. Move to the next unchecked pair.
@@ -401,7 +401,7 @@ Do not batch unfinished analysis across multiple files. Batching is allowed only
 
 ## Detailed Comparison File Template
 
-Use this template for every file under `compatibility/`.
+Use this template for every file under `docs/compatibility/`.
 
 ```markdown
 # {Book A} vs {Book B}
@@ -491,7 +491,7 @@ Additional requirements:
 - `Review Notes` may say `None` only after the source basis is complete.
 - `Status: reviewed` is allowed only when the file passes the Claim Evidence Rules and Boilerplate Rejection Rules.
 
-## `COMPATIBILITY.md` Format
+## `docs/COMPATIBILITY.md` Format
 
 Use this structure:
 
@@ -571,7 +571,7 @@ A pair comparison is not acceptable unless it:
 
 The complete compatibility set is not acceptable unless:
 
-- `COMPATIBILITY.md` has a complete 14x14 matrix
+- `docs/COMPATIBILITY.md` has a complete 14x14 matrix
 - there are exactly 91 canonical comparison files
 - the temporary work queue has 91 checked items before it is deleted
 - every non-diagonal matrix cell links to an existing file
@@ -604,10 +604,10 @@ Use commands like these while working:
 
 ```bash
 rg --files | rg '(^|/)([^/]+)\.md$'
-find compatibility -type f | sort
-find compatibility -type f | wc -l
-rg -n "Verdict:|Conflict:|Overlap:|Complementarity:|Source Basis" compatibility
-rg -n "\[.*\]\(compatibility/" COMPATIBILITY.md
+find docs/compatibility -type f | sort
+find docs/compatibility -type f | wc -l
+rg -n "Verdict:|Conflict:|Overlap:|Complementarity:|Source Basis" docs/compatibility
+rg -n "\[.*\]\(compatibility/" docs/COMPATIBILITY.md
 ```
 
 Use `git status --short` before and after batches so unrelated changes are not mixed into the compatibility work.

@@ -11,9 +11,9 @@
     ·
     <a href="#release-matrix">Rules / Skills</a>
     ·
-    <a href="USAGE.md">Usage</a>
+    <a href="docs/USAGE.md">Usage</a>
     ·
-    <a href="COMPATIBILITY.md">Books Compatibility</a>
+    <a href="docs/COMPATIBILITY.md">Books Compatibility</a>
     ·
     <a href="#books-list">Books List</a>
   </p>
@@ -27,7 +27,7 @@ MIT licensed universal project rules for coding agents.
 
 Website: [ciembor.github.io/agent-rules-books](https://ciembor.github.io/agent-rules-books/)
 
-For editor-specific setup in Codex, Claude Code, and Cursor, see [USAGE.md](USAGE.md). It covers always-on vs on-demand usage, skills, scoped rules, MCP or RAG patterns, and the preferred setup for each editor.
+For editor-specific setup in Codex, Claude Code, and Cursor, see [USAGE.md](docs/USAGE.md). It covers always-on vs on-demand usage, skills, scoped rules, MCP or RAG patterns, and the preferred setup for each editor.
 
 Each rule set is released in three tool-agnostic Markdown versions:
 
@@ -35,7 +35,7 @@ Each rule set is released in three tool-agnostic Markdown versions:
 - `nano`: the compact fallback for very tight context budgets
 - `full`: the canonical complete source and reference version
 
-For constructive criticism from Reddit, see [CRITICISM.md](CRITICISM.md).
+For constructive criticism from Reddit, see [CRITICISM.md](docs/CRITICISM.md).
 
 For release history, see [CHANGELOG.md](CHANGELOG.md).
 
@@ -150,34 +150,7 @@ Author: [Michael Feathers](https://www.r7krecon.com/)
 
 The book explains how to safely change difficult, poorly tested code: characterization tests, seams, dependency breaking, sprout method, wrap method, and incremental risk reduction. This rule set is best for legacy work where the first goal is regaining control.
 
-## Choosing Rules
-
-Choose rules based on the task:
-
-- everyday code quality: `clean-code`, `code-complete`
-- architecture and boundaries: `clean-architecture`, `domain-driven-design`, `patterns-of-enterprise-application-architecture`
-- domain modeling: `domain-driven-design`, `domain-driven-design-distilled`, `implementing-domain-driven-design`
-- refactoring: `refactoring`, `a-philosophy-of-software-design`, `refactoring-guru`
-- legacy code: `working-effectively-with-legacy-code`, optionally `refactoring`
-- production systems: `release-it`
-- data systems: `designing-data-intensive-applications`
-- general engineering style: `clean-code`, `code-complete`, `the-pragmatic-programmer`
-
-Check rules compatibility in the [COMPATIBILITY.md](/COMPATIBILITY.md).
-
-## Adding a Book
-
-Use lowercase kebab-case for the book directory name.
-
-Workflow:
-
-1. Ask the chatbot for the complete book outline: every chapter, every section inside each chapter, and every operational rule stated or strongly implied by each section.
-2. Ask the chatbot to expand the extraction until nothing material is missing. In particular, recover non-negotiable rules, tradeoff rules, trigger rules, anti-patterns, review and testing guidance, and any “when uncertain” guidance.
-3. Ask the chatbot to produce a full `AGENTS.md` in this repository's `full` standard, not a loose summary. It should preserve the book's structure and distinctive bias, express obligations as `MUST`, strong defaults as `SHOULD`, prohibitions as `MUST NOT`, and keep anti-patterns explicit.
-4. Review the generated `AGENTS.md` before importing it. Check that no important local discipline was flattened into generic advice, that modal strength matches the book's intent, and that the chatbot did not invent unsupported rules.
-5. Move the approved file to `_rule-workbench/<book-name>/full.md`.
-6. Ask the chatbot to run the workflow from [_rule-workbench/PROCESS.md](/Users/maciej/Projects/AGENTS/_rule-workbench/PROCESS.md:1) for that book.
-7. Ask the chatbot to execute the release instructions from [_rule-workbench/RELEASE.md](/Users/maciej/Projects/AGENTS/_rule-workbench/RELEASE.md:1).
+For choosing rule sets, skills, and delivery patterns, see [USAGE.md](docs/USAGE.md). For combining multiple books, see [COMPATIBILITY.md](docs/COMPATIBILITY.md). For the book extraction workflow, see [ADDING_THE_BOOK.md](docs/ADDING_THE_BOOK.md).
 
 ## Important Note
 
@@ -191,25 +164,29 @@ The files in this repository are practical engineering instructions written for 
 
 AI coding agent rules are project-level instructions that guide tools like Codex, Cursor, Claude Code, and GitHub Copilot when generating, reviewing, or refactoring code.
 
+### What are AI coding agent skills?
+
+AI coding agent skills are task-specific instruction packs that agents load only when a workflow needs them, such as refactoring, reviewing, legacy-code changes, reliability work, or domain modeling.
+
 ### What is AGENTS.md?
 
 AGENTS.md is a Markdown file used to give coding agents project-specific instructions, workflows, constraints, and coding standards.
 
-### Can I use these as Claude Code rules?
+### Can I use these as Claude Code rules or skills?
 
-Yes. You can copy selected rule sets into CLAUDE.md or use them as project memory for Claude Code.
+Yes. You can copy selected rule sets into `CLAUDE.md` as project memory or turn a focused `mini` rule set into a Claude Code skill.
 
 ### Can I use these as Cursor rules?
 
 Yes. You can adapt the rule sets into Cursor project rules or keep them as AGENTS.md-style instructions.
 
-### Can I use these as GitHub Copilot custom instructions?
+### Can I use these as GitHub Copilot custom instructions or skills?
 
-Yes. The rules are plain Markdown and can be adapted into GitHub Copilot custom instructions.
+Yes. The rules and skills are plain Markdown and can be adapted into GitHub Copilot custom instructions, prompt files, or reusable task-specific guidance.
 
 ## Related searches
 
-**AI coding agent rules**, **AGENTS.md** examples, Claude Code rules, Cursor rules, Codex rules, GitHub Copilot custom instructions, **CLAUDE.md**, software engineering **rules for AI coding** assistants, Clean Code rules for AI, **Refactoring** rules for AI agents, **Domain-Driven Design rules**, Clean **Architecture rules**.
+**AI coding agent rules**, **Agent skills**, **AGENTS.md** examples, Claude Code rules, Cursor rules, Codex rules, GitHub Copilot custom instructions, **CLAUDE.md**, software engineering **rules for AI coding** assistants, Clean Code rules for AI, **Refactoring** rules for AI agents, **Domain-Driven Design rules**, Clean **Architecture rules**.
 
 ## License
 

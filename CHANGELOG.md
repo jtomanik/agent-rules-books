@@ -4,9 +4,9 @@
 
 Commit: [`01d1fab`](https://github.com/ciembor/agent-rules-books/commit/01d1fab)
 
-- Added compatibility check in the CHECK_COMPATIBILITY.md.
-- Added compatibility matrix in the COMPATIBILITY.md
-- Each compatibility comparison has now it's own `.md` file in the `_compatibility`.
+- Added compatibility check in `_rule-workbench/CHECK_COMPATIBILITY.md`.
+- Added compatibility matrix in `docs/COMPATIBILITY.md`.
+- Each compatibility comparison has now its own `.md` file in `docs/compatibility`.
 
 ## v0.4 - 2026-05-03
 
