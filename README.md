@@ -3,7 +3,7 @@
   <h1 align="center">AI agents Rules / Skills from<br />Programming Books v0.5</h1>
 
   <p align="center">
-    <strong>AGENTS.md rules</strong> / <strong>skills</strong> for <strong>Codex</strong>, <strong>Cursor</strong>, <strong>Claude Code</strong>, distilled from classic <strong>software engineering book</strong> about refactoring, architecture, DDD and code quality.
+    <strong>AGENTS.md rules</strong> / <strong>skills</strong> for <strong>Codex</strong>, <strong>Cursor</strong>, <strong>Claude Code</strong>, distilled from classic <strong>software engineering books</strong> about refactoring, architecture, DDD and code quality.
   </p>
 
   <p align="center">
@@ -11,21 +11,18 @@
     ·
     <a href="#release-matrix">Rules / Skills</a>
     ·
+    <a href="#books-list">Books List</a>
+    ·
     <a href="docs/USAGE.md">Usage</a>
     ·
     <a href="docs/COMPATIBILITY.md">Books Compatibility</a>
-    ·
-    <a href="#books-list">Books List</a>
   </p>
 </div>
 
 ## About
-
-This repository contains ready-to-use rule sets inspired by well-known books on software design, architecture, refactoring, legacy code, reliability, and data-intensive systems.
-
 MIT licensed universal project rules for coding agents.
 
-Website: [ciembor.github.io/agent-rules-books](https://ciembor.github.io/agent-rules-books/)
+This repository contains ready-to-use rule sets inspired by well-known books on software design, architecture, refactoring, legacy code, reliability, and data-intensive systems.
 
 For editor-specific setup in Codex, Claude Code, and Cursor, see [USAGE.md](docs/USAGE.md). It covers always-on vs on-demand usage, skills, scoped rules, MCP or RAG patterns, and the preferred setup for each editor.
 
