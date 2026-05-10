@@ -3,8 +3,10 @@
   <h1 align="center">AI AGENTS Rules from Programming Books v0.5</h1>
 
   <p align="center">
-    AGENTS.md rules / skills for Codex, Cursor, Claude Code, distilled from classic software engineering books about refactoring, architecture, DDD and code quality.
-    <br />
+    <strong>AGENTS.md rules</strong> / <strong>skills</strong> for Codex, Cursor, Claude Code, distilled from classic software engineering books about refactoring, architecture, DDD and code quality.
+  </p>
+
+  <p align="center">
     <a href="#about">About</a>
     ·
     <a href="#release-matrix">Release Matrix</a>
