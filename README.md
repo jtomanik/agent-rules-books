@@ -149,6 +149,26 @@ The book explains how to safely change difficult, poorly tested code: characteri
 
 For choosing rule sets, skills, and delivery patterns, see [USAGE.md](docs/USAGE.md). For combining multiple books, see [COMPATIBILITY.md](docs/COMPATIBILITY.md). For the book extraction workflow, see [ADDING_THE_BOOK.md](docs/ADDING_THE_BOOK.md).
 
+## Does it work?
+## Does it work?
+The first validation experiment used [vibe-coded-crap](https://github.com/ciembor/vibe-coded-crap), a deliberately generated helpdesk CLI project. Its README describes the project as vibe-coded code generated with Codex, GPT-5.4 mini, reasoning medium, through continuous development across 80 tasks from `BACKLOG.md`. The project exists specifically for testing different `AGENTS.md` files and skills in refactoring workflows.
+
+The experiment compared two separate refactors of the same application, both focused on [A Philosophy of Software Design](a-philosophy-of-software-design/):
+
+- [`aposd-refactor-mini-rules`](https://github.com/ciembor/vibe-coded-crap/tree/aposd-refactor-mini-rules), using the `mini` rules from this repository.
+- [`aposd-refactor-no-rules`](https://github.com/ciembor/vibe-coded-crap/tree/aposd-refactor-no-rules), using only this single `AGENTS.md` instruction:
+
+```md
+# OBEY A Philosophy of Software Design by John Ousterhout
+
+For each branch, Codex first generated a PLAN.md refactoring plan with GPT-5.5, reasoning extra high. The full plan was then executed with the same model, reasoning high. The resulting codebases were passed to ChatGPT with the prompt: “which code better implements the principles from A Philosophy of Software Design, and by how much?”
+
+ChatGPT rated the mini rules refactor at roughly 74/100, versus 46/100 for the branch that only mentioned the book. The result suggests that listing concrete rules from the book is more effective than merely naming the book when the goal is to make an agent apply the author's design principles during refactoring.
+
+The result should be treated as an early qualitative signal, not a benchmark. A secondary Reek code-smell check showed only a small difference in generic static-analysis output: the original branch had 1083 detected smells, while the mini refactor had 1077. This suggests that the advantage of the mini rules did not show up clearly in raw smell counts. In this experiment, the difference was more visible in architectural judgment: module depth, responsibility boundaries, information hiding, and whether the refactor reduced the amount of code a reader needs to understand at once.
+
+Deeper measurements and equivalent experiments for other books are not planned at this stage because they would require substantial token budget and a large amount of manual review time.
+
 ## Important Note
 
 These rules are inspired by the books listed above. They are not official materials from the authors or publishers, and they are not a substitute for reading the books.
