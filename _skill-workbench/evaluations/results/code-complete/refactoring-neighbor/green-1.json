@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-neighbor.md",
+  "case_sha256": "e7ef6def73a3f82ff75f82fc7718cfa86e1e7ad42cfc194946c97056faee9b5d",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585d-28bd-70e3-9f3a-e2b0504b81bb",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use the smallest Fowler-style sequence that removes only the duplicated conditional and keeps interaction order intact.\n\n1. `Extract Method`\nCreate a query method such as `expeditedCharge(Order order)` from the duplicated expression `order.expedited() ? Money.cents(700) : Money.cents(500)`.\nApply it first in one branch, then replace the second duplicate with the same method call.\nSafety check after this step: run the full green test suite unchanged. Confirm the extracted method is only a mechanical move of the existing `order.expedited()` call and still executes at the same point in each branch, so exception text and call order stay identical.\n\n2. `Consolidate Duplicate Conditional Fragments`\nOnce both branches end with `return base.plus(expeditedCharge(order));`, move that identical return below the `if` and leave only the branch-specific `base` assignment inside the conditional.\nSafety check after this step: run the full green test suite again. Verify the preferred path still performs `subtotal`, `subtotal`, then surcharge selection, and the non-preferred path still performs `subtotal`, then surcharge selection. Do not rewrite the subtotal logic or hoist surcharge calculation earlier.\n\nStop condition: stop as soon as the repeated surcharge conditional exists in exactly one place and the `if` contains only the branch-specific base calculation. Any further change, such as redesigning pricing policy, removing the boolean flag, caching `subtotal()`, or changing evaluation order, exceeds the requested behavior-preserving structural cleanup.",
+    "selected_project_skills": [
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:05:28.322424Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585c-957a-7e22-bdb4-c5038eb20bbe.1783893890426483000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:05:28.654334Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585c-958d-7681-a23b-f3dad8bf6f35.1783893890446135000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:06.927391Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-28bd-70e3-9f3a-e2b0504b81bb.1783893928125669000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

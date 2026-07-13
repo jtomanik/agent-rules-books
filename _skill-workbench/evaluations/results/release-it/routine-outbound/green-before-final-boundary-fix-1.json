@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5357-aed8-7d53-befb-a2945ec0f3e0",
+  "exit_code": 0,
+  "result": {
+    "answer": "1. `carrierSlots.acquire()` and the outbound call are not actually bounded by the checkout request budget. `Semaphore.acquire()` can wait forever, `carrierClient.post()` ignores `requestSignal`, and `timeoutMs` does not cover connection establishment. In the current code, saturation or a stalled connect can hold the checkout past `CHECKOUT_REQUEST_TIMEOUT_MS=2500`, which violates the contract that checkout must continue when the carrier cannot answer within budget. Smallest pre-merge change: derive a carrier deadline from the checkout budget, pass cancellation/deadline into both `acquire()` and `post()`, and return `{ kind: \"unavailable\" }` on budget expiry.\n\n2. The success path trusts any parsed body and returns `kind: \"available\"` without enforcing the provider contract. There is no check for HTTP `200`, JSON content, or `{ amount: non-negative finite number, currency: three-letter string, expires_at: ISO-8601 timestamp }`. A `500` with a JSON error body, HTML parsed failure edge case, or malformed `200` payload can currently become bad quote data or an undifferentiated catch path. Smallest pre-merge change: explicitly validate status, content type, JSON parse, and field shape before returning `available`; anything else should be treated as a failed quote.\n\n3. All failures are collapsed into the same `warn` and `{ kind: \"unavailable\" }`, which hides request/contract defects. Per the stated contract, provider `4xx` is not an availability event; it means this integration is sending a bad request or has drifted from the provider contract. Smallest pre-merge change: keep customer-facing degradation if desired, but classify `4xx` and invalid `200` payloads separately in logs/metrics at higher severity, and reserve the generic unavailable path for `429`, `5xx`, timeout, and transport failure. That makes the failure visible without changing checkout behavior.\n\nWhat looks fine already: `CARRIER_RETRIES=0` matches the no-retry requirement, and `CARRIER_MAX_IN_FLIGHT=32` is a reasonable bulkhead as long as the wait on that bulkhead is also bounded.\n\nNet: I would block merge on the missing end-to-end time bound and missing response validation. I would strongly recommend, but not necessarily block on, separate classification for `4xx`/contract failures so first-release diagnosis is viable.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:42:01.666931Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5357-aed8-7d53-befb-a2945ec0f3e0.1783809683160621000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

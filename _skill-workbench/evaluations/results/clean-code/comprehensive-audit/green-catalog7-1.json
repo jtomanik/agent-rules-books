@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/comprehensive-audit.md",
+  "case_sha256": "114e8945371df220dfdc2cd6c705faf344c5fb5585e06a59c2b351aedea4a201",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5871-4f07-7cd3-816b-5d7d5c1eb323",
+  "exit_code": 0,
+  "result": {
+    "answer": "Prioritized audit\n\n1. `line 5` is a concrete defect in normal TypeScript: `this.db` is assigned but never declared on the class. With standard class property checking, this does not type-check. Declare the field explicitly, ideally with a precise Prisma type.\n2. `lines 27-36` hide asynchronous side effects behind `setTimeout(async () => ...)`. This mixes request handling, persistence, and fire-and-forget I/O in one method, drops error handling, and can surface unhandled rejections if `fetch` fails. It also gives callers no contract for notification success or failure.\n3. `line 27` introduces shared mutable state via `last`. In a reused handler instance, concurrent calls race on that field and the value is not part of the method contract. This is a concurrency smell and a likely defect if any later code reads `last`.\n4. `line 9` uses a large, mixed-responsibility method. `go` loads data, handles HTTP concerns, decides business status, mutates instance state, persists, schedules external notification, and writes the response. That violates the clean-code \u201cone thing\u201d rule and makes local reasoning expensive.\n5. `line 9` also uses two boolean flags, `quick` and `send`. Those create hidden mode switches and force readers to reconstruct behavior from conditionals instead of from the API. This is one of the clearest Clean Code violations in the fragment.\n6. `lines 9-10` and `40` couple business behavior directly to framework and persistence boundaries. The method accepts `req`/`res`, reads route params, talks to Prisma, and sends the HTTP response itself. That makes the core behavior hard to test and easy to misuse.\n7. `lines 9-10` use `any` pervasively (`last`, `req`, `res`), and `x` is a weak name. Intent is obscured, invalid states are easier to pass, and the compiler cannot protect the contract.\n8. `lines 12-14` return both `res.status(...).send(...)` side effects and `null`. `line 40` returns `res.send(x)`. This is command-query confusion: the function mutates external state and also returns a value whose meaning is unclear. The test then asserts truthiness rather than business behavior.\n9. `lines 17-25` embed business rules in nested conditionals with duplicated assignment of `\"approved\"`. The logic is small, but the current structure is already less direct than it needs to be.\n10. `lines 8` and `39` contain narrating comments that compensate for weak names and structure rather than adding real rationale. They should not be needed if the code is shaped cleanly.\n11. `line 44` test quality is poor. `it(\"works\")` does not state a behavior. The assertion only checks that the return value is truthy, not that status selection, persistence, 404 behavior, or notification behavior are correct. It is brittle against implementation shape and weak against regressions.\n12. `line 4` constructs `PrismaClient` inside the handler. That pushes setup and boundary wiring into ordinary behavior instead of keeping construction separate. It also complicates testing and may create lifecycle/connection-management issues depending on usage.\n\nBounded remediation plan\n\n1. Make the contract explicit without changing behavior: declare the `db` field, replace `any` with precise request/response and order types, and rename `go`, `x`, `quick`, and `send` to intention-revealing names.\n2. Split responsibilities into small units: one method to load the order, one pure decision function for next status, one persistence step, and one notification command. Keep the controller layer responsible for HTTP response writing.\n3. Remove boolean mode flags from the public API. Replace them with explicit entry points or a small parameter object with named intent if the call site genuinely needs multiple modes.\n4. Eliminate hidden shared state by removing `last`, unless there is a proven external requirement for it. If that requirement exists, expose it through an explicit API and protect it from concurrent misuse.\n5. Isolate the notification boundary behind a dedicated dependency. Preserve current fire-and-forget semantics only if that is intentional, but make that policy explicit and add error handling, logging, and timeout/cancellation behavior.\n6. Simplify the status rule into a direct expression or dedicated policy function so the business rule reads in one place and duplication disappears.\n7. Rewrite the tests around observable behavior: 404 path, `quick` approval path, review threshold path, persistence call, and notification scheduling behavior. Assert exact outcomes, not truthiness.\n\nValidation checklist\n\n- Type-check confirms declared class fields and removal of unintended `any` usage.\n- A test proves missing orders return 404 behavior and do not attempt update or notification.\n- A test proves `quick` mode approves regardless of total, if that is the intended current contract.\n- A test proves non-quick orders above `1000` become `review` and others become `approved`.\n- A test proves persistence receives only the intended update payload.\n- A test proves notification behavior is either explicitly awaited or explicitly fire-and-forget, with failure handling covered.\n- A test proves no shared mutable request state remains on the handler instance.\n- Method and test names state behavior directly; comments that only narrate control flow are gone.\n- Construction/wiring of Prisma and notification dependencies is outside the business method.\n\nNet assessment: the main risks are not cosmetic. The fragment combines weak naming, flag-driven behavior, hidden mutation, boundary leakage, and weak tests in a way that raises real defect risk around typing, concurrency, and asynchronous error handling.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "clean-code",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:27:28.973435Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5871-2c61-7731-88a3-499bec69d643.1783895239777349000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:27:29.039128Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5871-2c5f-79f0-a65a-646236c03c4d.1783895239775999000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:28:22.487889Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5871-4f07-7cd3-816b-5d7d5c1eb323.1783895248647873000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

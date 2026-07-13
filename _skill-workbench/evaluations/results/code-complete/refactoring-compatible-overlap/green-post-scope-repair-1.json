@@ -1,0 +1,52 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-compatible-overlap.md",
+  "case_sha256": "0a3e3ff43521aba3080389491600f106049111ed627a39db0f6bef653a76e695",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58b9-7500-7511-8eaa-9e1d06bfa708",
+  "exit_code": 0,
+  "result": {
+    "answer": "Phase 1 should be a pure preparatory refactor: expose validation as named, testable structure while preserving the current `boolean` contract and all existing observable behavior.\n\nA reviewable Phase 1 plan:\n1. Introduce explicit row meanings locally, without changing inputs or outputs. For example: `ID = 0`, `KIND = 1`, `SCORE = 2`, `STATUS = 3`, `EXPECTED_FIELDS = 4`.\n2. Extract validation into a single helper that still answers only `boolean`, or into small predicates composed by that helper.\n3. Flatten the nested `if` pyramid into guard clauses so each current rejection condition is visible as one step.\n4. Keep row-to-accepted-object construction separate from validation so Phase 2 can change only the validation result contract.\n5. Do not change tests except perhaps harmless naming cleanup if needed; Phase 1 should leave the existing green suite green with no new behavioral assertions.\n\nA Phase 1 sketch:\n```ts\ntype Row = string[];\n\nconst EXPECTED_FIELDS = 4;\nconst ID = 0;\nconst KIND = 1;\nconst SCORE = 2;\nconst STATUS = 3;\n\nfunction isAcceptedKind(value: string): boolean {\n  return value === \"person\" || value === \"company\";\n}\n\nfunction isAcceptedStatus(value: string): boolean {\n  return value === \"active\" || value === \"inactive\";\n}\n\nfunction hasValidShape(row: Row): boolean {\n  if (row.length !== EXPECTED_FIELDS) return false;\n  if (row[ID] === \"\") return false;\n  if (!isAcceptedKind(row[KIND])) return false;\n  if (!/^\\d+$/.test(row[SCORE])) return false;\n  if (!isAcceptedStatus(row[STATUS])) return false;\n  return true;\n}\n\nfunction toAcceptedRow(row: Row) {\n  return {\n    id: row[ID],\n    kind: row[KIND],\n    score: Number(row[SCORE]),\n    status: row[STATUS],\n  };\n}\n\nexport function acceptRow(row: Row): boolean {\n  if (!hasValidShape(row)) return false;\n\n  acceptedRows.push(toAcceptedRow(row));\n  return true;\n}\n```\n\nPhase 2 then changes behavior in one place: validation returns a typed reason instead of `false`, and `acceptRow` returns the new contract.\n\nA reviewable Phase 2 plan:\n1. Replace the Phase 1 boolean validator with a validator returning `AcceptanceResult`.\n2. Keep the same validation order so boundary behavior is deliberate and predictable: field count, missing id, kind, score, status.\n3. Preserve explicit row meaning from Phase 1; do not re-inline positional access.\n4. Keep insertion into `acceptedRows` only on `{ accepted: true }`.\n5. Add tests for every rejection reason and one acceptance test.\n\nA Phase 2 sketch:\n```ts\ntype Row = string[];\n\ntype AcceptanceResult =\n  | { accepted: true }\n  | {\n      accepted: false;\n      reason: \"field-count\" | \"missing-id\" | \"kind\" | \"score\" | \"status\";\n    };\n\nconst EXPECTED_FIELDS = 4;\nconst ID = 0;\nconst KIND = 1;\nconst SCORE = 2;\nconst STATUS = 3;\n\nfunction isAcceptedKind(value: string): value is \"person\" | \"company\" {\n  return value === \"person\" || value === \"company\";\n}\n\nfunction isAcceptedStatus(value: string): value is \"active\" | \"inactive\" {\n  return value === \"active\" || value === \"inactive\";\n}\n\nfunction validateRow(row: Row): AcceptanceResult {\n  if (row.length !== EXPECTED_FIELDS) {\n    return { accepted: false, reason: \"field-count\" };\n  }\n  if (row[ID] === \"\") {\n    return { accepted: false, reason: \"missing-id\" };\n  }\n  if (!isAcceptedKind(row[KIND])) {\n    return { accepted: false, reason: \"kind\" };\n  }\n  if (!/^\\d+$/.test(row[SCORE])) {\n    return { accepted: false, reason: \"score\" };\n  }\n  if (!isAcceptedStatus(row[STATUS])) {\n    return { accepted: false, reason: \"status\" };\n  }\n\n  return { accepted: true };\n}\n\nfunction toAcceptedRow(row: Row) {\n  return {\n    id: row[ID],\n    kind: row[KIND],\n    score: Number(row[SCORE]),\n    status: row[STATUS],\n  };\n}\n\nexport function acceptRow(row: Row): AcceptanceResult {\n  const result = validateRow(row);\n  if (!result.accepted) return result;\n\n  acceptedRows.push(toAcceptedRow(row));\n  return { accepted: true };\n}\n```\n\nTests to add in Phase 2, and only around this function:\n- returns `{ accepted: false, reason: \"field-count\" }` for wrong-length rows\n- returns `{ accepted: false, reason: \"missing-id\" }` for empty id\n- returns `{ accepted: false, reason: \"kind\" }` for unsupported kind\n- returns `{ accepted: false, reason: \"score\" }` for non-numeric score\n- returns `{ accepted: false, reason: \"status\" }` for unsupported status\n- returns `{ accepted: true }` and appends the parsed object for a valid row\n- optionally assert rejected rows do not append to `acceptedRows`\n\nThe key review boundary is: Phase 1 changes structure only; Phase 2 changes only the validator contract and the tests that define the new rejection semantics.",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "refactoring",
+        "sections": [
+          "Primary Directive",
+          "What Counts as Refactoring",
+          "Non-Negotiable Rules",
+          "Safety Rules",
+          "Preferred Refactoring Moves",
+          "Refactoring Catalog Index",
+          "Function-Level Rules",
+          "Class and Module Rules",
+          "Rules for Working with Conditionals",
+          "Data and Mutation Rules",
+          "Testing Rules",
+          "Stopping Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:46:17.093774Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f58b9-4607-75f3-85fb-194a4cd236be.1783899964935626000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T23:47:11.545978Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58b9-7500-7511-8eaa-9e1d06bfa708.1783899976960722000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

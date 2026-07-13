@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/generic-implementation-negative.md",
+  "case_sha256": "e5e0789d2b0abfc834e073cfaae1b867464493069729eb267096489b388d15fc",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58cd-2fe0-7362-bcf9-1d91e3c20d0e",
+  "exit_code": 0,
+  "result": {
+    "answer": "```ts\nexport function clamp(value: number, minimum: number, maximum: number): number {\n  if (value < minimum) {\n    return minimum;\n  }\n\n  if (value > maximum) {\n    return maximum;\n  }\n\n  return value;\n}\n```\n\nThree representative tests:\n\n```ts\nimport { strict as assert } from \"node:assert\";\n\nassert.equal(clamp(-5, 0, 10), 0);  // below range -> minimum\nassert.equal(clamp(15, 0, 10), 10); // above range -> maximum\nassert.equal(clamp(7, 0, 10), 7);   // inside range -> unchanged\n```\n\nReview: this implementation matches the stated contract exactly. Given the supplied preconditions that all inputs are finite and `minimum <= maximum`, the function has the three required behaviors: clamp low, clamp high, and otherwise return the original value unchanged.\n\nNo files were modified.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:08:17.571067Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58cd-2fe0-7362-bcf9-1d91e3c20d0e.1783901269984575000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5895-fc9d-74a0-86f6-3b15263c9336",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small-step refactoring sequence, with the existing focused tests run after each step. The right stopping point is a clearer decomposition of the current algorithm, not a new pricing design.\n\nRecommended sequence:\n\n1. Extract subtotal calculation first.\nMove the item loop into a private helper such as `subtotalCentsFor(items)`. This is the safest first slice because it has no branching and no downstream policy decisions.\n\n2. Extract discount calculation next.\nCreate a helper like `discountCentsFor(customerTier, subtotalCents)`. Keep the threshold and `Math.floor` exactly where they are semantically. Do not generalize tiers or introduce percentage configuration yet.\n\n3. Extract shipping calculation as its own phase.\nCreate `shippingCentsFor(destination, subtotalCents, discountCents)`. The important part is preserving the current dependency order: free shipping is decided from `subtotalCents - discountCents`, and international shipping overrides domestic free shipping. Making that dependency explicit is the main structural win.\n\n4. Make the final money flow explicit in `price()`.\nLeave `price()` as a straight orchestration method:\n`subtotal -> discount -> shipping -> taxable -> tax -> total`.\nUse named locals for `taxableCents` and `totalCents` so the method reads as the pricing pipeline rather than as a block of mixed concerns.\n\n5. Extract tax calculation only if it improves readability.\nA helper like `taxCentsFor(taxableCents)` is reasonable, but optional. If `price()` is already short and obvious after steps 1 to 4, stop there.\n\n6. Stop before introducing new abstractions.\nDo not introduce policy objects, strategies, rule engines, DTO reshaping, or a new public API. There is only one pricing flow here, and the tests already protect it. Additional indirection would be speculative.\n\nWhere the cleanup should stop:\n\n- Stop when `price()` is a thin coordinator over a few private helpers.\n- Stop when each helper owns one phase of the existing algorithm.\n- Stop when the ordering constraint \"discount before free shipping\" is obvious from the code.\n- Stop before changing data shapes, visibility, class responsibilities, or extension mechanisms.\n\nA reviewable patch structure would be 3 to 4 commits or PR slices:\n\n1. extract subtotal\n2. extract discount and shipping\n3. simplify `price()` into orchestration locals\n4. optional tax helper if it genuinely clarifies\n\nThat keeps the work behavior-preserving, easy to diff, and aligned with the stated boundary: structural cleanup only, no feature work hidden inside refactoring.",
+    "selected_project_skills": [
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:08:04.734882Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5895-fc9d-74a0-86f6-3b15263c9336.1783897652382028000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

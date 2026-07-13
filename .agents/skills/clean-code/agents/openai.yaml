@@ -1,0 +1,7 @@
+interface:
+  display_name: "Clean Code"
+  short_description: "Apply Clean Code guidance to local code"
+  default_prompt: "Use $clean-code to improve this code's local readability without broadening the change."
+
+policy:
+  allow_implicit_invocation: true

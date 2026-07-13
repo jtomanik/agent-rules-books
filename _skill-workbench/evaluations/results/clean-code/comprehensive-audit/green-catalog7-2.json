@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/comprehensive-audit.md",
+  "case_sha256": "114e8945371df220dfdc2cd6c705faf344c5fb5585e06a59c2b351aedea4a201",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5872-edf9-7851-9b9b-e21b23877c56",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Audit**\nAssumed line numbers are from the provided fragment.\n\n1. `Handler.go` is doing too many jobs at once ([fragment line 9](#)): HTTP boundary handling, lookup, rule evaluation, state mutation, persistence, async notification dispatch, and response emission. This is the primary Clean Code failure because it destroys local reasoning and gives the method many reasons to change.\n2. `this.db` is constructed inside the class and not declared as a typed field ([lines 4-5](#)). If this fragment is literal TypeScript, that relies on dynamic property creation and weak compiler settings. Even when it compiles, it couples business behavior directly to Prisma construction and makes the class hard to test.\n3. The async notification path is a real defect risk ([lines 30-36](#)). `setTimeout(async () => ...)` creates fire-and-forget work with no observable success/failure path, no timeout/cancellation policy, and likely unhandled rejection behavior on failure. The caller cannot know whether \u201csends everything\u201d actually happened.\n4. The method API hides mode switches behind booleans (`quick`, `send`) and `any` parameters ([line 9](#)). This makes misuse easy, obscures intent at call sites, and forces readers to inspect implementation to understand behavior.\n5. Naming is severely non-intention-revealing: `go`, `x`, `last`, `quick`, and `send` all violate the naming rules ([lines 2, 9-10](#)). The names carry almost no domain meaning, so the reader must reconstruct intent from control flow.\n6. Hidden mutable state is introduced without a clear contract via `last` ([lines 2, 27](#)). The handler both mutates internal state and returns/sends a result. That mixes responsibilities and becomes more dangerous once async work closes over the same order object.\n7. The loaded order object is mutated in place and then reused for persistence, response, and notification ([lines 17-35](#)). That broadens aliasing and makes future changes error-prone, especially if ORM-returned objects carry metadata or partial fields.\n8. Error handling is incomplete ([lines 10, 28, 32](#)). Database failures and notification failures are not modeled. The only explicit branch is \u201cnot found\u201d, and even there the method mixes `res.status(...).send(...)` with `return null`, which is an awkward command/query split.\n9. Comments are compensating for bad structure instead of adding non-obvious rationale ([lines 8, 39](#)). Both comments narrate what the code already does and would be unnecessary if the method were decomposed and named well.\n10. The test is too weak to protect behavior ([lines 44-47](#)). `it(\"works\")` and `expect(result).toBeTruthy()` do not verify status selection, persistence, 404 handling, notification triggering, or response shape. It is not a meaningful regression barrier.\n\n**Bounded Remediation Plan**\n1. Split `go` into explicit phases while preserving the external behavior: `loadOrder`, `decideNextStatus`, `persistOrder`, `dispatchNotification`, and `sendResponse`. Keep the current status rules and current response behavior unless a defect fix is intentionally applied.\n2. Replace `any` and boolean flags with explicit types and intent-revealing inputs. A minimal step is `Request`/`Response` types plus a small command object such as `{ approvalMode: \"quick\" | \"normal\", notify: boolean }`.\n3. Inject dependencies instead of constructing them internally: accept an order repository/notifier in the constructor, and declare typed fields. This preserves behavior while isolating Prisma and `fetch` behind local boundaries.\n4. Remove `last` unless there is a real externally required contract for it. If the value must be retained, rename it to an intention-revealing field and document the lifecycle constraint.\n5. Stop mutating the fetched entity in place. Compute `nextStatus`, build an explicit update payload, and use that payload for persistence/response/notification.\n6. Treat notification dispatch as a defect-focused change. If fire-and-forget is required, keep it asynchronous but move it behind a notifier abstraction that captures/logs failures explicitly. If delivery matters to correctness, await it and expose failure semantics intentionally.\n7. Replace narrating comments with better names and smaller functions.\n8. Rewrite tests around behavior contracts before any structural refactor goes far: approved path, review path, 404 path, persistence call shape, and notification behavior.\n\n**Validation Checklist**\n- A reader can understand the top-level method without descending into implementation details.\n- No public method uses `any`, `go`, `x`, `last`, or boolean mode flags.\n- Construction/wiring of Prisma and notification transport is outside core handler behavior.\n- Status decision logic is covered by focused tests for `quick=true`, `quick=false && total>1000`, and `quick=false && total<=1000`.\n- 404 behavior is verified explicitly, including response status/body and the absence of update/notification calls.\n- Update behavior is verified explicitly, including the payload written to persistence.\n- Notification behavior is tested for both enabled and disabled modes, and failure behavior is defined rather than accidental.\n- No comment remains that merely restates the code.\n- Shared mutable state is removed or justified by an explicit contract.\n- The final design preserves current externally visible behavior except where a defect fix deliberately changes it.\n\nNet assessment: the fragment is not clean by the full Clean Code standard. The most important next move is not a broad rewrite; it is to separate responsibilities, make the API explicit, and put real tests around the behavior before deeper cleanup.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "clean-code",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:29:15.066711Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-cb1f-7f62-9145-e14e123fa87e.1783895345951829000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:30:17.641510Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-edf9-7851-9b9b-e21b23877c56.1783895354874128000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

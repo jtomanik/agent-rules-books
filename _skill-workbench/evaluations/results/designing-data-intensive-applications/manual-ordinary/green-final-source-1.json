@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/manual-ordinary.md",
+  "case_sha256": "69b708ffcc204c951add2748670f29b34dbf1c27f7a8fc5c7fe5e58bba74bf8b",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58ca-c4cc-73e2-9bc9-12ddcf99b546",
+  "exit_code": 0,
+  "result": {
+    "answer": "PostgreSQL owns product truth. The search projection is explicitly derived data: it does not participate in product write acceptance, it may be stale for up to 30 seconds, and any discrepancy is resolved in favor of PostgreSQL.\n\nContract:\n- Ownership: Product creates, updates, deletes, and schema meaning are authoritative only in PostgreSQL. Search stores only a query-optimized copy plus projection metadata needed for replay and diagnosis.\n- Propagation: Every committed PostgreSQL product change must be appended durably to the change log after, or atomically with, source commit visibility according to the existing system design. Projection consumers read that durable log asynchronously, apply changes idempotently, and tolerate duplicate delivery, replay, restart, and per-record reordering unless the log already guarantees per-product order. The minimum required ordering contract is per `product_id`; projection logic must not depend on any broader global order.\n- Write semantics: A product write is successful when PostgreSQL commits. Search visibility is a downstream effect, not part of write success. Clients must treat search results as eventually consistent and may observe stale, missing, or not-yet-deleted products within the 30 second lag budget.\n- Checkpoint: The projector maintains a durable checkpoint equal to the last fully applied change-log position. The checkpoint advances only after projection writes for that position are durable in the search store. On restart, the consumer resumes from the last durable checkpoint and replays forward. If a checkpoint is uncertain after failure, the system must prefer replay from the previous known-safe position over skipping ahead.\n- Idempotency and replay: Each change event must carry a stable event identifier and product identifier. Applying the same event more than once must converge to the same projection state. If events are updates expressed as full product state, replay is straightforward; if they are partial deltas, the contract must include a version or sequence check so stale or duplicate deltas do not corrupt the projection.\n- Lag observability: Production must expose at least `now minus source-commit-time of latest applied event`, `now minus source-commit-time of oldest unprocessed event`, current checkpoint position, and backlog depth or distance from log head. Alert when lag exceeds 30 seconds or when the checkpoint stops advancing while source changes continue.\n- Rebuild: Because the projection is derived, loss of the search index is repaired by truncating or replacing it and replaying the durable change log from the chosen rebuild start position. If the log retention window is insufficient for full replay, the contract requires a PostgreSQL snapshot seed plus replay of subsequent log entries from the snapshot watermark. Rebuild correctness is defined by eventual equivalence to PostgreSQL for all products after replay catches up.\n- Repair: If individual documents are missing, duplicated, or malformed, repair is done by targeted re-projection from PostgreSQL for the affected `product_id`s, or by replay from a bounded log position range when the fault scope is temporal. If divergence scope is unknown, perform full rebuild. Manual edits in search are invalid; repair always flows from PostgreSQL or the durable log.\n- Schema evolution: Product schema changes must preserve mixed-version replay safety. Events need explicit versioning, and projector code must tolerate old events already in the durable log. Search-only field derivations may change, but rebuild must reproduce them deterministically from PostgreSQL state plus versioned transformation rules.\n\nBoundaries intentionally not expanded here: source database capacity, broader replication topology, and system-wide production policy remain fixed and out of scope.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/designing-data-intensive-applications/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:05:38.062836Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58ca-c4cc-73e2-9bc9-12ddcf99b546.1783901111500586000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

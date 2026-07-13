@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5883-c512-72c1-bc48-cd4a39cdfa97",
+  "exit_code": 0,
+  "result": {
+    "answer": "Unsafe. The shortcut should not be approved before launch.\n\nFindings:\n1. `email.sendReceipt(...)` is outside both the database transaction and any durable deduplication boundary, while `message.ack()` happens after it. Given the stated crash window after ledger commit and before offset commit, the same message will be re-delivered and the handler will run again. That can send the same receipt twice, which is explicitly a correctness defect.\n2. Broker transactions and producer idempotence do not make this consumer exactly-once with respect to external side effects. They can coordinate broker-visible state, but they do not make `email.sendReceipt(...)` atomic with the DB commit or the offset commit, and the email provider does not support idempotency keys and returns unknown outcome on timeout.\n3. Replay is a supported recovery path, so this consumer must be replay-safe. As written, replay re-executes `markConfirmed`, re-inserts ledger state unless the DB schema rejects duplicates, and re-sends receipts. Even if the DB writes are made idempotent, replay still breaks on the email side effect.\n4. Ordering for a single order is not guaranteed because the topic key is `customer_id`, and facts state two events for the same order can land on different partitions. With `max_concurrency: 48`, the consumer can process same-order events concurrently or out of order. Any approval argument that depends on \u201cconfirm runs once and in order\u201d is invalid unless order-level serialization is added or state transitions are made monotonic and duplicate-safe.\n5. Unknown-success email timeouts are a hard correctness gap. If `email.sendReceipt(...)` times out, the process cannot know whether the provider sent the message. Retrying after redelivery can produce a duplicate; not retrying can miss the receipt. Without an application-controlled idempotency mechanism or a durable send log plus reconciliation strategy, exactly-once user-visible behavior is unattainable.\n\nWhat must change before launch:\n- Keep the deduplication/idempotency store. Do not remove it.\n- Make message handling idempotent at the business-operation level, keyed by a stable event/message ID. The dedup record must be written durably before acknowledging the message.\n- Make ledger mutation duplicate-safe with a unique constraint or equivalent invariant tied to the business event being applied. `markConfirmed` should also be monotonic/idempotent.\n- Remove direct email sending from the consume path. Persist an outbox/intention record in the same DB transaction as the order/ledger change, then ack only after that transaction commits.\n- Deliver receipts from the outbox with its own durable deduplication state. Since the provider has no idempotency key and unknown timeout outcomes, the launcher-safe position is to prevent duplicate enqueue/selection on your side and add reconciliation/manual-retry handling for ambiguous sends.\n- If same-order events can arrive on different partitions, add order-level serialization or explicit version/transition checks so out-of-order delivery cannot regress state or trigger duplicate side effects.\n\nMinimum launch decision: reject the shortcut, keep the idempotency table, and require transactional inbox/outbox-style handling before launch.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:48:00.134484Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5883-c512-72c1-bc48-cd4a39cdfa97.1783896458514415000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

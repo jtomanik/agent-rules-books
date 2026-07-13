@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/outbound-provider.md",
+  "case_sha256": "420500ae5fd787a2e9919b3b0bbbb67e620f27ac56b3631d066e7d74b79028c2",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b3-4134-74a0-89c7-15e22d501597",
+  "exit_code": 0,
+  "result": {
+    "answer": "Not ready for 100% checkout traffic in its current form.\n\nFindings\n1. The retry envelope is unsafe for a side-effecting payment call. `ProviderClient.post` is a `POST`, the SDK already retries transport/`429`/`5xx`, and the outer loop retries 4 more times. If the provider authorizes successfully and the failure happens during `response.json()`, DB insert, or DB commit, this code will call `/authorize` again and can create duplicate authorizations. A successful provider authorization followed by a local persistence failure must never trigger a second authorization unless the provider call is protected by an idempotency key such as `order.id`.\n2. The request path can block indefinitely. `requestSignal` is ignored, both provider timeouts are effectively infinite (`0`), and `Semaphore.acquire()` waits forever. When the provider stalls, workers and semaphore slots stay occupied until the process collapses into saturation, which matches the load-test symptom.\n3. A DB transaction is opened before the remote call and held across all retries and sleeps. Slow provider responses therefore consume DB transaction/connection capacity for no useful work and widen the blast radius from provider slowness into the database and request-worker pools.\n4. The degraded path is not production-safe. `pendingAuthorizations` is an in-memory unbounded array and `PENDING_AUTHORIZATION_CAPACITY=0` means infinite growth. Under provider outage or overload, this will grow until memory pressure or process restart drops work. Returning `{ kind: \"pending\" }` is only safe if the authorization request is durably recorded in a bounded queue/outbox.\n5. Malformed `200` responses are not validated at the boundary. An HTML error page with status `200` will fail during `response.json()`, be treated like a transient retry, and eventually fall into the unsafe pending path. The integration must validate status, content type, and response shape before trusting it.\n\nSmallest production-ready changes before launch\n- Put explicit deadlines on the outbound call and bind them to checkout budget. Pass `requestSignal` into `provider.post(...)`. Set non-zero connect/response timeouts so the provider attempt finishes well inside `CHECKOUT_REQUEST_TIMEOUT_MS=2500`, leaving time to persist and respond.\n- Bound slot acquisition. Do not wait forever for `paymentSlots.acquire()`. If a slot is not available quickly, fail fast into the degraded path instead of tying up a request worker.\n- Remove nested retries. Keep one retry layer only. For `POST /authorize`, retries are acceptable only if the provider request is idempotent with a stable key per order. If idempotency is unavailable, disable automatic retries for authorization and prefer timeout -> degraded handling.\n- Move `database.beginTransaction()` until after a validated provider success, and keep DB write/commit outside the provider retry loop. A DB failure after provider success must become a reconciliation/persistence problem, not a second provider authorization.\n- Replace the in-memory pending list with a durable bounded queue/outbox, or do not return `pending`. If a durable queue cannot be added before tomorrow, the safer launch decision is to fail checkout explicitly on provider exhaustion instead of claiming pending acceptance.\n- Validate the provider response boundary: expected HTTP status, JSON content type, parse success, and required fields like `authorization_id` and `state`. Treat invalid `200` HTML as a dependency-contract failure.\n- Add minimal diagnostics: timeout count, retry count, malformed-response count, semaphore saturation, pending queue depth/age, and provider latency.\n\nRequired behavior by failure mode\n- Slow provider: stop waiting at a bounded deadline, release the semaphore slot and request worker, and either enqueue durably as pending or fail the checkout explicitly if no durable queue exists.\n- Overloaded provider (`429`): apply bounded backoff with jitter in exactly one retry layer, but only with request idempotency. If the retry budget is exhausted, degrade quickly; do not keep workers occupied through long retry chains.\n- Unavailable provider / transport failure: same as slow provider. No infinite waits, no unbounded retries, no in-memory backlog.\n- Malformed response (`200` + HTML or wrong schema): reject it as provider failure, do not persist provider fields, do not treat it as success, and only retry if idempotency rules make retry safe.\n\nLaunch gate\nDo not send 100% traffic tomorrow unless these are true: outbound timeouts are explicit, waits are bounded, retries are single-layer and idempotent, the DB transaction no longer spans the remote call, and the pending path is durable and bounded. Without that set, a slow or unhealthy provider can again consume every worker and may also create duplicate authorizations.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T09:41:58.730075Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55b3-4134-74a0-89c7-15e22d501597.1783849238859327000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

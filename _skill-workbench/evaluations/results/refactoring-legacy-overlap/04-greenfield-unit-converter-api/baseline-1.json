@@ -1,0 +1,56 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/04-greenfield-unit-converter-api.md",
+  "case_sha256": "63ccc2375cab5894cd09f48af6b6946d3763a6b9ac4f8373d1cc1916f5cf2308",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5339-a3a2-7f33-a7d2-a5ff1cc7f015",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use an immutable `UnitConverter` built from an explicit `ConverterBuilder` (or one-shot `ConverterConfig`) and keep conversion calls stateless.\n\nRecommended API shape\n\n```ts\n// conceptual shape, language-agnostic\nDimensionId = string\nUnitId = string\n\ninterface UnitDefinition {\n  unit: UnitId\n  dimension: DimensionId\n  scale: number        // multiplier into the dimension's canonical base\n  offset?: number      // additive term into canonical base, default 0\n}\n\ninterface ConversionRequest {\n  value: number\n  from: UnitId\n  to: UnitId\n}\n\ninterface UnitConverter {\n  convert(value: number, from: UnitId, to: UnitId): Result<number, ConvertError>\n  mustConvert(value: number, from: UnitId, to: UnitId): number throws ConvertError\n  hasUnit(unit: UnitId): boolean\n  unit(unit: UnitId): UnitDefinition | null\n  dimensionOf(unit: UnitId): DimensionId | null\n}\n\ninterface ConverterBuilder {\n  addDimension(id: DimensionId): ConverterBuilder\n  addUnit(def: UnitDefinition): ConverterBuilder\n  build(): Result<UnitConverter, DefinitionError[]>\n}\n```\n\nModel each unit as an affine transform to a dimension-local canonical unit:\n`canonical = value * scale + offset`\n`target = (canonical - targetOffset) / targetScale`\nThis cleanly handles absolute temperatures and ordinary scaled units with one rule.\n\nWhy this shape\n\nCompared shapes:\n\n1. `convert(value, from, to)` on an immutable converter built from definitions.\nThis is the strongest option. It is deterministic, concurrency-safe, easy to validate up front, and keeps registration local.\n\n2. Dimension-scoped converters, e.g. `converter.forDimension(\"temperature\").convert(...)`.\nCredible, but adds ceremony without much benefit because the unit ids already imply dimension. Better only if the library expects heavy per-dimension introspection.\n\n3. Fully ad hoc conversion calls that accept definitions each time, e.g. `convert(config, value, from, to)`.\nSimple surface, but weaker ergonomics and repeated validation costs. Easy to misuse and less suitable for shared configured instances.\n\nRecommendation: choose shape 1.\n\nImportant types\n\n- `DimensionId`: opaque string or newtype.\n- `UnitId`: opaque string or newtype.\n- `UnitDefinition`: `{ unit, dimension, scale, offset=0 }`.\n- `UnitConverter`: immutable read-only runtime object.\n- `ConverterBuilder` or `ConverterConfig`: write-only construction API.\n- `DefinitionError`: build-time validation failures.\n- `ConvertError`: runtime conversion failures.\n\nValidation rules\n\nAt build time:\n- reject duplicate unit ids\n- reject unknown referenced dimensions if dimensions are declared explicitly\n- reject `scale == 0`\n- reject non-finite `scale` or `offset`\n- reject empty or malformed ids if the library wants identifier rules\n\nAt convert time:\n- reject unknown `from` or `to`\n- reject incompatible dimensions\n- reject non-finite input value\n- optionally reject non-finite computed result if overflow matters to the contract\n\nError contract\n\nPrefer typed errors over sentinel values.\n\n```ts\ntype DefinitionErrorCode =\n  | \"DuplicateUnit\"\n  | \"UnknownDimension\"\n  | \"InvalidScale\"\n  | \"NonFiniteDefinition\"\n\ntype ConvertErrorCode =\n  | \"UnknownUnit\"\n  | \"IncompatibleDimension\"\n  | \"NonFiniteInput\"\n  | \"NonFiniteResult\"\n```\n\nEach error should include machine-readable fields such as `unit`, `from`, `to`, `dimension`, and offending numeric value. If the language supports it, use sealed enums / tagged unions.\n\nMutability and sharing\n\n- Builder/config is mutable during setup only.\n- `build()` freezes state into an immutable converter.\n- `UnitConverter` exposes no mutation API and holds only in-memory lookup tables.\n- Safe sharing comes from immutability, not internal locking.\n- No global registry, no ambient defaults, no I/O.\n\nAPI details worth keeping\n\n- Require unit ids to be globally unique within a converter. Do not overload `\"C\"` across dimensions.\n- Keep canonical units internal; callers should not need to name them unless they want to.\n- Provide both `Result`-returning and throwing variants only if the host language commonly uses both. Otherwise pick one convention.\n- Keep parsing/formatting out of scope: ids are exact keys, not free-form user text.\n\nTest surface\n\nConstruction tests:\n- accepts valid scaled units in one dimension\n- accepts affine temperature units\n- rejects duplicate units\n- rejects zero scale\n- rejects NaN/infinite scale or offset\n- rejects undefined dimension if explicit dimension registration exists\n\nConversion tests:\n- identity conversion returns same value\n- scale-only conversions are correct\n- offset conversions are correct for absolute temperatures\n- cross-dimension conversion fails\n- unknown `from` and unknown `to` fail\n- NaN/infinite input fails\n- result determinism across repeated and concurrent calls\n\nProperty-style tests:\n- round trip `A -> B -> A` is stable within tolerance\n- converting through canonical equals direct formula\n- conversion is deterministic regardless of call interleaving\n\nConcurrency tests:\n- same built converter used from many threads/tasks without mutation or races\n\nRecommendation summary\n\nAdopt an immutable `UnitConverter` with explicit build-time registration of affine unit definitions. It gives the cleanest separation between validation and runtime conversion, matches the determinism/concurrency requirements, and leaves room for future extension without committing to parsing, localization, or compound-unit algebra.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Use an immutable `UnitConverter` built from an explicit builder/configuration object, with all validation performed at build time and stateless conversion at runtime.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Represent each unit definition as an affine transform to a dimension-local canonical unit using `canonical = value * scale + offset`; this unifies scale-only units and absolute temperatures cleanly.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Define separate build-time and runtime error families with machine-readable codes such as `DuplicateUnit`, `InvalidScale`, `UnknownUnit`, and `IncompatibleDimension` rather than returning sentinel values.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Keep the configured converter free of mutation and global registration so a single instance can be shared safely by concurrent callers without locking.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Test both nominal conversions and contract failures, including duplicate definitions, invalid numeric parameters, incompatible dimensions, non-finite inputs, round trips, and concurrent deterministic use.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:08:34.344071Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5339-0b19-75b0-a095-31e980818b78.1783807675161548000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

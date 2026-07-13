@@ -1,0 +1,55 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5896-e0c0-7361-999d-56235d5d0a4f",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is neither \u201clet every error crash\u201d nor \u201ccatch everything and ack.\u201d It has to be classification-based.\n\n`Quarantine`\n- Malformed inbound message only: invalid JSON in `message.body`, missing or invalid `event.id` / `event.sku`, or other schema/business-plausibility failure before any dependency call.\n- Do not crash the process for this. Do not retry it.\n- Current config makes quarantine impossible because `dead_letter_exchange: null`. Add a quarantine/DLQ path and reject without requeue, or an equivalent explicit quarantine publish+ack flow.\n\n`Retry or pause`\n- Transient dependency failure: inventory `503`, timeout, transport error, and also `200` with malformed JSON from the inventory service. That last case is a dependency-contract failure, not a poison message.\n- Do not ack these failures. Do not quarantine the original message.\n- Do bounded local retries only if they are time-bounded and backed off. `dependency_timeout_ms: 0` is unsafe here; infinite waits plus `prefetch: 100` can pin a large in-flight set.\n- After bounded retries fail, pause consumption rather than crash. In this system that means the worker must stop taking new work and fail readiness on dependency-unhealthy / consumer-paused state so operators can pause the deployment cleanly. Crashing is the wrong control because supervisor restart plus unlimited redelivery just creates a replay storm.\n\n`Process crash`\n- Reserve crash for compromised local process state: the worker cannot trust its own runtime or cannot determine whether continuing is safe.\n- Examples: invariant/bug states that mean the handler classification is no longer trustworthy, broker/client state corruption, failure to enter the safe paused state, or other conditions where the process may start acking or writing incorrectly if it stays alive.\n- Ordinary parse errors, `503`s, timeouts, bad downstream JSON, and ordinary transaction failures are not in this class.\n\nWhy this is the correct line in this deployment:\n- With `restart: always`, 100-1000 ms backoff, `max_restarts_per_minute: 0`, six replicas, unlimited deliveries, and no DLQ, \u201cthrow everything\u201d turns poison messages into cluster-wide restart loops. Your staging result already demonstrated that.\n- \u201cCatch everything and ack\u201d is equally unsafe because it converts transient dependency failures and dependency contract failures into silent data loss.\n\nMinimal changes needed to make the policy safe and testable:\n- Add explicit inbound classification before the dependency call: parse + validate `InventoryEvent`; quarantine only those failures.\n- Configure quarantine: set a real `dead_letter_exchange` or equivalent quarantine queue.\n- Add explicit dependency timeout and bounded backoff/jitter. `dependency_timeout_ms` must be finite.\n- Replace the broad rethrow path with three branches: `quarantine`, `retry/pause`, `fatal crash`.\n- Make readiness reflect `can safely consume`, not just `broker_connection_is_open`. A paused/broken dependency state should be not-ready.\n- Make replay safe across crash-after-commit / ack-loss by enforcing idempotency on `eventId` at the database boundary, or an equivalent deduplication guard. Without that, the restart policy is not safe even with correct error classification.\n- Emit structured outcome logs/metrics by class: `malformed_message`, `dependency_retry`, `dependency_paused`, `fatal_process_state`, with `eventId` when available.\n\nTests to require, and no more:\n- Invalid message JSON or schema: quarantined once, not retried, process stays up.\n- Inventory `503` / timeout: bounded retries, then consumer enters paused/not-ready state, message remains unacked.\n- Inventory `200` with malformed JSON: treated the same as dependency failure, not quarantined.\n- Crash or ack failure after successful DB commit: redelivery does not duplicate durable effects because `eventId` handling is idempotent.\n- Fatal-state classification: process exits and supervisor restart occurs only for that class.\n\nIn short: quarantine only bad inbound messages, retry then pause for dependency failures, and crash only for compromised process state. The current code crashes far too broadly, and the \u201ccatch+ack everything\u201d alternative would lose valid work.",
+    "selected_project_skills": [
+      "release-it",
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md",
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "release-it",
+        "sections": [
+          "Dependency Protection Rules",
+          "Data Boundary Rules",
+          "Operational Visibility Rules",
+          "Testing Rules"
+        ]
+      },
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Idempotency and Replay Rules",
+          "Transaction Rules",
+          "Testing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:10:07.875507Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5896-e0c0-7361-999d-56235d5d0a4f.1783897710785081000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

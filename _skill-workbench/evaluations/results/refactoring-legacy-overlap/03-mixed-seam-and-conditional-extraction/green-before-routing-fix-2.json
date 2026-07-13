@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5347-f574-7561-8604-fbe77ffbdda9",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommended Work Order**\n\nTreat this as legacy change work first, refactoring second, feature third. The code has two hard blockers to focused feedback: hidden construction of `RenewalDatabase` and direct reads of the system clock. Do not start by editing the duplicated conditional in place.\n\n1. Learn and lock down current behavior before semantic edits.\n- Add fast focused tests around `quote()` and `renew()` using controllable collaborators.\n- Characterize the current non-trial outcomes first: `active + nonnegative balance` is eligible, `paused`, `closed`, and negative balance are not.\n- Characterize `renew()` side effects exactly: still one transaction, still inserts one renewal row, still calls `markRenewed`, still uses the same timestamp string for both writes, still returns `\"renewed\"` or `\"skipped\"` exactly.\n- Keep the existing slow end-to-end success-path test as a backstop.\n\n2. Create the smallest seam that makes those tests possible, with no behavior change.\n- Introduce injectable dependencies for database access and time.\n- Preserve the current public construction path by keeping defaults that still use `new RenewalDatabase(process.env.RENEWAL_DSN!)` and the real clock.\n- A minimal shape is enough: constructor overloads, optional params, or a small dependency object such as `{ database, now }`.\n- This patch must be behavior-preserving. No rule changes yet.\n\n3. Establish one owner for eligibility, still with no behavior change.\n- Extract the current predicate unchanged into one local owner, for example `isEligibleForAutomaticRenewal(account, now)`.\n- Make both `quote()` and `renew()` delegate to that owner.\n- Do not widen responsibility beyond eligibility. Pricing lookup, transaction scope, writes, and return values stay where they are.\n- This is the structural duplication-removal patch. It should be reviewable as pure refactoring.\n\n4. Add the new trial-age rule only in that single owner.\n- Extend eligibility so `trial` accounts older than 30 days are ineligible.\n- Leave all existing non-trial outcomes unchanged.\n- Leave trial accounts at or under the boundary unchanged.\n- Add focused tests for the new rule in both read and write paths through the shared eligibility owner behavior: `quote()` returns `null`, `renew()` returns `\"skipped\"`, and no writes occur.\n\n**What Must Be Learned or Controlled Before the Behavior Change**\n\n- Confirm the boundary meaning of \"older than 30 days\". Safe default is strict age comparison: ineligible only when `now > trialStartedAt + 30 days`; exactly 30 days old remains eligible. If product means `>= 30 days` or calendar-day counting, that must be explicit before merge.\n- Confirm timestamp semantics for `trialStartedAt`: ISO UTC strings, timezone guarantees, and whether invalid or null values for `trial` can exist.\n- Decide and document the null case for `trialStartedAt` on `trial` accounts. If the data invariant is supposed to forbid it, test or guard accordingly. Do not invent fallback behavior silently.\n- Confirm whether `quote()` and `renew()` are required to stay perfectly aligned on eligibility. The current code implies yes; the refactor should make that alignment explicit.\n\n**Patch Boundaries**\n\nPatch 1: test seam only.\n- Scope: dependency injection for database and clock, plus focused characterization tests.\n- Must remain behavior-preserving.\n- Must not change eligibility logic, transaction behavior, timestamps, or constructor behavior for existing callers.\n\nPatch 2: duplicate conditional consolidation only.\n- Scope: extract a single eligibility owner and replace the two inline conditionals.\n- The extracted logic must match the old predicate exactly.\n- Must not change pricing calls, write sequencing, transaction boundaries, or return values.\n\nPatch 3: trial-age rule.\n- Scope: add `trial older than 30 days => ineligible` in the single eligibility owner and add boundary tests.\n- Intended semantic delta only: old trial accounts stop receiving quotes and stop renewing automatically.\n- Everything else must remain unchanged.\n\n**Behavior-Preservation Rules During Structural Work**\n\n- Keep `quote()` returning the same values for all currently covered non-trial cases.\n- Keep `renew()` returning the same status strings and performing the same writes for all currently eligible non-trial cases.\n- Keep the same DSN source and default runtime wiring for production callers.\n- Keep `renew()` using one captured `now` value per invocation for both persisted timestamps.\n- Do not mix constructor redesign, repository redesign, pricing changes, or transaction reshaping into this delivery.\n\n**Suggested Test Matrix After the Rule Lands**\n\n- `paid active` with nonnegative balance: still eligible.\n- `paused`, `closed`, negative balance: still ineligible.\n- `trial` at 29 days: still eligible.\n- `trial` at exactly 30 days: eligibility depends on the confirmed boundary; default expectation should be eligible if the rule is strictly \"older than\".\n- `trial` at 30 days plus a minimal increment: ineligible.\n- Ineligible trial in `renew()`: returns `\"skipped\"` and performs no insert or mark.\n- Ineligible trial in `quote()`: returns `null` and does not call price lookup.\n\nIf the team insists on adding the rule before consolidation, keep it to a single short-lived patch after the seam work, duplicate the exact same rule in both methods, and immediately follow with the extraction patch. The safer recommendation is still seam first, single owner second, rule third.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:24:12.838265Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5347-f50e-7580-a081-9fffe7bdc95e.1783808652558401000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:25:38.413109Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5347-f574-7561-8604-fbe77ffbdda9.1783808652725145000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

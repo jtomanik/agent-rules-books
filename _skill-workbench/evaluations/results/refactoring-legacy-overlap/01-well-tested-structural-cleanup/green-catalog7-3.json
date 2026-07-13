@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5874-3d60-7463-ab36-86b2a7df3654",
+  "exit_code": 0,
+  "result": {
+    "answer": "Keep this as a small-step refactoring, not a redesign. The current method mixes four computation phases in one body: subtotal, discount, shipping, and tax/total assembly. The tests are already a sufficient safety net for this cleanup, so the sequence should optimize for tiny behavior-preserving moves with a green test run after each step.\n\nRecommended sequence:\n1. Make the phases explicit inside `price()` before extracting anything. Introduce a local like `discountedSubtotalCents = subtotalCents - discountCents` and keep the existing shipping precedence exactly as-is: international first, otherwise free shipping based on the discounted subtotal.\n2. Extract subtotal calculation into a private helper such as `calculateSubtotalCents(items)`. This is a pure loop extraction and should be mechanically safe.\n3. Extract discount calculation into `calculateDiscountCents(customerTier, subtotalCents)`. Keep the threshold and flooring exactly unchanged.\n4. Extract shipping calculation into `calculateShippingCents(destination, discountedSubtotalCents)`. This is the highest-risk extraction because the current rule ordering matters; preserve the current semantics where international shipping overrides domestic free shipping.\n5. Extract tax calculation into `calculateTaxCents(taxableCents)` and leave total assembly in `price()`. At that point `price()` becomes a short orchestration method that reads top-to-bottom in business order.\n6. Only if the result is still awkward, do one final naming pass on helpers and locals so the method reads as a pricing pipeline rather than a bundle of temporary variables.\n\nA good stopping point is when `price()` is just orchestration over a few small pure helpers and the existing tests still pass unchanged. Stop there. Do not introduce new classes, strategy objects, value objects, constants modules, or a pricing pipeline abstraction yet; that would be speculative because this module is still small and already well protected. Do not change the public API, returned shape, rule ordering, rounding points, or test expectations during this cleanup.",
+    "selected_project_skills": [
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "refactoring",
+        "sections": [
+          "Primary Directive",
+          "Safety Rules",
+          "Preferred Refactoring Moves",
+          "Function-Level Rules",
+          "Class and Module Rules",
+          "Stopping Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:31:28.188843Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-3d60-7463-ab36-86b2a7df3654.1783895440737029000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

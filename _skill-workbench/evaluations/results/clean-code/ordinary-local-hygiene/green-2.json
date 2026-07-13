@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/ordinary-local-hygiene.md",
+  "case_sha256": "f6282cfcb4fb88d1c1e4906b027e6c02e877c4e4d44f3784e5489e34a8c4e92e",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5373-166f-7282-ae7f-763259f166b5",
+  "exit_code": 0,
+  "result": {
+    "answer": "A minimal readable rewrite keeps the exported signature and only tidies local computation. The cleanup boundary is inside the function body: normalize inputs once, make the two output shapes explicit, and stop there. I would not change the boolean parameter or introduce new types/helpers because the behavior is fully specified, tests are green, and existing callers depend on the current API.\n\n```ts\ntype PersonName = {\n  first: string;\n  last: string;\n  nickname?: string;\n};\n\nexport function makeLabel(p: PersonName, short: boolean): string {\n  const first = p.first.trim();\n  const last = p.last.trim();\n  const nickname = p.nickname?.trim() || \"\";\n\n  if (short) {\n    return nickname || `${first} ${last}`;\n  }\n\n  const fullLabel = `${last}, ${first}`;\n  return nickname ? `${fullLabel} (${nickname})` : fullLabel;\n}\n```\n\nWhy this is the right boundary:\n- It preserves the exact exported signature: `makeLabel(p: PersonName, short: boolean): string`.\n- It preserves exact behavior and strings.\n- It removes hidden state (`n`, `x`) and the flow-narrating comment by making normalization and branching directly readable.\n- It avoids broader refactoring. The boolean flag is still not ideal in the abstract, but changing it would cross the stated boundary because callers already use this API.\n\nConcise tests to keep:\n- `short=true` with nickname present: trims and returns nickname only.\n- `short=true` with nickname absent: returns `\"<first> <last>\"` with trimmed names.\n- `short=true` with nickname empty or whitespace: behaves like no nickname.\n- `short=false` with nickname absent: returns `\"<last>, <first>\"` with trimmed names.\n- `short=false` with nickname present: returns `\"<last>, <first> (<nickname>)\"` with trimmed nickname.\n- `short=false` with nickname whitespace-only: does not append parentheses.\n- Names with surrounding whitespace: `first` and `last` are trimmed in both modes.\n\nNo file changes made.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

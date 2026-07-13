@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/manual-ordinary.md",
+  "case_sha256": "69b708ffcc204c951add2748670f29b34dbf1c27f7a8fc5c7fe5e58bba74bf8b",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5892-b6bb-7ac1-b87a-e76fb4995272",
+  "exit_code": 0,
+  "result": {
+    "answer": "PostgreSQL remains the only source of truth for product state. The search index is a derived projection only: it serves search reads, may be stale for up to 30 seconds, and must never be treated as authoritative for product existence, correctness, or write decisions.\n\nOwnership contract: product writes commit in PostgreSQL first. A product change is considered durable when the PostgreSQL transaction commits and its change record is durably present in the change log. Search visibility is a separate later point. No caller gets read-your-writes from search; any flow that requires fresh state must read PostgreSQL.\n\nPropagation contract: the projector consumes the durable change log asynchronously and upserts documents into search by stable product id. Delivery is at-least-once, so projection updates must be idempotent. Ordering only needs to hold per product id, not globally. Each change record should carry a monotonic per-product version or equivalent commit position so the projector can ignore stale or duplicate updates and avoid older events overwriting newer search state.\n\nCheckpoint contract: the projector stores its last safely applied log position in durable storage separate from process memory. A checkpoint advances only after the corresponding search write for all prior consumed records is acknowledged. On restart, the projector resumes from the last durable checkpoint and replays forward. Because replay can re-deliver already applied records, idempotent version-checked upserts are required.\n\nLag-observability contract: expose at least current checkpoint position, source head position, replay/apply error count, and end-to-end staleness derived from source commit time versus last applied commit time. The SLO is that ordinary lag stays within 30 seconds; breaching that threshold is an operational alert, but correctness still comes from PostgreSQL.\n\nRebuild contract: the projection is fully rebuildable from PostgreSQL plus the durable log contract. Preferred path: create a fresh index generation, backfill all current products from PostgreSQL in primary-key order, then catch up by replaying log records from the backfill start position until the new index reaches the live head, then atomically cut reads over to the new generation. If the durable log retention alone is insufficient for a full historical replay, PostgreSQL snapshot backfill is the authoritative rebuild base and the log is only used for catch-up.\n\nRepair contract: when a subset of documents is missing, corrupted, or suspected stale, repair by re-reading authoritative product rows from PostgreSQL for the affected product ids and re-emitting projection updates through the same idempotent path. When divergence scope is unknown or broad, rebuild the whole projection generation instead of attempting ad hoc fixes. Never repair PostgreSQL from search.\n\nSchema/evolution contract for this projection: change records and projected documents must be versioned so old projector instances, replayed old records, and mixed rollout states do not corrupt the index. Additive changes are preferred; destructive meaning changes require a projector rollout and, if needed, projection rebuild.\n\nThis keeps the decision bounded to one derived search projection: PostgreSQL owns truth, the log owns durable propagation history, the projector owns idempotent application and checkpointing, and search owns only query acceleration under explicit stale-read tolerance.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/designing-data-intensive-applications/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:04:16.195447Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5892-b6bb-7ac1-b87a-e76fb4995272.1783897437883207000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

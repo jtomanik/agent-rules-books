@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55bb-baa9-7183-a6f3-b175c6c7cd68",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a legacy-change approach here: gain control over the current behavior first, then make the smallest semantic change.\n\nSafest bounded implementation:\n1. Do not change transaction structure, exception flow, or persistence call order. Callers may rely on those behaviors.\n2. Introduce the smallest seam needed for fast tests:\n   - inject a clock, or at minimum extract `now` behind a `now(): Date` collaborator\n   - inject the database, or wrap the specific account/charge operations behind a narrow interface\n3. Extract the due-decision into a pure helper that preserves existing timestamp parsing semantics:\n   ```ts\n   const GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;\n\n   function isChargeDue(nextChargeAt: string, now: Date): boolean {\n     const dueAt = new Date(nextChargeAt);\n     return dueAt.getTime() + GRACE_PERIOD_MS <= now.getTime();\n   }\n   ```\n   This is intentionally bounded: it adds 48 hours to whatever instant the system already interprets `nextChargeAt` to mean. It does not silently \u201cfix\u201d local-time or parsing behavior.\n4. Keep `chargeIfDue()` otherwise structurally the same: load account, compute `now`, call `isChargeDue(...)`, run the existing transaction block, return the same result strings.\n\nWhat must be characterized before changing semantics:\n- Current boundary behavior at exactly `nextChargeAt`. Today it charges because of `<=`.\n- Current behavior for timestamp strings without offsets, with offsets, and invalid timestamps. `new Date(...)` semantics may already be relied on.\n- Current exception behavior if `find`, `insert`, or `markCharged` fails. Preserve propagation unless product explicitly wants a behavior change.\n- Current transaction behavior and write order. Preserve it.\n\nFocused verification plan:\n1. Add characterization tests around current scheduler behavior with a fake database and fixed clock:\n   - returns `not-due` before `nextChargeAt`\n   - returns `charged` exactly at `nextChargeAt`\n   - opens one transaction and performs `insert` then `markCharged`\n   - propagates exceptions from inside the transaction\n   - does not write when not due\n2. Add new-behavior tests for the grace period:\n   - `not-due` at `nextChargeAt + 47h 59m 59s`\n   - boundary decision at exactly `nextChargeAt + 48h`\n   - `charged` after the boundary\n3. Add parsing/time-zone characterization tests without changing semantics:\n   - ISO UTC timestamp\n   - timestamp with explicit offset\n   - timestamp without offset\n   These tests are not to bless the model forever; they document current interpretation so the grace-period change does not accidentally rewrite time semantics.\n4. Avoid depending on shared staging for primary verification. Use staging only for one narrow smoke check after unit coverage exists.\n\nRecommended staging smoke check:\n- Use a dedicated account fixture if one already exists; do not mutate shared fixtures broadly.\n- Verify one case clearly before the grace window and one case clearly after it.\n- Do not try to validate ambiguous local-time behavior in shared staging; that requires a separate data/time decision.\n\nProduct decisions that must be resolved, not inferred:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h`, or only strictly after that instant?\n- Time meaning: is the grace period 48 elapsed hours from the stored instant, or 48 hours in some business/account local time?\n- Stored data policy: if old `nextChargeAt` values were written inconsistently with local time, should this change preserve current interpretation or include a data-normalization/backfill effort?\n- Scope: should all callers/jobs respect the grace period, or are there administrative/manual charge paths that intentionally bypass it?\n\nIf those product questions are unresolved, the safest bounded implementation is: preserve all existing parsing, exception, and transaction behavior; add a pure due-decision seam; characterize current behavior first; then shift only the due threshold by `48h`.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T09:50:54.020191Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55bb-baa9-7183-a6f3-b175c6c7cd68.1783849794217619000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

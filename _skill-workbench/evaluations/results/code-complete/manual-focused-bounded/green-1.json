@@ -1,0 +1,43 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/manual-focused-bounded.md",
+  "case_sha256": "09fa15ad53c02ceea82196631c2443388c31052fab474f38855a937948acf1ee",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5897-267a-7442-a172-a2c375899735",
+  "exit_code": 0,
+  "result": {
+    "answer": "A validated table is the better construction choice.\n\nFor a stable six-cell `(zone, service) -> shippingCents` mapping, the book guidance favors a table over an `if` chain because the problem is an explicit, configuration-like mapping rather than branching behavior. A table lowers defect probability by making all six cases visible at once, improves inspectability by expressing the rule as data, and simplifies control flow by removing repeated condition evaluation. That aligns with both the primary directive and the final instruction in Code Complete: prefer the option that lowers defect risk, improves readability, simplifies flow, and strengthens defensive correctness.\n\nThe recommendation is not \u201cany table\u201d; it is a validated table. The representation should make the shape obvious, use closed-set types for `zone` and `service` if available, and fail fast on invalid or duplicate entries. Avoid opaque encodings. A total map keyed by typed `(zone, service)` pairs, or a small nested map keyed by enums, is the right level of explicitness here.\n\nRequired tests:\n- Verify each of the 6 valid `(zone, service)` combinations returns the expected shipping cents.\n- Verify invalid `zone` values are rejected according to the module contract.\n- Verify invalid `service` values are rejected according to the module contract.\n- Verify unsupported `(zone, service)` pairs do not silently fall back to a default.\n- Verify table validation rejects duplicate entries if the table is declared as row data.\n- Verify table validation rejects missing coverage if completeness is not enforced by the type system.\n- Verify the routine contract around units: returned values are cents, not dollars or mixed units.\n\nArbitration:\n- Against the statement/conditional choice: the `if` chain keeps logic in control flow even though the rule is just a small stable matrix. That is harder to scan for completeness and easier to break during edits.\n- Against the table-driven choice: a validated table wins because the mapping is stable, explicit, small, and naturally inspectable as data.\n- Final recommendation: replace the `if` chain with a validated table unless the target language lacks a clear way to express the table with closed-set keys and validation. If the language makes the table obscure or weakly typed, keep the simplest non-clever form; otherwise, the validated table is the book-consistent choice.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "code-complete",
+        "sections": [
+          "Primary Directive",
+          "Statement, Conditional, and Loop Rules",
+          "Table-Driven and Data-Driven Rules",
+          "Testing Rules",
+          "Final Instruction"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

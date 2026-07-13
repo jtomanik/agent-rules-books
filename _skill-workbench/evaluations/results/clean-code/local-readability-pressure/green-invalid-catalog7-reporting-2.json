@@ -1,0 +1,56 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5874-3d88-7fb0-b169-96db81cdf240",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest safe change is to isolate discount calculation and add the new `partner` rule there, while leaving every side effect in `finalize` untouched.\n\nExact scope boundary: change only the discount decision for `partner` accounts when `invoice.total >= 500`. Keep `preview`, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, `lastInvoiceId`, return shape, and the existing `total > 1_000` extra `0.05` behavior unchanged. I would not fold in rounding, currency modeling, boolean-flag cleanup, or a broader service rewrite in this patch.\n\nConcrete patch plan:\n1. Add tests for the new rule before touching logic.\n2. Extract discount computation into a private helper or local pure function so the feature change is separated from mutation and I/O.\n3. Implement `partner && total >= 500` as a base discount of `0.15`.\n4. Preserve the existing `> 1_000` additive rule after the base discount is chosen.\n5. Run the focused invoice-service tests, then the full TypeScript suite before shipping.\n\nI would ship a sketch like this, not a new interface hierarchy:\n\n```ts\nprivate calculateDiscount(account: Account, invoice: Invoice): number {\n  let discount = 0;\n\n  if (account.segment === \"vip\") {\n    discount = 0.1;\n  }\n\n  if (account.segment === \"partner\" && invoice.total >= 500) {\n    discount = 0.15;\n  }\n\n  if (invoice.total > 1_000) {\n    discount += 0.05;\n  }\n\n  return discount;\n}\n\nfinalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n  const d = this.calculateDiscount(a, i);\n  const amount = i.total * (1 - d);\n\n  if (preview) {\n    return { amount, discount: d, changed: false };\n  }\n\n  a.balance -= amount;\n  this.accounts.save(a);\n  this.lastInvoiceId = i.id;\n\n  if (sendEmail) {\n    this.mailer.send(a.id, i.id, amount);\n  }\n\n  this.audit.record(\"invoice-finalized\", {\n    accountId: a.id,\n    invoiceId: i.id,\n    amount,\n  });\n\n  return { amount, discount: d, changed: true };\n}\n```\n\nRequired tests before shipping:\n- `partner` with `total === 500` gets `discount: 0.15` and `amount: 425`.\n- `partner` with `total < 500` gets no partner discount.\n- `partner` with `total > 1_000` gets `0.20` total discount, assuming the new rule composes with the existing high-total rule.\n- Regression: `vip` behavior is unchanged.\n- Regression: `standard` behavior is unchanged.\n- One non-preview test for a qualifying `partner` invoice that still verifies the saved balance plus the exact arguments sent to `accounts.save`, `mailer.send`, and `audit.record`.\n\nThe main implementation assumption is that the new partner discount is additive with the existing `> 1_000` rule, because that preserves prior behavior outside the new segment-specific condition. If product means \"15% max for partners even above 1_000,\" that needs explicit confirmation before release.",
+    "selected_project_skills": [
+      "clean-code",
+      "code-complete",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "clean-code",
+        "sections": [
+          "[]"
+        ]
+      },
+      {
+        "skill": "code-complete",
+        "sections": [
+          "[]"
+        ]
+      },
+      {
+        "skill": "refactoring",
+        "sections": [
+          "[]"
+        ]
+      }
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [
+    "consulted_reference_sections must exactly match skills whose full.md was read: sections=['clean-code', 'code-complete', 'refactoring'], full=[]",
+    "reference_mode ordinary requires SKILL.md files and no references"
+  ],
+  "stderr": "2026-07-12T22:30:41.004495Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-2404-7530-8752-9f9227f87026.1783895434245023000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:31:43.356816Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-3d88-7fb0-b169-96db81cdf240.1783895440777025000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

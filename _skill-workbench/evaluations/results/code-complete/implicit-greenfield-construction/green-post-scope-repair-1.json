@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/implicit-greenfield-construction.md",
+  "case_sha256": "d4b5c44ed1d1cf15a79c61af5ae7805bb640ce7bd8ee9538629982ef83dca4da",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58b9-4607-75f3-85fb-194a4cd236be",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a narrow two-step boundary and make external-data failures ordinary results, not control-flow.\n\nRecommended design:\n- Expose one entrypoint: `import_batch(json_input, repo) -> Result<ImportBatchReport, ImportBatchFatalError>`.\n- Treat the input JSON as untrusted at the module edge. Parse the root as a JSON array; reject malformed JSON or a non-array root as `ImportBatchFatalError::InvalidBatchFormat`.\n- For each element, map `RawJsonRecord -> ValidatedImportRecord`. Keep `RawJsonRecord` private to the import adapter and make `ValidatedImportRecord` the first typed shape that can cross inward or reach the repository.\n- Validation should return structured field errors, not a string blob. Prefer `InvalidRecord { index, id: Option<RecordId>, errors: Vec<FieldError> }`.\n- Do not fail the whole batch for record-level validation problems. Return per-record outcomes so one bad record does not hide other useful results.\n- Represent duplicates explicitly as distinct cases:\n  - `DuplicateInBatch { index, id, first_index }` for repeated IDs inside the same payload.\n  - `DuplicateInRepository { index, id }` when the typed repository rejects an already-existing ID.\n- Keep routine shape linear and inspectable: parse batch, iterate in order, validate, detect in-batch duplicate with a `seen_ids` set, then call the repository for only validated non-duplicate records.\n- Use outcome variants instead of booleans or mode flags. A minimal shape is `Imported | Invalid | DuplicateInBatch | DuplicateInRepository`.\n\nControl-flow and boundary:\n- Own the repository boundary from the import module inward. The smallest useful port is single-record insert on an already-typed record, for example `insert(record: ValidatedImportRecord) -> Result<(), RepoInsertError>`.\n- `RepoInsertError` should distinguish duplicate ID from unexpected repository failure. Do not make the import module pre-check existence if the repository can report uniqueness directly; that adds an avoidable second decision point.\n- Unexpected repository failures are fatal batch errors, not per-record outcomes. Stop processing and return `ImportBatchFatalError::Repository { cause, partial_report }` so the caller can see completed work before the stop point.\n- Keep batch summary data in the success/fatal payload, not by forcing the caller to recount variants.\n\nSuggested contracts:\n```text\nImportBatchReport {\n  records: Vec<RecordImportOutcome>,\n  summary: { imported, invalid, duplicate_in_batch, duplicate_in_repository }\n}\n\nRecordImportOutcome =\n  Imported { index, id }\n  | Invalid { index, id: Option<RecordId>, errors: Vec<FieldError> }\n  | DuplicateInBatch { index, id, first_index }\n  | DuplicateInRepository { index, id }\n\nImportBatchFatalError =\n  InvalidBatchFormat { message }\n  | Repository { message, partial_report }\n```\nThis keeps expected external-data problems in-band and reserves top-level errors for cases where the importer could not meaningfully continue.\n\nSmallest reviewable first slice:\n1. JSON array input only.\n2. Per-record validation into `ValidatedImportRecord`.\n3. In-batch duplicate detection by ID.\n4. Single-record repository insert port with duplicate vs unexpected failure mapping.\n5. Ordered per-record outcomes plus batch summary.\n6. No persistence policy work beyond calling the repository port.\n\nTests required for first merge:\n- Boundary tests:\n  - importer never sends raw JSON shapes to the repository, only `ValidatedImportRecord`.\n  - invalid records do not call the repository.\n  - `DuplicateInBatch` records do not call the repository.\n  - repository duplicate maps to `DuplicateInRepository`.\n  - unexpected repository error stops processing and returns partial results.\n- Invalid-input tests:\n  - malformed JSON fails the batch.\n  - non-array root fails the batch.\n  - missing required field yields `Invalid`.\n  - wrong field type yields `Invalid`.\n  - invalid ID format yields `Invalid` and is not added to `seen_ids`.\n- Duplicate tests:\n  - second occurrence of an ID in one payload reports `first_index`.\n  - repository duplicate is distinct from in-batch duplicate.\n- Mixed-result test:\n  - one batch containing imported, invalid, in-batch duplicate, and repository duplicate records returns all expected ordered outcomes and correct summary counts.\n\nThis slice is small, reviewable, and leaves room for later decisions about batching, retries, delivery, and operational policy without forcing those concerns into the first design.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-architecture",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:47:09.966671Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58b9-4607-75f3-85fb-194a4cd236be.1783899964935626000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

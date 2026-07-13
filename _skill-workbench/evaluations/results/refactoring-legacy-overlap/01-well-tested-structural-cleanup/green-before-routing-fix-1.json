@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5346-75c7-7192-aa7f-cea8aa124ba1",
+  "exit_code": 0,
+  "result": {
+    "answer": "The right cleanup is a small, behavior-preserving extraction sequence, not a redesign. The current method mixes four pricing phases in one block: subtotal, discount, shipping, and tax/total assembly. The tests are already a solid safety net for the visible rules, so the refactor should stay local to `OrderPricer.price()` and proceed in small reviewable steps with the focused tests run after each step.\n\nRecommended sequence:\n1. Extract `calculateSubtotal(order)` as a private pure helper. Move only the item loop. Keep the local name `subtotalCents` in `price()` so the method still reads the same.\n2. Extract `calculateDiscount(order, subtotalCents)` as a private pure helper. Preserve the exact threshold and rounding logic. Do not combine it with subtotal calculation.\n3. Extract `calculateShipping(order, subtotalCents, discountCents)` as a private pure helper. This is the most important boundary because shipping depends on the discounted subtotal for domestic orders but ignores free shipping for international orders. Preserve that precedence exactly.\n4. Extract the tax computation into `calculateTaxableCents(subtotalCents, discountCents, shippingCents)` and `calculateTaxCents(taxableCents)`, or a single `calculateTaxAndTotal(...)` helper if that reads better in the codebase. Keep the arithmetic and `Math.floor` exactly unchanged.\n5. Leave `price()` as a top-down orchestrator that calls the helpers in the same order and returns the same object shape. At that point the cleanup should likely stop.\n\nWhat this buys you: each pricing rule becomes separately named and locally testable, while the public API, call pattern, object shape, thresholds, precedence, and rounding remain unchanged. This matches the safe-refactoring guidance: remove the specific structural friction blocking future pricing work, but do not broaden into a rewrite.\n\nWhere to stop:\n- Stop once `price()` clearly reads as phase orchestration and each helper has one responsibility.\n- Do not introduce new domain types, policies, strategies, tables, or subclasses yet.\n- Do not move logic into other modules unless a later feature proves that necessary.\n- Do not change test intent, add speculative cases, or \u201csimplify\u201d the shipping rule in a way that could alter precedence.\n- Do not redesign the API or replace `OrderPricer` wholesale.\n\nA good review shape is 3 to 5 tiny commits or PR slices, each pure extraction plus green focused tests. If a later step starts needing new abstractions beyond these helpers, that is the signal the structural cleanup has already gone far enough for now.",
+    "selected_project_skills": [
+      "refactoring",
+      "working-effectively-with-legacy-code",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:23:08.381603Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5346-75c7-7192-aa7f-cea8aa124ba1.1783808554440224000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

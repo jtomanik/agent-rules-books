@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5367-b897-7093-93a6-830c0dd87303",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a three-patch sequence. The first patch is about control, not behavior: add the smallest test seam for `RenewalDatabase` construction and the clock, then add focused characterization tests around `quote()` and `renew()` for the current matrix that already exists in the code. The second patch is behavior-preserving refactoring only: move the duplicated eligibility check to one clear owner, ideally a pure predicate such as `isEligibleForAutomaticRenewal(account, now)`, and make both `quote()` and `renew()` call it. The third patch is the semantic change: extend that single owner so `trial` accounts whose `trialStartedAt` is more than 30 days before `now` are ineligible, and add focused tests for that rule.\n\nWhat must be learned or controlled before semantic edits:\n1. The exact age boundary: \"older than 30 days\" should normally mean `> 30 days`, so exactly 30 days old remains eligible, but that needs to be confirmed.\n2. The time comparison basis: rolling 30 x 24 hours vs calendar-day logic, and whether UTC parsing of `trialStartedAt` is already the domain convention.\n3. The bad-data case for `plan === \"trial\" && trialStartedAt === null`: confirm whether that is impossible, should stay eligible, or should become ineligible. Do not invent this behavior silently.\n4. Current observable outcomes that must stay fixed: `closed` and `paused` remain ineligible, negative balance remains ineligible, zero balance remains eligible, `quote()` still returns `null` when ineligible, `renew()` still returns `\"skipped\"` when ineligible, and the successful `renew()` path still performs both writes in one transaction with one shared timestamp.\n\nSafe patch boundaries:\n1. Patch 1, control and characterization only. Add an optional dependency seam, for example injected `database` and `now(): Date`, while preserving the current production default behavior. Add focused tests that assert current outcomes and side effects. This patch must not change any runtime result.\n2. Patch 2, structural consolidation only. Extract the current predicate exactly as-is and route both public methods through it. Keep this patch behavior-preserving; no new rule yet.\n3. Patch 3, semantic rule only. Add the trial-age condition in the shared predicate and add tests for under-30, exactly-30, over-30, and the confirmed null/invalid-data case.\n\nRecommended focused tests before and during the change:\n- `quote()` returns a price for `active` non-negative accounts and `null` for `closed`, `paused`, or negative-balance accounts.\n- `renew()` returns `\"renewed\"` only for currently eligible accounts.\n- `renew()` writes exactly once to renewals and marks the account renewed with the same ISO timestamp, inside one transaction.\n- Trial-age rule tests cover `paid`, `trial < 30 days`, `trial == 30 days`, and `trial > 30 days`.\n\nReview standard:\n- Patch 1 should only add seams and tests.\n- Patch 2 should only remove duplication and establish the single owner.\n- Patch 3 should be the only patch that changes behavior.\n- No broader redesign: keep the worker API and production construction path intact except for additive testability seams.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:58:54.517936Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5367-9f49-7ca1-873d-11fa28582649.1783810727754304000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:59:56.380715Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5367-b897-7093-93a6-830c0dd87303.1783810734232317000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

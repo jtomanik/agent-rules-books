@@ -1,0 +1,41 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/manual-focused-bounded.md",
+  "case_sha256": "b6d2aacd1293d2ee198c43fa4a0c84a78a96e93f09cd1fb1d102eb475734ad51",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58cb-4aa6-7831-8431-523061d476bd",
+  "exit_code": 0,
+  "result": {
+    "answer": "A five-second lag target is not a read-your-writes contract. It is only an operational heuristic, and it fails exactly in the cases you named: replica lag can exceed the target, catch-up observations can be delayed by the network, and failover can promote a node that never applied the session\u2019s commit.\n\nThe contract should be session-scoped and commit-position based:\n\n1. Define the write contract explicitly.\nA profile update is successful only when it is committed on the primary at replication position `P`.\nIf the product requires read-your-writes to survive failover, then acknowledging the write only on the primary is insufficient. The durability point must include replication to the failover set, typically via synchronous/quorum replication to nodes eligible for promotion. Otherwise a promoted node may legitimately not contain the write, and no read routing rule can recover the contract.\n\n2. Carry a session consistency token.\nAfter the write, return or store a token such as LSN/GTID/term+index/version `P`. Every subsequent read in that session declares `min_position >= P`.\n\n3. Enforce catch-up on replica reads.\nA replica may serve the read only if it can prove it has applied at least `P`. Use applied replication position, not elapsed time, not wall-clock lag, and not a five-second freshness SLO. If the replica cannot prove `applied >= P`, then either:\n- wait briefly for catch-up using a bounded timeout, or\n- route to the primary/current leader, or\n- fail explicitly with retry semantics.\nWhat it must not do is silently serve a stale read.\n\n4. Make failover rules position-aware.\nAfter failover, the promoted node may serve contract-bound reads only if it can prove it contains `P`. If promotion can select a lagging replica, then that node cannot satisfy read-your-writes for sessions carrying newer tokens. In that case the system must either:\n- prevent promotion of nodes behind the required durability point, or\n- acknowledge writes only after they are replicated to promotable nodes, or\n- weaken the product contract and say read-your-writes is lost across failover.\nThere is no fourth option that preserves the guarantee under asynchronous loss.\n\n5. Treat uncertainty conservatively.\nBecause timeouts and network delay do not prove failure or catch-up, \u201cprobably caught up\u201d is not a valid correctness condition. Unknown catch-up status means \u201cunsafe for this contract\u201d until a node proves `applied >= P`.\n\nThe resulting design is:\n- Normal case: write on primary, get token `P`, read from any replica that proves `applied >= P`.\n- Replica not caught up: bounded wait, then fallback to leader.\n- Failover: only a leader that contains `P` may satisfy the session guarantee.\n- If the system acks writes before replication to promotable nodes, then read-your-writes cannot be guaranteed through failover; the contract must be weakened or the write durability policy strengthened.\n\nSo the review dispute resolves cleanly: five seconds is not enough. The deciding mechanism is not a lag target but a per-session minimum commit position plus promotion/durability rules that make that position survivable across failover.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Consistency Rules",
+          "Replication Rules",
+          "Distributed Fault, Clock, and Consensus Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:06:33.016072Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58cb-4aa6-7831-8431-523061d476bd.1783901145766506000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

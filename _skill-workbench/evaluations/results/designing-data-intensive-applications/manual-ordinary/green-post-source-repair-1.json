@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/manual-ordinary.md",
+  "case_sha256": "69b708ffcc204c951add2748670f29b34dbf1c27f7a8fc5c7fe5e58bba74bf8b",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58b9-4421-7a10-b639-31b21a80e93c",
+  "exit_code": 0,
+  "result": {
+    "answer": "PostgreSQL owns product truth. The search projection is derived data only: it is not part of the product write transaction, it cannot reject or redefine product state, and any disagreement is resolved in favor of PostgreSQL.\n\nOwnership contract:\n- Product creates, updates, and deletes become durable when committed in PostgreSQL.\n- The durable change log is the only propagation source for search.\n- Search documents are a denormalized read model for query performance only.\n- Reads from search may be stale for up to 30 seconds; any workflow that requires current authoritative product state must read PostgreSQL.\n\nPropagation contract:\n- Every committed product change must produce an append-only durable log record with a stable product identifier, monotonically advancing log position, event type, and versioned payload.\n- The search updater consumes that log asynchronously and applies changes idempotently by product identifier plus source log position or equivalent monotonic version.\n- Delivery is at-least-once. Duplicate delivery and consumer replay are ordinary conditions, so applying the same or older log position for a product must be a no-op.\n- Ordering is required per product, not globally. If records arrive out of order, the projector must keep only the highest applied source position per product and ignore older ones.\n\nCheckpoint contract:\n- The projector maintains a durable consumer checkpoint representing the highest contiguous log position fully applied to search.\n- Advancing the checkpoint means all prior positions are safe to treat as reflected in the projection.\n- Partial progress below the checkpoint may exist during processing, but recovery must restart from the last durable checkpoint and reapply safely.\n- Checkpoint state is projection metadata, separate from product truth.\n\nLag observability contract:\n- Expose current projection lag as both time lag and position lag: latest durable log position/time minus projector checkpoint position/time.\n- Expose freshness of individual documents where feasible via last-applied source position or source commit timestamp stored in the search document.\n- Alert when end-to-end lag exceeds the stated 30 second budget for sustained periods.\n- Make stalled consumption observable: no checkpoint movement, repeated apply failures, poison records, and rebuild mode must all be visible.\n\nRebuild contract:\n- The projection must be fully rebuildable from PostgreSQL-backed history via the durable change log, starting from an empty search index.\n- Rebuild creates a new projection generation, replays the entire log in source order per product, and cuts over only after catch-up reaches an acceptable lag target.\n- Rebuild does not require product writes to stop.\n- Loss of the search index or projector state is a recoverable derived-data incident, not a source-of-truth incident.\n\nRepair contract:\n- If a subset of documents is missing, duplicated, malformed, or stale, repair is done by replaying affected products from authoritative history, not by hand-editing search as a lasting fix.\n- If projector behavior was buggy, correct the code and replay from the last known-good checkpoint or perform a bounded/full rebuild depending on blast radius.\n- If a record cannot be applied because of schema or data incompatibility, hold the checkpoint before that record, surface the fault, and resolve by deploying a compatible projector or backfilling a compatible event shape; do not skip silently.\n- Any emergency manual search-side correction is temporary and must be followed by replay so the projection returns to a state derivable from the log.\n\nBounded decision summary:\n- Source of truth: PostgreSQL.\n- Propagation source: durable change log.\n- Consistency: eventually consistent search, up to 30 seconds stale.\n- Durability point: PostgreSQL commit and durable log append.\n- Visibility point in search: successful asynchronous apply.\n- Recovery model: replay from durable checkpoint with idempotent apply.\n- Repair model: replay or rebuild from authoritative history.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/designing-data-intensive-applications/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:46:04.729446Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f58b8-4dcf-7f12-a880-2cb7b00761ec.1783899902978940000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T23:46:24.920982Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58b9-4421-7a10-b639-31b21a80e93c.1783899964463440000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

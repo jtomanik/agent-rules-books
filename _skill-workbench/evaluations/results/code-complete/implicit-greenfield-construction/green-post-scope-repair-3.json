@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/implicit-greenfield-construction.md",
+  "case_sha256": "d4b5c44ed1d1cf15a79c61af5ae7805bb640ce7bd8ee9538629982ef83dca4da",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58bb-62ee-7f91-b4c7-b9c0b894ae38",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommendation**\n\nBuild the first slice as a small application service that accepts one JSON batch, validates each element at the trust boundary, detects duplicate IDs, and then calls a typed repository only for records that survived those checks.\n\nUse per-record outcomes, not batch-fail semantics, for expected bad input. A full-batch failure should happen only when the batch envelope itself is invalid, for example the payload is not an array, or when an unexpected technical failure escapes the repository boundary. This keeps the normal path diagnosable and reviewable without mixing caller mistakes with infrastructure faults.\n\n**Construction Decisions**\n\n- Validate untrusted JSON immediately at the module boundary into a typed input record such as `ImportedRecordDraft`. Do not let raw maps leak into the repository-facing path.\n- Model validation as an explicit result, not exceptions for ordinary bad input.\n- Represent duplicates as first-class outcome variants. Distinguish at least:\n  - `duplicate_in_batch`\n  - `duplicate_in_repository`\n- Preserve input order in the returned outcomes so callers can correlate results without extra mapping.\n- Keep the routine in clear phases instead of one intertwined loop:\n  1. Validate batch envelope.\n  2. Validate each raw record into typed draft or invalid outcome.\n  3. Detect duplicate IDs among valid drafts.\n  4. Persist only unique valid drafts through the repository port.\n  5. Return aggregate counts plus ordered per-record outcomes.\n- Use the smallest repository boundary: one typed method owned by the import use case, for example `insert(record: ImportedRecordDraft) -> InsertResult`. The import module should not know persistence details, JSON shape storage details, or transport concerns.\n- Keep expected caller-visible errors inside the return value. Reserve thrown errors or rejected promises for unexpected repository/technical failures in this first slice.\n\n**Suggested Contracts**\n\n```text\nimportBatch(payload: unknown, repo: ImportRepository) -> ImportBatchResult | BatchFormatError\n\nImportRepository.insert(record: ImportedRecordDraft) -> Inserted | DuplicateInRepository\n```\n\n```text\nImportBatchResult {\n  totalCount\n  importedCount\n  invalidCount\n  duplicateCount\n  outcomes: ImportRecordOutcome[]\n}\n\nImportRecordOutcome =\n  | { index, kind: \"imported\", id }\n  | { index, kind: \"invalid\", issues[] }\n  | { index, kind: \"duplicate_in_batch\", id }\n  | { index, kind: \"duplicate_in_repository\", id }\n```\n\nFor invalid records, return structured issues with field path and reason. Do not return only free-form strings.\n\n**Smallest Reviewable First Slice**\n\nImplement only one record shape, one batch entrypoint, one repository port, and four outcome kinds: `imported`, `invalid`, `duplicate_in_batch`, `duplicate_in_repository`. Skip retries, chunking, streaming, async fan-out, metrics, and persistence policy decisions.\n\nThat slice is small enough to review because it isolates:\n- boundary validation\n- control flow\n- duplicate semantics\n- repository integration contract\n- caller-visible result shape\n\n**Required Tests For First Merge**\n\n- Batch boundary: non-array payload returns batch-format failure.\n- Record boundary: valid JSON object becomes typed draft.\n- Invalid input: missing required field, wrong field type, malformed ID.\n- Duplicate in batch: later record with same ID is reported as duplicate and not sent to repository.\n- Duplicate in repository: repository duplicate result becomes per-record duplicate outcome.\n- Mixed batch: one imported, one invalid, one duplicate in batch, one duplicate in repository in a single result.\n- Control-flow contract: repository is called only for validated, non-duplicate drafts.\n- Ordering contract: outcomes preserve original input order.\n- Aggregate counts: summary fields match the outcome list exactly.\n\nThis design keeps policy inside the import module, keeps JSON and persistence concerns at the edges, and makes the first production slice narrow enough to implement and review safely before broader policy decisions are introduced.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-architecture",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:49:35.546211Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58bb-62ee-7f91-b4c7-b9c0b894ae38.1783900103406920000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

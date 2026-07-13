@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55d3-332b-7290-a29f-cfb2765cd9e0",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is:\n\n1. Gain deterministic test control first.\n2. Consolidate the duplicated eligibility rule into one owner with no semantic change.\n3. Add the new `introductory` older-than-60-days rule in that owner.\n\nWhy this order is safest:\n\nThis code is legacy for this task. There are no focused tests, the worker constructs its own database, and it reads the system clock directly. That means both the proposed semantic change and even a \u201cpure\u201d extraction are currently weakly protected. The first real risk is lack of control, not duplication by itself.\n\nAfter deterministic control exists, the duplicated predicate becomes the local structural friction. Extracting one shared owner at that point is a small behavior-preserving refactor: both methods still do the same thing, but the rule lives in one place. That is safer than adding the 60-day rule in both methods first, because it avoids duplicating a new business rule and reduces the actual semantic change to one place.\n\nAdding the 60-day rule should be last because it is the only intended behavior change. Keeping it in its own patch makes review much clearer: if something fails, it is the new rule, not seam work or ownership movement.\n\nWhy the alternatives are less safe:\n\n- Add the 60-day rule first: unsafe because the rule is time-sensitive and the code has no deterministic clock or focused feedback.\n- Extract first without test control: still unsafe; an unprotected refactor in legacy code can silently change behavior.\n- Add the rule in both methods, then consolidate later: creates two semantic change points and drift risk between `previewCredit()` and `applyCredit()`.\n- Combine seam work, extraction, and rule change in one patch: mixed intent, harder review, weaker failure isolation.\n\nDecisions that must be clarified first:\n\n- Is \u201colder than 60 days\u201d strictly `> 60 days`, or is exactly 60 days also ineligible?\n- Is the comparison exact timestamp-based, or calendar-day based in a specific timezone?\n- What should happen for `kind === \"introductory\"` when `startedAt` is `null`?\n- What should happen if `startedAt` is invalid or unparsable?\n- Must `previewCredit()` and `applyCredit()` stay perfectly aligned on eligibility? The prompt strongly suggests yes, but it should be explicit.\n- Are there any other automatic-credit entry points that must share the same rule now?\n\nA practical sequencing plan:\n\n1. Patch A: deterministic control only.\n   Introduce the smallest seams for time and database access or construction, preserving the production default path. Add focused characterization tests for current `previewCredit()` and `applyCredit()` behavior. No business-rule change.\n\n2. Patch B: ownership only.\n   Extract one shared eligibility owner, ideally a pure decision over `subscription` and `now`, and make both methods call it. No semantic change.\n\n3. Patch C: product rule only.\n   Add the `introductory` older-than-60-days ineligibility rule in that owner, plus focused boundary tests for under-60, exactly-60, over-60, and the clarified `startedAt` case.\n\nReviewable patch boundaries:\n\n- Patch A should prove deterministic control and current-outcome characterization, with no logic change.\n- Patch B should be reviewable as behavior-preserving duplication removal only.\n- Patch C should be reviewable as the only intended behavior delta.\n\nIf product cannot answer the boundary or `startedAt` questions immediately, Patch A and Patch B are still safe to do first. Patch C should wait rather than guessing the rule semantics.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

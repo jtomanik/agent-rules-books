@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5347-f450-7bc3-a174-27344217de57",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest bounded change is to preserve everything except the due-time predicate, and to make that predicate directly testable before changing it.\n\nRecommended implementation shape:\n1. Add a narrow seam for time, because `new Date()` is currently a hidden input and the class has no tests. Keep the public constructor behavior intact; use an optional injected clock only for tests.\n2. Extract the due decision into a pure helper, for example `isChargeDue(nextChargeAt, now, gracePeriodMs)`, and implement the grace period as exact elapsed time arithmetic on UTC timestamps: `Date.parse(nextChargeAt) + 48h <= now.getTime()`.\n3. Keep the existing transaction boundary, exception propagation, insert/mark order, and return values unchanged. Do not broaden cleanup or move connection/transaction behavior in the same patch.\n\nWhy this is the safest shape:\n- It changes only the billing eligibility rule.\n- It avoids guessing about current exception semantics or whether callers depend on `transaction(...)` and constructor side effects.\n- It avoids introducing new local-time logic. If stored timestamps have mixed timezone history, the least risky implementation is still \u201c48 hours after the stored instant,\u201d not \u201ctwo local calendar days later.\u201d\n\nVerification plan, bounded and safe:\n1. Add characterization tests around current behavior before the feature change.\n2. Test the pure due predicate first, not the staging database.\n3. Add one narrow class-level test with a fake database and fake clock to confirm unchanged side effects when due: one charge inserted, `markCharged` called once, still wrapped in one transaction, still returns `\"charged\"`.\n4. Add one narrow class-level test for not due: no insert, no mark, returns `\"not-due\"`.\n5. Keep staging verification to a minimal smoke check only if needed, because the shared slow fixture environment is a poor primary safety net.\n\nMinimum test matrix:\n- Characterization: exactly at `nextChargeAt` currently charges.\n- Characterization: before `nextChargeAt` does not charge.\n- New behavior: exactly `47h 59m 59s` after `nextChargeAt` does not charge.\n- New behavior: exactly `48h` after `nextChargeAt` does charge, if product confirms the boundary remains inclusive.\n- Regression: transaction and exception behavior are unchanged when `charges.insert` or `markCharged` throws.\n- Regression: stored timestamp with explicit `Z` or offset is interpreted as an instant, not local wall clock.\n\nProduct decisions that must be resolved, not inferred from code:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h`, or only after that instant?\n- Time semantics: is the grace period \u201c48 elapsed hours from the stored timestamp\u201d or \u201ctwo calendar days in a business timezone\u201d? These are not equivalent.\n- Timestamp policy: are all existing `nextChargeAt` values guaranteed to be ISO timestamps with offsets/`Z`? If not, product or ops must decide how to treat legacy local-time strings rather than letting code guess.\n- Retry/duplication semantics: if a scheduler run misses the first eligible moment, should the next run charge immediately, or is there any additional windowing/business rule?\n- Failure semantics: if charging side effects partially fail today, is preserving current exception/rollback behavior desired? The safest implementation assumes yes and leaves it untouched.\n\nIf those decisions are answered as:\n- \u201ccharge at or after `nextChargeAt + 48h`\u201d, and\n- \u201c48 elapsed hours from the stored instant\u201d,\nthen the implementation can stay small, local, and low-risk.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:25:03.271014Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5347-f450-7bc3-a174-27344217de57.1783808652369381000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

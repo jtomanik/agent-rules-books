@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-compatible-overlap.md",
+  "case_sha256": "0a3e3ff43521aba3080389491600f106049111ed627a39db0f6bef653a76e695",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5859-0eb3-7f62-9454-1dc398611b2f",
+  "exit_code": 0,
+  "result": {
+    "answer": "Workspace inspection found no repository files, including no `.agents/skills` packages, so this is a prompt-only read-only analysis.\n\nPhase 1 should be a pure preparatory refactor: extract validation from construction, keep `acceptRow(row): boolean`, keep `acceptedRows.push(...)` in the same success path, and preserve the current first-failure order exactly. The minimal shape is a validator that returns either parsed fields or a failure code that `acceptRow` still maps to `false`.\n\n```ts\ntype RowKind = \"person\" | \"company\";\ntype RowStatus = \"active\" | \"inactive\";\n\ntype ParsedRow = {\n  id: string;\n  kind: RowKind;\n  score: number;\n  status: RowStatus;\n};\n\ntype ValidationFailure =\n  | \"field-count\"\n  | \"missing-id\"\n  | \"kind\"\n  | \"score\"\n  | \"status\";\n\ntype ValidationResult =\n  | { ok: true; value: ParsedRow }\n  | { ok: false; reason: ValidationFailure };\n\nfunction validateRow(row: string[]): ValidationResult {\n  if (row.length !== 4) return { ok: false, reason: \"field-count\" };\n\n  const [id, kind, scoreText, status] = row;\n\n  if (id === \"\") return { ok: false, reason: \"missing-id\" };\n  if (kind !== \"person\" && kind !== \"company\") return { ok: false, reason: \"kind\" };\n  if (!/^\\d+$/.test(scoreText)) return { ok: false, reason: \"score\" };\n  if (status !== \"active\" && status !== \"inactive\") return { ok: false, reason: \"status\" };\n\n  return {\n    ok: true,\n    value: {\n      id,\n      kind,\n      score: Number(scoreText),\n      status,\n    },\n  };\n}\n\nexport function acceptRow(row: string[]): boolean {\n  const result = validateRow(row);\n  if (!result.ok) return false;\n\n  acceptedRows.push(result.value);\n  return true;\n}\n```\n\nPhase 1 review target: no observable behavior change. Existing green tests should remain unchanged and green. If tests are weak, add only characterization tests around current boolean behavior and `acceptedRows` side effects, not the new contract yet.\n\nPhase 2 then changes the public contract to the typed result and makes the validation result the API result instead of an internal detail. Keep the same validation order so each bad row maps to one deliberate rejection reason.\n\n```ts\ntype AcceptanceResult =\n  | { accepted: true }\n  | {\n      accepted: false;\n      reason: \"field-count\" | \"missing-id\" | \"kind\" | \"score\" | \"status\";\n    };\n\nexport function acceptRow(row: string[]): AcceptanceResult {\n  const result = validateRow(row);\n  if (!result.ok) {\n    return { accepted: false, reason: result.reason };\n  }\n\n  acceptedRows.push(result.value);\n  return { accepted: true };\n}\n```\n\nPhase 2 test scope should stay local to this function and its tests:\n- success case returns `{ accepted: true }` and pushes the parsed row\n- wrong field count returns `field-count`\n- empty id returns `missing-id`\n- invalid kind returns `kind`\n- non-numeric score returns `score`\n- invalid status returns `status`\n- rejection cases do not push into `acceptedRows`\n\nThis keeps the refactor and behavior change separately reviewable: Phase 1 exposes validation without changing behavior, Phase 2 swaps the boolean API for the typed result and adds exhaustive rejection-reason coverage.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:00:59.462645Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5858-d0df-7581-8232-abbb29f3158b.1783893643488282000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:01:51.067417Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-0eb3-7f62-9454-1dc398611b2f.1783893659316109000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/clean-code-neighbor.md",
+  "case_sha256": "502d69767a6466a8d88d718582227c3dcafc6a558f491297c4179d8b7ac0e819",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585d-28bc-7183-80a7-cf01186575d2",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use the smallest behavior-preserving cleanup: remove the flow-narrating comment, remove the mutable `result` accumulator, and make the two modes explicit with direct returns. Keep the `compact` boolean because the exported signature must stay as-is.\n\nSuggested refactor:\n```ts\nexport function displayTemperature(celsius: number, compact: boolean): string {\n  const formattedCelsius = celsius.toFixed(1);\n\n  if (compact) {\n    return `${formattedCelsius}C`;\n  }\n\n  const formattedFahrenheit = ((celsius * 9) / 5 + 32).toFixed(1);\n  return `${formattedCelsius} degrees Celsius / ${formattedFahrenheit} degrees Fahrenheit`;\n}\n```\n\nWhy this is the right scope:\n- It improves local readability through simpler function shape and clearer names.\n- It removes a comment that only narrates control flow.\n- It does not widen the change into a new type or API redesign for the boolean mode.\n- It preserves the exact output and exported signature.\n\nConcise tests:\n```ts\nit(\"formats compact output\", () => {\n  expect(displayTemperature(21.25, true)).toBe(\"21.3C\");\n});\n\nit(\"formats expanded output\", () => {\n  expect(displayTemperature(21.25, false)).toBe(\n    \"21.3 degrees Celsius / 70.3 degrees Fahrenheit\"\n  );\n});\n```\n\nIf you want one extra guard without expanding scope, add a freezing characterization case such as `displayTemperature(0, false) === \"0.0 degrees Celsius / 32.0 degrees Fahrenheit\"`.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:05:59.417491Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-28bc-7183-80a7-cf01186575d2.1783893928125287000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

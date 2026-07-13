@@ -1,0 +1,50 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5337-72ab-7292-aa76-3a086dccda9c",
+  "exit_code": 0,
+  "result": {
+    "answer": "Keep the change inside `OrderPricer.price()` and split it into private, pure helpers in the same module. The safe target shape is an orchestration method that still computes values in the same order: subtotal, then discount, then shipping, then taxable amount, then tax, then return object.\n\nRecommended sequence:\n1. Extract `calculateSubtotal(items)` first. It is independent, has no branching, and does not affect downstream rules except through the returned integer.\n2. Extract `calculateDiscount(order, subtotalCents)` next. Preserve the exact threshold and rounding rule: only `gold`, only when `subtotalCents >= 10_000`, still `Math.floor(subtotalCents * 0.1)`.\n3. Extract `calculateShipping(order, subtotalCents, discountCents)` without changing the decision order. International must still win first; domestic free shipping must still be based on `subtotalCents - discountCents >= 5_000`.\n4. Extract `calculateTax(subtotalCents, discountCents, shippingCents)` or `calculateTaxableCents(...)` plus `calculateTaxCents(taxableCents)`. Keep the same taxable base and `Math.floor(... * 0.2)`.\n5. Leave `price(order)` as the composition layer that calls those helpers and assembles the existing `Price` object unchanged.\n\nA reviewable end state would look conceptually like:\n- `price(order)` orchestrates only.\n- Private helpers contain the existing business rules.\n- No helper reaches outside its inputs.\n- No new types, classes, configuration objects, or strategy abstractions.\n\nWhere this cleanup should stop:\n- Stop after the method is split into a small set of private helpers with the current dependency order made explicit.\n- Do not change the public API, returned shape, numeric types, rounding behavior, thresholds, or branch precedence.\n- Do not introduce a pricing pipeline, rule engine, policy objects, or separate services yet; that is redesign, not structural cleanup.\n- Do not \"simplify\" by recomputing values differently, merging formulas, or making shipping/discount look symmetric. The current asymmetry is observable behavior.\n\nThe main behavioral boundaries to protect in review are:\n- Discount is based on subtotal only.\n- Free domestic shipping is evaluated after discount.\n- International shipping ignores the domestic free-shipping path.\n- Tax is applied to `subtotal - discount + shipping`.\n- All percentage calculations continue to floor at the same step as today.\n\nIf the team wants the safest review flow, land this as 3-4 tiny commits with tests run after each extraction, and stop once `price()` is a thin coordinator. Anything beyond that is the point where cleanup starts becoming redesign.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Restructure only by extracting private pure helpers inside `OrderPricer` and keep `price(order)` as the orchestration layer.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Extract in dependency order: subtotal, discount, shipping, then tax/taxable amount, validating tests after each step.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Preserve exact rule boundaries: discount from subtotal only, free domestic shipping after discount, international shipping precedence, tax on `subtotal - discount + shipping`, and existing `Math.floor` points.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Stop before introducing new abstractions such as strategy objects, rule engines, configuration tables, or public API changes.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:06:10.809214Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-4a49-7b60-9f3c-f100349ebee1.1783807560265794000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:06:47.242591Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-72ab-7292-aa76-3a086dccda9c.1783807570604266000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/ordinary-local-hygiene.md",
+  "case_sha256": "f6282cfcb4fb88d1c1e4906b027e6c02e877c4e4d44f3784e5489e34a8c4e92e",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5368-408d-7c41-8a0d-470f510d2be0",
+  "exit_code": 0,
+  "result": {
+    "answer": "A proportionate rewrite is to normalize the three values once, then return directly from the two intentional output shapes:\n\n```ts\ntype PersonName = {\n  first: string;\n  last: string;\n  nickname?: string;\n};\n\nexport function makeLabel(p: PersonName, short: boolean): string {\n  const first = p.first.trim();\n  const last = p.last.trim();\n  const nickname = p.nickname?.trim() || \"\";\n\n  if (short) {\n    return nickname || `${first} ${last}`;\n  }\n\n  return nickname ? `${last}, ${first} (${nickname})` : `${last}, ${first}`;\n}\n```\n\nCleanup boundary: keep the exported signature exactly as-is, including the `short` boolean, because that is the public contract. Only tidy the local implementation by removing temporary mutation, normalizing inputs once, and making the two behavior branches explicit. Do not introduce new helpers, new types, or a different calling shape; the function is already small and fully specified, so anything beyond this becomes speculative refactoring rather than useful cleanup.\n\nConcise tests:\n- `short=true` with a non-empty nickname returns the trimmed nickname.\n- `short=true` with `nickname` absent returns `\"<first> <last>\"` with both names trimmed.\n- `short=true` with empty or whitespace-only `nickname` behaves the same as absent nickname.\n- `short=false` with `nickname` absent returns `\"<last>, <first>\"` with both names trimmed.\n- `short=false` with a non-empty nickname returns `\"<last>, <first> (<nickname>)\"` with nickname trimmed.\n- `short=false` with empty or whitespace-only `nickname` does not append parentheses.\n- A trimming-focused case covers leading/trailing spaces on `first`, `last`, and `nickname` together.\n\nThis stays within the intended boundary from the consulted guidance: one coherent function, consistent abstraction level, explicit happy paths, and stopping once local readability is clearly improved.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

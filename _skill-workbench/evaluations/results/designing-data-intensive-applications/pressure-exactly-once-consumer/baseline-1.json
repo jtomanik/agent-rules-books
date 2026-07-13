@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5854-c242-76a3-b76b-5efb9e4996c7",
+  "exit_code": 0,
+  "result": {
+    "answer": "The shortcut is not safe. Broker exactly-once does not make this consumer exactly-once because the database write and the email side effect are outside any end-to-end idempotent boundary.\n\nFindings:\n1. Duplicate/replay corruption: the stated crash window after the ledger commit and before offset commit causes redelivery. On retry, `markConfirmed` may be harmless, but `ledger.insert(...)` runs again unless it is protected by a durable idempotency key or a uniqueness constraint tied to the event/business operation. Removing the idempotency table makes duplicate ledger rows the expected outcome.\n2. Replay is incompatible with side effects: topic replay is a supported rebuild mechanism, but this consumer sends email inline. Replaying history will resend receipts unless replay traffic is isolated from side effects or the email path is independently deduplicated.\n3. Ordering is not safe per order: the topic is keyed by `customer_id`, so events for one `orderId` can land on different partitions and run concurrently. With `max_concurrency: 48`, there is no per-order serialization. If multiple confirmation-like events or retries exist for one order, this consumer cannot rely on broker ordering for correctness.\n4. Email exactly-once is impossible with the current provider contract: `idempotency_key: unsupported` and `timeout_outcome: unknown` means a timeout can represent either sent or not sent. If you retry, you can double-send. If you do not retry, you can drop the receipt. Broker transactions do not fix that because email is an external side effect.\n5. Success/ack gap still duplicates email: if `sendReceipt` succeeds and the process crashes before `message.ack()`, the message is replayed and the receipt is sent again.\n\nWhat must change before launch:\n- Do not remove durable consumer idempotency. Keep the idempotency table or replace it with an equivalent durable dedup mechanism keyed by a stable event ID or business operation ID, applied in the same database transaction as `markConfirmed` and `ledger.insert`.\n- Make the ledger write idempotent at the database level. Use a unique constraint/upsert on the confirmation operation so reprocessing cannot create a second ledger entry.\n- Remove inline email sending from the consume path. Persist an outbox/intention record in the same database transaction, then deliver email asynchronously.\n- Do not use the current email provider path for exactly-once receipts unless you add a provider or relay that supports idempotency keys or authoritative delivery lookup. Without that, the \u201cno duplicate receipt\u201d requirement cannot be met.\n- Separate replay/projection rebuild from external side effects. Rebuild consumers must not send receipts.\n- If per-order event order matters, repartition by `order_id` or enforce per-order version/sequence checks in the database; the current `customer_id` partitioning does not provide the needed ordering guarantee.\n\nBottom line: do not approve the consumer unchanged, and do not remove the idempotency mechanism before launch.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T21:57:21.839043Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5854-c242-76a3-b76b-5efb9e4996c7.1783893377602943000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

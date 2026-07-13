@@ -1,0 +1,36 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/focused-code-complete-overlap.md",
+  "case_sha256": "0a09d5db5dc46fc3467267ba177f789f09742fe85426c046f152fccb02978bd3",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58b9-74fd-7751-ac90-d9a9a54c7163",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use PostgreSQL, not the checksum index, as the ordering and replay authority.\n\nThe bounded slice is:\n- `manifest_progress(manifest_id PK, next_position bigint not null)` is the per-manifest cursor and ordering lock point.\n- `applied_manifest_entries(manifest_id, position, object_key, primary key(manifest_id, position))` is the authoritative applied ledger for this slice.\n- `checksum_index(...)` stays derived. `applyEntry` may update it in the same transaction for freshness, but must never use it to decide duplicate/order status. Rebuild is `applied_manifest_entries` replayed in `(manifest_id, position)` order.\n\nA concrete `ApplyResult` boundary:\n```ts\ntype ApplyResult =\n  | { kind: \"applied\"; manifestId: string; position: number }\n  | { kind: \"duplicate\"; manifestId: string; position: number; appliedThrough: number }\n  | { kind: \"blocked\"; manifestId: string; position: number; expectedPosition: number };\n```\n\nRoutine shape:\n1. Validate trust-boundary input before opening a transaction.\n2. Start one DB transaction.\n3. Ensure a `manifest_progress` row exists for `manifestId`, then `SELECT ... FOR UPDATE` that row.\n4. Compare `entry.position` with `next_position`.\n5. If `position < next_position`, return `duplicate`.\n6. If `position > next_position`, return `blocked` with `expectedPosition = next_position`.\n7. If equal, insert `applied_manifest_entries` row, apply the checksum projection, advance `manifest_progress.next_position` to `position + 1`, commit, return `applied`.\n\nThat gives the required behavior:\n- Crash or ack-timeout replay is safe because the committed cursor/ledger decide the retry outcome.\n- One manifest is serialized by its locked progress row.\n- Different manifests proceed concurrently because they lock different rows.\n- The checksum index is repairable because it is derived from the authoritative ledger.\n\nSuggested internal boundaries:\n```ts\nasync function applyEntry(entry: ManifestEntry): Promise<ApplyResult>\nfunction validateEntry(entry: ManifestEntry): void\nasync function withManifestTransaction<T>(manifestId: string, fn: (tx: Tx) => Promise<T>): Promise<T>\nasync function loadAndLockManifestProgress(tx: Tx, manifestId: string): Promise<{ nextPosition: number }>\nasync function recordAppliedEntry(tx: Tx, entry: ManifestEntry): Promise<void>\nasync function projectChecksumIndex(tx: Tx, entry: ManifestEntry): Promise<void>\nasync function advanceManifestProgress(tx: Tx, manifestId: string, nextPosition: number): Promise<void>\n```\n\nDefensive validation:\n- `manifestId`: non-empty, normalized string.\n- `objectKey`: non-empty, normalized string.\n- `position`: integer, `>= 0`.\n- Assert invariant inside the transaction that locked `next_position` is never negative and only advances by one.\n- Keep a unique key on `(manifest_id, position)` even though the cursor lock should already prevent double-apply; it is a last-line corruption guard.\n\nError outcomes:\n- Return `duplicate` for already-applied replay.\n- Return `blocked` for out-of-order delivery; caller should retry later rather than acknowledge success.\n- Throw a validation/domain error for malformed input so it can be dead-lettered.\n- Throw retryable infrastructure errors for deadlock, connection loss, serialization restart, or projection-query failure; do not ack in those cases.\n- Throw a hard invariant error if the ledger/cursor state is contradictory, because that indicates data corruption or a bug.\n\nSmallest implementation increment:\n- Implement only the transactional cursor + authoritative ledger + derived checksum update path.\n- Do not add batching, advisory locks, cross-process coordination, rebuild tooling, or broker policy in this slice.\n- Keep the checksum projection logic behind one function so the first increment can use a minimal upsert and later evolve independently.\n\nFocused tests:\n- Applies first entry for a manifest: returns `applied`, writes ledger row, advances cursor, updates projection.\n- Replays the same entry after commit: returns `duplicate`, does not update projection again.\n- Receives `position > next_position`: returns `blocked`, writes nothing.\n- Projection write fails inside the transaction: transaction rolls back; retry of the same entry can still apply cleanly.\n- Concurrent same-manifest deliveries serialize correctly: one entry at `n` applies, a concurrent `n+1` before `n` commits gets `blocked`.\n- Concurrent different manifests do not block each other at the logical lock boundary.\n- Invalid `manifestId`, `objectKey`, or negative/non-integer `position` fails validation before DB work.\n\nIf you want the actual SQL skeleton, the key statements are `INSERT ... ON CONFLICT DO NOTHING` for initializing `manifest_progress`, `SELECT ... FOR UPDATE` for the per-manifest lock, `INSERT` into `applied_manifest_entries`, the checksum-index upsert, and `UPDATE manifest_progress SET next_position = $position + 1` before commit.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications",
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [
+    "reference_mode ordinary requires SKILL.md files and no references"
+  ],
+  "stderr": "2026-07-12T23:47:35.662212Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58b9-74fd-7751-ac90-d9a9a54c7163.1783899976957791000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

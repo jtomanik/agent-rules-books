@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b0-59b4-7c93-8881-145c22847e09",
+  "exit_code": 0,
+  "result": {
+    "answer": "1. High: the semaphore wait and outbound call are not bounded by the checkout request budget, so this path can block past the allowed degradation point. In the TS snippet, `acquire()` on line 7 waits indefinitely, and `carrierClient.post()` on line 10 ignores `requestSignal`; the provider timeout only covers response wait, not connect establishment. Smallest pre-merge fix: make both the slot acquisition and the HTTP call observe the request deadline/signal. If possible, pass an actual deadline/remaining-budget into `fetchCarrierQuote` and use it to bound both waiting for a slot and the network call. At minimum, wire `requestSignal` into both operations.\n\n2. High: the code treats permanent contract failures as ordinary unavailability, which will silently hide bad requests and provider/schema drift. The current `catch` on line 27 converts everything into `{ kind: \"unavailable\" }`, but your contract says only `429`, `5xx`, timeout, and transport failure should degrade that way. Smallest pre-merge fix: classify outcomes before the fallback. Map `429`, `5xx`, timeout/abort, and transport errors to `unavailable`; treat other `4xx` as integration/request errors; treat malformed `200` responses the same way.\n\n3. High: a `200` response is accepted without validating status, content type, or body shape. `response.json()` on line 19 will parse whatever comes back, and lines 21-25 return it as `available` even if `amount` is negative/NaN, `currency` is invalid, or `expires_at` is not a timestamp. Smallest pre-merge fix: require `HTTP 200`, JSON content, and validate `{ amount, currency, expires_at }` before returning `kind: \"available\"`.\n\nWhat does not need to change before merge: no retry behavior is good here, and `CARRIER_MAX_IN_FLIGHT=32` is a reasonable first bulkhead once its wait is bounded.\n\nRecommended minimal patch shape:\n- Bound semaphore acquisition by request deadline/signal.\n- Pass the same abort/deadline into `carrierClient.post()` so connect/setup cannot outlive checkout.\n- Check `response.status` and `Content-Type` before parsing.\n- Validate the JSON payload fields before returning `available`.\n- Split error handling into `unavailable` vs explicit integration/contract failure, and log the failure class/status so it is diagnosable.\n\nResidual risk if merged as-is: checkout can spend its full budget stuck in this optional integration, and permanent provider/request bugs will look like transient carrier unavailability instead of surfacing immediately.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

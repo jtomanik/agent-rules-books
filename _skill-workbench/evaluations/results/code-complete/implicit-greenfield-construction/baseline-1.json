@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/implicit-greenfield-construction.md",
+  "case_sha256": "d4b5c44ed1d1cf15a79c61af5ae7805bb640ce7bd8ee9538629982ef83dca4da",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5899-f899-75a0-b09d-c433e350e46a",
+  "exit_code": 0,
+  "result": {
+    "answer": "No repository code or `.agents/skills` packages were present in the workspace, so the design below is a greenfield recommendation for the first merge and assumes only that a typed repository interface already exists.\n\nUse a two-layer contract.\n\n```text\nimport_json_batch(raw_json) -> Result<ImportBatchResult, ImportBatchError>\n\nImportBatchResult {\n  total: usize,\n  accepted: usize,\n  rejected: usize,\n  records: Vec<RecordOutcome>\n}\n\nRecordOutcome =\n  | Accepted { index, record_id }\n  | Rejected { index, record_id: Option<RecordId>, error: RecordError }\n\nImportBatchError =\n  | InvalidBatchJson\n  | InvalidBatchShape\n  | RepositoryFailure\n```\n\nConstruction decisions:\n\n1. Validate untrusted JSON in two steps.\nFirst parse the batch envelope as JSON. Then validate each element into a dedicated import DTO, not directly into the repository/domain type. That keeps boundary validation explicit and avoids leaking transport concerns into the repository.\n\n2. Invalid records should not fail the whole batch.\nFor the first production slice, data-quality problems should produce per-record outcomes. Batch-level failure should be reserved for envelope failures such as malformed JSON, non-array input, or repository/runtime failures that make the whole call unreliable.\n\n3. Represent duplicate IDs as per-record validation errors.\nTreat duplicates inside the submitted batch as `Rejected` outcomes with a distinct error code such as `DuplicateRecordId { first_index }`. Keep the first valid occurrence and reject later duplicates. This is deterministic, easy to explain, and avoids ambiguous multi-write semantics.\n\n4. Keep routine shape linear and boring.\nRecommended flow:\n\n```text\nparse batch JSON array\nfor each item with index:\n  validate raw item -> ImportRecordCandidate\n  if invalid: emit Rejected\n  else if id already seen: emit Rejected(DuplicateRecordId)\n  else call typed repository boundary with validated record\n       map success -> Accepted\n       map domain rejection if any -> Rejected\nreturn ImportBatchResult\n```\n\n5. Expose a narrow caller-facing error contract.\nTop-level `Err(...)` means the batch could not be processed as a batch at all. Everything record-specific belongs in `ImportBatchResult.records`. This gives callers a clean branch:\n- `Err`: retrying or operator handling may be needed.\n- `Ok(result)`: inspect per-record outcomes.\n\n6. Use the smallest integration boundary with the typed repository.\nThe import module should depend on one typed function or trait method only, for example:\n\n```text\napply_import_record(record: ValidatedImportRecord) -> Result<RepoAccept, RepoReject>\n```\n\nThe repository should not know about raw JSON, batch indexes, duplicate detection, or import reporting. The importer owns transport validation and batch orchestration; the repository owns typed business acceptance.\n\n7. Smallest reviewable first slice.\nImplement only:\n- `import_json_batch`\n- DTO validation into `ValidatedImportRecord`\n- in-batch duplicate detection\n- per-record result aggregation\n- a repository stub/fake boundary\n\nDo not include persistence policy, retries, async delivery, cross-batch deduplication, or performance work in the first merge.\n\nRecommended first-merge tests:\n\n1. Boundary tests\n- malformed JSON returns `Err(InvalidBatchJson)`\n- non-array JSON returns `Err(InvalidBatchShape)`\n- empty array returns `Ok` with zero counts and no repository calls\n\n2. Invalid-input tests\n- missing required field rejects only that record\n- wrong field type rejects only that record\n- invalid ID format rejects only that record\n\n3. Duplicate tests\n- later duplicate of an earlier valid ID is rejected with `DuplicateRecordId { first_index }`\n- duplicate detection happens before repository call for the duplicate record\n\n4. Mixed-result tests\n- one valid, one invalid, one duplicate produces one accepted and two rejected outcomes with stable indexes\n- valid records around rejected records still reach the repository\n\n5. Repository-boundary tests\n- repository success maps to `Accepted`\n- repository typed rejection maps to per-record `Rejected`\n- repository hard failure returns top-level `Err(RepositoryFailure)`\n\nThe main review decision before coding should be this policy split: caller-visible top-level errors are batch/infrastructure failures only; user-data problems are always per-record outcomes. That gives the smallest stable contract and the smallest reviewable implementation slice.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

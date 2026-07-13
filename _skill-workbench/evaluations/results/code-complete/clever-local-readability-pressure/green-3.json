@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/clever-local-readability-pressure.md",
+  "case_sha256": "d4031be584d9d1440a7412df4d178680d97e42683d80ef56034bdaa50dc61809",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585f-1b85-7a20-9f08-eda084ecf1ab",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest clean-code fix is to remove the boolean mode entirely and give each behavior a name. That keeps the change local, preserves behavior, and avoids widening this into a broader audit.\n\n```ts\nconst normalizedLabelName = (name: string): string => name.trim().toUpperCase();\n\nexport const compactLabel = (name: string): string => normalizedLabelName(name);\n\nexport const customerLabel = (name: string): string =>\n  `Customer: ${normalizedLabelName(name)}`;\n```\n\nWhy this is the right minimum:\n- `label` is too generic; `compactLabel` and `customerLabel` make intent visible at the call site.\n- `compact: boolean` is the main readability smell; the reader has to decode what `true` means. Two named functions remove that mode switch.\n- The ternary mixes shared normalization with formatting. Pulling out `normalizedLabelName` makes the expression shape straightforward.\n\nIf the public API cannot change today, the fallback minimum is to keep one function but at least compute the normalized name once and replace the ternary with an `if`; that improves expression shape, but it does not actually fix the boolean-mode smell.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:08:13.303782Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585f-1b85-7a20-9f08-eda084ecf1ab.1783894055814095000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

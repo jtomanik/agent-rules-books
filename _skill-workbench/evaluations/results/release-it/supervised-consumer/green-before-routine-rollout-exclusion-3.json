@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b8-01d0-7222-ad17-d391e0699416",
+  "exit_code": 0,
+  "result": {
+    "answer": "The correct boundary is neither \u201calways crash\u201d nor \u201ccatch everything and ack.\u201d With this broker and supervisor, those are the two unsafe extremes.\n\nCurrent behavior is unsafe because `throw` on every error turns poison input into a fleet-wide restart loop: `max_deliveries: 0`, no DLQ, immediate redelivery on exit, `restart: always`, fast backoff, six replicas. The staging incident is exactly what this configuration predicts. The broad `catch + ack` alternative is also unsafe because it would silently drop valid work on dependency failures.\n\nRecommended failure boundary:\n\n1. Malformed inbound message: quarantine, do not retry, do not crash.\nInvalid JSON, schema/shape failure, or impossible business fields are poison input. Handle them before any side effects, send them to an explicit quarantine path, and remove them from normal flow. In this system that means configuring a dead-letter/quarantine route and rejecting without requeue. If quarantine handoff is unavailable, do not replace it with `ack`; that would be silent data loss.\n\n2. Transient dependency failure: retry in bounded fashion, then pause, do not ack, do not crash.\n`503`, timeout, and `200` with malformed JSON from `inventory` are dependency failures, not poison messages. Retry them with one bounded retry policy only, under an explicit non-zero timeout, with backoff/jitter. If retries are exhausted, stop taking more work at the consumer level and surface unhealthy state. Because operators only have deployment-wide pause, the pause boundary should also be deployment/consumer-wide, not per-message. The message should remain unacknowledged for later recovery, or be requeued only if the broker supports delayed requeue; immediate requeue would just hot-loop.\n\n3. Compromised process state: crash.\nCrash only when the process cannot be trusted to continue safely: invariant breach, corrupted in-memory state, unrecoverable runtime failure, or an ambiguous state where continuing risks duplicate/corrupt effects. In that case supervisor restart is appropriate, and unacked messages should be redelivered.\n\nChanges needed to make that policy safe and testable:\n\n1. Split failure classification explicitly in code.\nSeparate inbound parse/validation errors from dependency errors and from crash-worthy internal errors. The important distinction here is that malformed downstream JSON belongs to the dependency-error branch, not the poison-message branch.\n\n2. Add a real quarantine path.\n`dead_letter_exchange: null` must change. Poison-message handling is not safe without an explicit quarantine queue or dead-letter route.\n\n3. Make dependency waiting finite and retry discipline explicit.\n`dependency_timeout_ms: 0` is unsafe. Set a finite timeout. Keep retries in exactly one layer, bounded, with backoff/jitter.\n\n4. Add consumer-wide pause / breaker semantics for dependency outages.\nAfter bounded dependency retries fail, stop consuming new work and expose that state operationally. `readiness: broker_connection_is_open` is too weak for this policy; readiness should reflect \u201cable to process messages safely,\u201d not just \u201csocket open.\u201d\n\n5. Bound crash-loop restarts.\nIf crashing is reserved for compromised state, restart policy should make that visible instead of thrashing forever. A finite `max_restarts_per_minute` and less aggressive backoff are needed so a bad rollout or invariant bug does not create another all-replica storm.\n\nTests to require for this change:\n\n1. Poison message is rejected to quarantine and process stays alive.\n2. Dependency `503`/timeout retries under timeout budget, then pauses without ack.\n3. Dependency `200` malformed JSON follows the same retry/pause path, not quarantine.\n4. Crash-only internal error escapes and leaves the message unacked.\n\nIn short: quarantine bad input, pause on dependency trouble, crash only on compromised state. With the current broker/supervisor settings, anything broader than that is either a retry storm or silent loss.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/schedule-pressure-controller-policy.md",
+  "case_sha256": "3e1c3b18559a931bfec0d088407244283c234057a6b9abd1efe272398953dd25",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5857-4a90-7253-a46a-5fc630db7293",
+  "exit_code": 0,
+  "result": {
+    "answer": "Do not accept the controller shortcut.\n\nThe proposed change places business policy in the HTTP adapter. That breaks the current dependency direction: the controller should translate HTTP to the use case, not make refund eligibility decisions itself. It also creates split policy ownership, where VIP refunds are decided in the controller and non-VIP refunds are decided in `RefundPurchase`. Under schedule pressure, that is exactly how a fully specified rule becomes partially specified and harder to reason about.\n\nThe smallest shippable placement is to keep the controller unchanged and add the VIP branch inside `RefundPurchase` at the point where refund eligibility is already decided. Concretely: compute the allowed refund window from the purchase data there, `30` days for `VIP`, otherwise `14`, and keep returning the same accepted/rejected result so the HTTP contract stays identical.\n\nIf `RefundPurchase` already loads the purchase, this is a one-branch change in the use case. If the date-window rule is currently inline and you want the smallest clean seam, extract a tiny pure policy such as `isRefundEligible(purchase, requestedAt)` and call it from `RefundPurchase`. That still keeps policy in the application/domain flow, preserves fast test coverage around the use case, and avoids teaching the controller about customer tiers.\n\nIn short: reject the shortcut, place the VIP rule in `RefundPurchase` or a policy it owns, and leave the controller as a thin adapter.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T21:59:27.546595Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5857-4a90-7253-a46a-5fc630db7293.1783893543591637000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

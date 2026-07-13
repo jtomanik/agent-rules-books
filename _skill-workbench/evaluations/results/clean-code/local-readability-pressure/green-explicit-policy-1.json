@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5889-851e-7780-87a3-dd542bd9020f",
+  "exit_code": 0,
+  "result": {
+    "answer": "Ship the smallest change that makes the new rule explicit and test-protected. I would not take the manager literally and just add another inline branch into the existing `d` computation without at least one local cleanup, because this method already mixes pricing, preview, persistence, notification, and audit. The safe compromise is: isolate discount calculation into a tiny helper, add the new partner rule there, and leave the rest of `finalize` untouched.\n\nScope boundary: only change discount determination for `partner` accounts when `invoice.total >= 500`. Preserve every other observable behavior exactly as-is, including the current `vip` discount, the `> 1_000` surcharge-style extra 5%, preview semantics, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, and `lastInvoiceId` behavior. Do not rename public APIs, do not redesign the boolean flags, do not change rounding behavior, and do not broaden the patch into a larger service rewrite.\n\nConcrete patch plan:\n1. Add tests that pin the new rule before touching implementation.\n2. Extract discount logic into a private helper such as `calculateDiscount(account, invoice)` to keep the behavior change local and reviewable.\n3. Implement the new rule in that helper: `partner` gets `0.15` when `total >= 500`; keep the existing `> 1_000` extra `0.05` logic unchanged unless product explicitly says the 15% should replace all other discount logic.\n4. Run the existing suite and confirm no interaction assertions changed outside the new partner cases.\n\nRevised sketch:\n```ts\ntype DiscountRate = number;\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n\n  private calculateDiscount(a: Account, i: Invoice): DiscountRate {\n    let d = 0;\n\n    if (a.segment === \"vip\") {\n      d += 0.1;\n    }\n\n    if (a.segment === \"partner\" && i.total >= 500) {\n      d += 0.15;\n    }\n\n    if (i.total > 1_000) {\n      d += 0.05;\n    }\n\n    return d;\n  }\n}\n```\n\nTests required before shipping:\n- `partner` with total `499.99`: no new discount; all existing side effects unchanged.\n- `partner` with total `500`: gets 15% discount.\n- `partner` with total above `1_000`: gets 20% total discount if the existing `+0.05` rule is still cumulative.\n- Preview mode for an eligible `partner` invoice: returns discounted amount, `changed: false`, and does not call `accounts.save`, `mailer.send`, or `audit.record`.\n- Non-preview eligible `partner` invoice with `sendEmail = true`: verifies returned amount/discount and exact calls to `accounts.save`, `mailer.send`, and `audit.record` with the discounted amount.\n- One regression test each for existing `standard` and `vip` behavior to prove untouched paths still behave the same.\n\nOpen product clarification that matters: whether a `partner` invoice above `1_000` should stack to 20% or cap at 15%. The code above preserves the current additive model and is the least risky interpretation because the requirement says to preserve behavior outside the new rule.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:53:55.566825Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5889-8441-7732-844a-54bba5f94055.1783896835137924000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:53:55.633838Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5889-8460-7e42-b11b-c6ae41c39c93.1783896835208858000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:53:55.718685Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5889-847d-7300-80dd-951406cfd33e.1783896835241956000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:54:36.301614Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5889-851e-7780-87a3-dd542bd9020f.1783896835435950000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

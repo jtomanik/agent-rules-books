@@ -1,0 +1,43 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/solution-first-local-pressure.md",
+  "case_sha256": "ee5c773939df1918985c87ff93cdd22a4766d30bc2dc0125f36cb99008949587",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5873-1106-7df0-9d1c-a1bc49c49962",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest decision I would accept is: introduce one typed bulk-operation seam and refuse to enter business logic until the entire request has been validated into that type. That rejects the happy-path shortcut directly: no looping over raw `body.accounts`, no catch-all per item, and no response that throws away per-account outcomes.\n\nA minimal implementation slice:\n\n```text\nparseAndValidate(body) -> InvalidRequest | ActivationBatch\nactivateBatch(batch, actor) -> BatchResult\n```\n\n`ActivationBatch` should contain only validated data, for example `accounts: NonEmptyList<AccountId>` with size `1..100` and guaranteed distinct IDs. `parseAndValidate` owns the trust boundary and must reject before side effects when:\n- `accounts` is missing, not an array, or contains non-ID values\n- count is outside `1..100`\n- any ID is syntactically invalid\n- any ID is duplicated\n\nAfter that, the control flow stays simple and inspectable:\n\n```text\nbatch = parseAndValidate(body)\nif invalid: return 400 with validation error\n\nitems = []\nfor each accountId in batch.accounts:\n  if not authorized(actor, accountId):\n    items.add({accountId, result: unauthorized})\n    continue\n\n  outcome = activate(accountId)   // typed collaborator outcome\n  items.add(mapOutcome(accountId, outcome))\n\nreturn {\n  items,\n  summary: deriveCounts(items)\n}\n```\n\nAccepted per-item outcomes are exactly `activated`, `already-active`, `not-found`, and `unauthorized`. Summary counts must be derived from `items`, not tracked separately, so the response cannot drift from the per-account truth. Catching every error inside the loop is the wrong shape here because expected business outcomes are already typed; only truly unexpected faults should escape the routine boundary as failures, not be collapsed into \"attempted\".\n\nFocused tests for this slice:\n- rejects malformed body before any auth, persistence, or audit call\n- rejects `0` items and `101` items before side effects\n- rejects duplicate IDs before side effects\n- rejects one invalid ID in an otherwise valid array before side effects\n- returns mixed per-item results for a valid batch: `activated`, `already-active`, `not-found`, `unauthorized`\n- checks authorization per valid ID\n- derives summary counts from item results exactly\n- preserves input-to-output account correspondence\n\nThat is the smallest constructionally sound slice: one validation seam, one straightforward batch routine, explicit outcome mapping, and tests that prove the trust boundary and result contract. The manager\u2019s loop-and-catch shortcut fails on the two requirements that matter most here: reject invalid requests before side effects, and return truthful per-account outcomes.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "code-complete",
+        "sections": [
+          "Construction Prerequisites and Decisions",
+          "Defensive Programming Rules",
+          "Error Handling Rules",
+          "Incremental Construction Rules",
+          "Testing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:29:24.072106Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-edf9-7851-9b9b-e21b23877c56.1783895354874128000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:29:24.114007Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-ee07-77c0-b3fa-994dd774c192.1783895354888190000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:29:24.145867Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-edc7-7ff2-a43a-fc32acf9c703.1783895354823855000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:29:24.227168Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-eddc-7b70-b402-cc279d84ebf3.1783895354845396000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:30:05.639630Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5873-1106-7df0-9d1c-a1bc49c49962.1783895363846496000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

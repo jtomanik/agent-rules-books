@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/clever-local-readability-pressure.md",
+  "case_sha256": "d4031be584d9d1440a7412df4d178680d97e42683d80ef56034bdaa50dc61809",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585a-c809-7362-b83f-378b38278cca",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a name that reflects the domain value, a boolean that describes the observable mode, and a single expression that removes duplicated work:\n\n```ts\nexport const label = (customerName: string, bare: boolean): string => `${bare ? \"\" : \"Customer: \"}${customerName.trim().toUpperCase()}`;\n```\n\nWhy this is the smallest useful change:\n- `customerName` is more specific than `name`.\n- `bare` matches the current `true` branch semantics directly; `compact` describes style, not behavior.\n- The template literal keeps it a one-liner while pulling the shared `trim().toUpperCase()` out of the conditional shape mentally, which is the main readability win here.\n\nI would keep the scope there and not broaden it further.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:02:52.376945Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585a-5d7b-7201-8d5c-f3e78df08b63.1783893745020214000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:02:52.508047Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585a-5d59-7ab1-a96c-e880d4981f8f.1783893744986187000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:02:52.558812Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585a-5d9f-7283-bbd1-8cde9c8fcf1b.1783893745055977000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:03:46.421387Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585a-c809-7362-b83f-378b38278cca.1783893772297977000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

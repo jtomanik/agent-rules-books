@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/manual-comprehensive.md",
+  "case_sha256": "34b6d14bbee407e1eb46cc07a5b5a0eb4a5c7a5baf89e4b951f4c306a13aac03",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5899-52ca-7623-9110-94060f17b06a",
+  "exit_code": 0,
+  "result": {
+    "answer": "The module, as described, fails the Code Complete construction bar. The highest-priority issue is not any single bug pattern; it is that the module collapses multiple concern groups into one opaque routine, which makes correctness, diagnosability, and change safety unattainable.\n\n1. `P0: Construction prerequisites are unresolved`\nThe module shape implies missing up-front decisions about input contract, row schema, validation policy, storage semantics, audit requirements, error policy, and performance targets. Without those, booleans, numeric sentinels, and catch-all recovery become accidental design. Before further construction, define: accepted row shape, typed intermediate representation, recoverable vs fatal row errors, batch atomicity, audit guarantees, integration throughput target, and observability requirements.\n\n2. `P0: Routine and data design are fundamentally wrong`\nAccepting untyped arrays, mode booleans, and numeric sentinels forces readers to decode meaning that should live in types, names, and structures. This is a direct routine/data failure.\nRequired construction direction:\n- Replace raw positional arrays with a named row input DTO plus a validated parsed row model.\n- Replace boolean modes with explicit operation/state enums or separate entry points.\n- Replace numeric sentinels with named domain variants or nullable/result types with explicit semantics.\n- Split parsing, validation, persistence, and audit payload creation into separate routines with narrow interfaces.\n\n3. `P0: Control flow is too complex to inspect`\nDeep nesting plus hidden state mutation means the normal path, failure path, and loop behavior are not locally verifiable. This is defect-prone even before considering business rules.\nRequired construction direction:\n- Flatten with guard clauses.\n- Name complex predicates.\n- Move repeated branch logic into table-driven validation/dispatch where mappings are stable.\n- Make row processing a visible pipeline: decode -> validate -> map -> persist -> audit -> report.\n\n4. `P0: Boundary, error, and contract handling are unsafe`\nThe module crosses a trust boundary and currently swallows every exception. That violates defensive construction directly.\nRequired construction direction:\n- Validate every external row before domain use.\n- Distinguish malformed input, domain rejection, integration failure, and programmer error.\n- Preserve row identifier, field context, and failing operation in every error.\n- Do not continue from impossible state.\n- Define explicit per-row and per-batch postconditions.\n\n5. `P1: Module boundaries and complexity are broken`\nMixing parsing, validation, storage, audit, and integration creates a god-module. Hidden mutable state further weakens contracts because behavior depends on call order and internal residue.\nRequired construction direction:\n- Isolate pure row transformation from side effects.\n- Keep audit assembly separate from persistence orchestration.\n- Make all state explicit in parameters/results, or encapsulate it behind a small, coherent type with invariants.\n- Reduce working-memory load by ensuring each unit has one reason to change.\n\n6. `P1: Incremental construction and integration strategy are poor`\nSlow per-row integration suggests the module was built as an end-to-end loop instead of a validated slice with staged integration.\nRequired construction direction:\n- Build a fast local row-processing core first.\n- Batch or defer integration where semantics allow.\n- Add seam-level tests for parser, validator, mapper, persistence adapter, and audit writer independently.\n- Integrate frequently, but at the right boundary, not by forcing every row through the full stack during construction.\n\n7. `P1: Debugging, refactoring, and tuning discipline is missing`\nCatch-all exception swallowing destroys diagnosis. Slow per-row integration has likely been tolerated without measured targets.\nRequired construction direction:\n- Restore diagnosability first: reproducible failure cases, structured error reporting, and row-level tracing.\n- Refactor structure separately from behavior changes where possible.\n- Measure throughput and latency before tuning.\n- Change one performance variable at a time and remeasure.\n\n8. `P2: Comments, standards, and tool support are probably compensating for bad structure`\nIn code like this, comments often explain mechanics that the code should reveal itself. That is a construction smell.\nRequired construction direction:\n- Prefer names and decomposition over explanatory comments.\n- Keep only comments about intent, constraints, batch semantics, audit guarantees, and non-obvious invariants.\n- Enforce shared naming/style/static-analysis rules so the module does not become its own dialect.\n\n9. `P0: Test coverage is grossly inadequate`\nOne happy-path test is nowhere near enough for this risk profile.\nMinimum test matrix:\n- valid row, minimal row, maximal row\n- missing field, extra field, wrong type, out-of-range value\n- sentinel-edge replacements and enum/state coverage\n- per-row recoverable rejection vs batch-fatal failure\n- persistence failure, audit failure, partial integration behavior\n- hidden-state/order-dependence regression tests\n- table-driven validation cases if rules become data-driven\n\n10. `Forbidden patterns currently present`\nThe module exhibits several explicitly forbidden Code Complete patterns:\n- clever/opaque control instead of inspectable logic\n- one routine doing multiple phases\n- boolean mode switching\n- unexplained sentinel values\n- hidden side effects and hidden mutable state\n- swallowed exceptions without context\n- mixed persistence/business/integration concerns\n- comments likely being used as a crutch for poor structure\n\n11. `Final review verdict`\nThis module should not be extended in its current form. The correct construction response is:\n- freeze feature growth\n- define contracts and failure semantics\n- split the module into focused stages\n- replace primitive/flag/sentinel encodings with explicit types\n- restore diagnosable errors\n- build a broad routine- and boundary-level test harness\n- then address measured integration performance\n\nIf forced to prioritize execution order: `contracts and typed row model -> error policy and diagnostics -> phase separation -> test expansion -> integration redesign/tuning`.\n\nOverall assessment: high defect risk, low inspectability, weak construction discipline, and not acceptable for further growth without structural correction.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/code-complete/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "code-complete",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

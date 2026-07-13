@@ -1,0 +1,42 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5889-8691-7a32-93b8-bcc3f3d589fa",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Decision**\n\nNeither blanket policy is safe here. With `restart: always`, `max_restarts_per_minute: 0`, `max_deliveries: 0`, no DLQ, and immediate redelivery of every unacked message, \u201clet every exception crash\u201d turns poison data into a restart storm. The staging incident already proved that. The opposite extreme, one broad catch that logs and `ack`s everything, loses valid work on transient failures and silently discards bad inputs because there is no quarantine path.\n\nThe boundary should be:\n\n- `Quarantine, then ack` only for failures that prove the inbound delivery itself is bad: invalid JSON, missing or invalid `id`/`sku`, unsupported schema/version, impossible domain values. These messages should not be retried and should not crash the process.\n- `Retry, then pause` for a valid message blocked by a dependency: inventory `503`, timeout, or `200` with malformed JSON/body shape. That last case is a dependency-contract failure, not a poison message. After a bounded retry budget with timeout and backoff/jitter, do not `ack`, do not quarantine, and do not crash just to get a restart. Transition the consumer to a paused/unready state so backlog stays in the queue instead of hot-looping across six replicas.\n- `Crash the process` only when local state is no longer trustworthy enough to make the next ack/nack/quarantine decision correctly: invariant bugs, broken broker channel/session, unknown commit-vs-ack outcome handling, failed pause/quarantine machinery, OOM, or other compromised runtime state.\n\n**Needed changes**\n\n- Add explicit inbound validation instead of `as InventoryEvent`. Right now parse, validation, dependency, database, and broker errors are all conflated.\n- Add a real quarantine path. Configure a `dead_letter_exchange` and finite poison-handling route, or publish to a quarantine queue explicitly. Only `ack` the original message after quarantine succeeds.\n- Add an explicit dependency timeout. `dependency_timeout_ms: 0` is unsafe here because a hung call can consume worker capacity indefinitely.\n- Keep dependency retries bounded and backoff/jittered. Three retries are reasonable only if they are time-bounded and not duplicated at multiple layers.\n- Add a pause mechanism for dependency outage. In practice that means the consumer can stop pulling work or mark itself unready when the dependency is unhealthy; `readiness: broker_connection_is_open` is too weak because it reports ready during an inventory outage.\n- Make processing idempotent across redelivery. If the process dies after the DB commit but before `ack`, the message will be redelivered. The event write must be protected by a unique `eventId` constraint or equivalent upsert/dedup logic.\n- Reduce `prefetch` to intended concurrency. With `prefetch: 100` and 6 replicas, a fatal crash can replay up to 600 in-flight deliveries immediately, which amplifies both dependency outages and crash testing.\n- Narrow the catch boundary. Handle `MalformedMessageError` with quarantine, `RetryableDependencyError` with retry/pause, and rethrow only fatal process-state errors.\n\n**What not to do**\n\n- Do not `ack` malformed dependency responses. The message may be valid.\n- Do not use supervisor restarts as your retry clock. In this topology, restart means immediate redelivery storm.\n- Do not leave poison-message handling to `max_deliveries: 0`; that is effectively \u201cretry forever.\u201d\n\n**Tests required to make this policy safe**\n\n- A malformed inbound body is quarantined exactly once, then acked, and the process stays up.\n- A `503` or timeout triggers bounded retries, then the consumer pauses/unreadies without acking the message.\n- A dependency `200` with malformed JSON is treated the same as other dependency failures, not quarantined.\n- A simulated crash after DB commit but before `ack` causes redelivery, and reprocessing is harmless because of idempotency.\n- A simulated fatal broker/session failure escapes and causes process exit.\n\nThat is the exact split: poison input gets quarantined, dependency trouble gets retried then paused, and only compromised local state gets to crash the process.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "release-it",
+        "sections": [
+          "Dependency Protection Rules",
+          "Data Boundary Rules",
+          "Forbidden Patterns",
+          "Testing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:55:43.366103Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5889-8691-7a32-93b8-bcc3f3d589fa.1783896835777618000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

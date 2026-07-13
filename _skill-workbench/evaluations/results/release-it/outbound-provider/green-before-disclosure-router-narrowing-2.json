@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/outbound-provider.md",
+  "case_sha256": "420500ae5fd787a2e9919b3b0bbbb67e620f27ac56b3631d066e7d74b79028c2",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5354-5dbf-7f70-b744-e36783e6da5a",
+  "exit_code": 0,
+  "result": {
+    "answer": "1. High: the integration has no effective end-to-end deadline, so slow or stalled provider calls can pin every checkout worker. Code lines 14-25 wait indefinitely on both `Semaphore.acquire()` and `provider.post(...)`; config sets `PAYMENT_CONNECT_TIMEOUT_MS=0` and `PAYMENT_RESPONSE_TIMEOUT_MS=0`; `requestSignal` is ignored. This exactly matches the load-test failure mode. Before 100% traffic, make the provider path deadline-driven: pass `requestSignal` into the SDK call, configure explicit connect/response timeouts, and bound semaphore wait time. When the slot wait or provider deadline expires, stop work immediately, release capacity, and return a degraded result instead of waiting.\n\n2. High: retries are multiplied across two layers and are not failure-specific. Code line 18 retries 4 times, while the SDK is also configured for 2 retries on transport/`429`/`5xx`, so one checkout can fan out into many upstream calls and sleeps. That amplifies overload and makes latency collapse more likely. Before launch, remove one retry layer. Keep at most one bounded retry policy with backoff/jitter, and only for clearly retryable failures. Do not retry indefinitely, and do not retry malformed-success responses as if they were normal transient errors.\n\n3. High: the database transaction is opened before the remote call and held across all provider waits/retries. Lines 15-42 keep a DB transaction alive while the provider is slow or broken, which can exhaust DB connections and widen the blast radius. Move `database.beginTransaction()` to after a validated provider response, so the transaction covers only local persistence.\n\n4. High: the fallback path is unbounded and in-memory. Line 41 pushes into `pendingAuthorizations`, while `PENDING_AUTHORIZATION_CAPACITY=0` means unbounded. Under provider trouble, memory grows without limit, and any process restart loses pending work. Before 100% traffic, either persist pending authorizations durably with a hard capacity, or do not return `pending` at all. An in-process unbounded array is not production-ready for all checkout traffic.\n\n5. Medium: malformed `200` HTML is not treated as an explicit contract violation. Line 25 assumes JSON without checking HTTP status, content type, or body shape. A `200` HTML error page will throw during parsing, fall into the generic retry loop, and can turn an ambiguous upstream outcome into repeated authorization attempts. Validate status, content type, and required fields before trusting the response. Treat malformed responses as provider-invalid/ambiguous, emit dedicated metrics/logs, and route them to the same degraded path as other dependency failures.\n\nSmallest production-ready changes required before enabling full traffic:\n1. Add explicit outbound timeouts and propagate cancellation: pass `requestSignal`; set finite `PAYMENT_CONNECT_TIMEOUT_MS` and `PAYMENT_RESPONSE_TIMEOUT_MS`; bound semaphore acquisition.\n2. Collapse retries to a single layer with strict limits, backoff, and jitter. If the provider does not guarantee idempotency for repeated `/authorize` requests, disable automatic retries for ambiguous failures.\n3. Do not hold a DB transaction open during provider I/O.\n4. Replace the in-memory unbounded pending buffer with a durable bounded queue/outbox, or fail checkout explicitly when authorization cannot be confirmed.\n5. Validate provider responses by status, content type, and schema before insert/commit.\n6. Lower `PAYMENT_MAX_IN_FLIGHT` to a value derived from real worker/DB capacity, and fail fast or defer when that limit is hit instead of letting requests wait forever.\n\nRequired runtime behavior:\n- If the provider is slow: wait only up to the configured slot-acquire and call deadlines, then stop, release capacity, and degrade to durable pending or temporary failure.\n- If the provider is overloaded (`429`/`5xx`): apply only the single bounded retry policy; if still failing, fast-fail/defer without consuming more workers.\n- If the provider is unavailable or times out: do not keep retrying until the checkout timeout; release capacity quickly and use the degraded path.\n- If the provider returns malformed `200` data: treat it as an invalid provider response, never as success, and never let it poison local state.\n\nOpen assumption: retry safety depends on provider idempotency. If `/authorize` is not explicitly idempotent by `orderId` or another key, repeated attempts can duplicate charges, which makes disabling ambiguous retries a release blocker.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:38:59.665043Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5354-5dbf-7f70-b744-e36783e6da5a.1783809465791626000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

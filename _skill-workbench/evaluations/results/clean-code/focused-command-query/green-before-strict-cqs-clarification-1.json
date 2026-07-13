@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/focused-command-query.md",
+  "case_sha256": "bade0e9ce79858f47d07125e55d2ac72623fb5d89d19580ea2124bbb337646fa",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5374-768c-7590-b5b9-3c9fd5856074",
+  "exit_code": 0,
+  "result": {
+    "answer": "Under the Clean Code guidance, the current `findUser` should be ruled a command-query violation.\n\nWhy: the method answers a question and also mutates internal state by populating `usersById`. The skill is explicit on both points: a query that populates a cache still mutates, and that should not be treated as strict command-query separation. The hidden-side-effect problem is sharper here because the name `findUser` reads like a pure lookup, but the first call for a given `id` also changes object state.\n\nA strong-reason exception does exist, but it is narrow. If lazy caching is materially important and splitting the API would make usage worse for no real gain, then keeping the mutation can be acceptable only as an explicit exception with the reason recorded. In practice that means you should not defend this as \u201cnot really a mutation\u201d; you should mark it as an intentional `get-or-load` style operation.\n\nSmallest acceptable alternatives:\n\nStrict command-query separation:\n```ts\nfindCachedUser(id: string): User | undefined {\n  return this.usersById.get(id);\n}\n\nloadUser(id: string): User | undefined {\n  const user = this.repository.findById(id);\n  this.usersById.set(id, user);\n  return user;\n}\n```\n\nSmallest exception-based alternative when lazy caching is the strong reason:\n```ts\ngetOrLoadUser(id: string): User | undefined {\n  if (!this.usersById.has(id)) {\n    this.usersById.set(id, this.repository.findById(id));\n  }\n\n  return this.usersById.get(id);\n}\n```\n\nRuling summary: reviewer one is correct on the rule. Reviewer two is only correct if they frame lazy caching as an explicit, justified exception rather than as a harmless non-mutation.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

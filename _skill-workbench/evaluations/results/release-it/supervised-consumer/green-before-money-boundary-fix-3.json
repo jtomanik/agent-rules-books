@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5362-e906-7681-b63e-162cc1ff3a1b",
+  "exit_code": 0,
+  "result": {
+    "answer": "Neither extreme is safe here.\n\nLetting every exception crash is wrong because the current broker and supervisor settings turn permanent bad input into a fleet-wide poison-message loop: `max_deliveries: 0`, no DLQ, immediate redelivery on exit, `restart: always`, tiny backoff, and 6 replicas. The staging incident already proved that malformed messages become repeated restarts, not recovery.\n\nOne broad catch that logs, acknowledges, and continues is also wrong because it would silently lose retryable work and hide real process corruption.\n\nRecommended failure boundary:\n\n1. Quarantine and acknowledge malformed messages.\nA malformed message is any failure proving the delivery itself is bad: invalid JSON, missing/invalid required fields, schema/business-shape rejection. These messages should not be retried and should not crash the process. They need an explicit quarantine path, then `ack` the original.\n\n2. Retry briefly, then pause consumption for transient dependency failure.\nTreat these as retryable dependency faults, not poison messages:\n- inventory `503`\n- inventory timeout\n- inventory `200` with malformed JSON\n\nThe message is still potentially valid; the dependency response is not trustworthy. Do bounded retries in one layer only, with explicit per-attempt timeout and backoff/jitter. After retries are exhausted, do not `ack` and do not crash. Pause consumption locally instead. The goal is to preserve the message and stop hot-looping the dependency or the broker.\n\nGiven the current platform facts, `nack`/immediate requeue without delay is not enough; it just moves the loop from restart-storm to redelivery-storm. Since operators only have deployment-level pause, the consumer itself needs a pause/circuit-breaker boundary.\n\n3. Crash only on compromised process state.\nUse supervisor restart only when the process can no longer make a trustworthy acknowledge/retry/quarantine decision. Examples:\n- ack/nack/quarantine channel failure\n- invariant violation / programmer bug in consumer state handling\n- unknown exception whose effect on local state or delivery state is ambiguous\n- database commit outcome cannot be determined safely\n\nThat is the proper let-it-crash boundary: not bad input, not normal dependency outages, only state where continuing risks message loss or corruption.\n\nMinimal changes needed to make this safe and testable:\n\n- Add explicit message validation before side effects and classify failures into `MalformedMessageError`, `RetryableDependencyError`, and `FatalConsumerError`.\n- Configure a quarantine queue/DLQ. With `dead_letter_exchange: null`, there is nowhere permanent bad messages can go.\n- Set a finite dependency timeout. `dependency_timeout_ms: 0` is unsafe here.\n- Keep retries bounded in exactly one layer, with backoff/jitter.\n- Add a local pause/circuit-breaker mode after retry exhaustion; readiness should reflect \"cannot safely consume\" rather than only \"broker socket is open\".\n- Make post-commit redelivery safe by enforcing idempotency on `eventId` at the database boundary. Otherwise a crash after commit but before `ack` can duplicate effects.\n- Reduce `prefetch` to actual handler concurrency, or at least to a small bounded value. `prefetch: 100` magnifies restart and pause blast radius for no failure-handling benefit.\n- Put a real restart budget/backoff on the supervisor so a true fatal bug fails loudly instead of churning forever.\n\nWhat the handler policy should do in practice:\n\n- Parse/validate failure: quarantine + `ack`\n- Inventory `503`/timeout/malformed `200`: retry with timeout/backoff; if still failing, pause consumer and leave unacked until recovery path resumes consumption\n- Fatal local-state/invariant failure: log as fatal and exit process\n\nTests to require:\n\n- malformed body is quarantined and acknowledged once\n- dependency `503` retries with bounded attempts and does not crash\n- dependency timeout retries with bounded attempts and does not crash\n- dependency `200` malformed JSON is treated as dependency failure, not poison message\n- fatal ack/quarantine/invariant failure exits the process\n- crash after DB commit before `ack` redelivers safely without duplicate durable effects\n\nSo the exact decision is:\n- malformed message: quarantine, then acknowledge\n- transient dependency failure: bounded retry, then pause\n- compromised process state: crash and let supervision restart\n\nThat boundary fits the code, the broker semantics, and the supervisor behavior. It is also the smallest change set that prevents a repeat of the staging restart storm without turning real failures into silent data loss.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:53:39.033153Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5362-cc54-7d70-8bf6-2b8576eae0d9.1783810411604472000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:55:11.823013Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5362-e906-7681-b63e-162cc1ff3a1b.1783810418951156000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

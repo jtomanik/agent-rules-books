@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-construction-overlap.md",
+  "case_sha256": "c6063578900df5f8c905a1e2828420694333b131c657234937f70112fa754348",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5873-fc5b-7932-bc07-3f4b800d840b",
+  "exit_code": 0,
+  "result": {
+    "answer": "The repository workspace is empty, so this is a design-only analysis based on the provided function and required output.\n\nUse two reviewable changes.\n\n1. Structural preparation only, with no behavior change.\nSplit the current routine into small internal units while keeping the public return type and green tests unchanged:\n- `parseFields(line: string): string[]`\n- `isValidFieldCount(fields): boolean`\n- `validateId(fields): boolean`\n- `validateKind(fields): boolean`\n- `validateScore(fields): boolean`\n- `validateStatus(fields): boolean`\n- `toAcceptedRow(fields): AcceptedRow`\n- `isAcceptedFields(fields): boolean` or `validateAcceptedRow(fields): AcceptedRow | null`\n\nThat first pass should still return only `AcceptedRow[]` and still silently drop invalid lines. The point is only to expose the validation boundary and remove the nested control flow. A safe intermediate shape is:\n\n```ts\nexport function importRows(lines: string[]): AcceptedRow[] {\n  const accepted: AcceptedRow[] = [];\n\n  for (let line = 0; line < lines.length; line++) {\n    const fields = parseFields(lines[line]);\n    if (!isAcceptedFields(fields)) continue;\n    accepted.push(toAcceptedRow(fields));\n  }\n\n  return accepted;\n}\n```\n\nThat keeps intent identical while making the second change local and reviewable.\n\n2. Substantial import change.\nAfter the structure-only refactor, introduce explicit result typing and make validation return a typed outcome for every source line.\n\nRecommended shapes:\n\n```ts\ntype RejectReason = \"field-count\" | \"missing-id\" | \"kind\" | \"score\" | \"status\";\n\ntype AcceptedImportResult = {\n  accepted: true;\n  line: number;\n  row: AcceptedRow;\n};\n\ntype RejectedImportResult = {\n  accepted: false;\n  line: number;\n  reason: RejectReason;\n};\n\ntype ImportResult = AcceptedImportResult | RejectedImportResult;\n```\n\nThen move validation behind a single line-level routine:\n\n```ts\nfunction parseImportLine(raw: string, line: number): ImportResult\n```\n\nor, if you want parsing and validation explicitly separated:\n\n```ts\nfunction parseFields(raw: string): string[]\nfunction validateFields(fields: string[], line: number): ImportResult\n```\n\nThe validation order should stay exactly aligned with current behavior so each rejection reason is deterministic:\n- wrong number of fields -> `field-count`\n- empty id -> `missing-id`\n- invalid kind -> `kind`\n- non-numeric score -> `score`\n- invalid status -> `status`\n- otherwise accepted\n\nThat preserves the current short-circuit semantics and avoids ambiguous multi-error reporting.\n\nThe public routine then becomes:\n\n```ts\nexport function importRows(lines: string[]): ImportResult[] {\n  return lines.map((raw, index) => parseImportLine(raw, index + 1));\n}\n```\n\nI would strongly recommend deciding line numbering explicitly. Product wording says \u201coriginal line number\u201d, which usually implies 1-based source lines. The current loop index is 0-based. Make that an intentional contract and lock it in tests.\n\nTests to add in the second change:\n- one accepted row returns `{ accepted: true, line, row }`\n- invalid field count returns `field-count`\n- empty id returns `missing-id`\n- invalid kind returns `kind`\n- invalid score returns `score`\n- invalid status returns `status`\n- mixed input returns one `ImportResult` per source line in original order\n- line numbers are preserved across both accepted and rejected rows\n- a line with multiple problems reports the first failing reason according to the validation order above\n\nKeep the old focused tests in the first PR/change. In the second PR/change, replace or expand them so the suite asserts full result arrays rather than accepted rows only.\n\nA clean review split is:\n- Change 1: extract helpers, flatten control flow, zero observable behavior change.\n- Change 2: switch return type to `ImportResult[]`, add rejection outcomes, add mixed-input coverage, and pin line numbering.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:31:08.621660Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5873-fc5b-7932-bc07-3f4b800d840b.1783895424153881000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

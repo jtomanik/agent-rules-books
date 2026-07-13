@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5366-660f-7f42-8652-0f8c780739d1",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest bounded change is to preserve everything except the due-date comparison, and first create enough control to observe current behavior locally.\n\nCurrent behavior to preserve unless explicitly changed:\n- `chargeIfDue()` still returns only `\"charged\"` or `\"not-due\"`.\n- The transaction shape stays the same: one `charges.insert(...)` and one `accounts.markCharged(...)` inside the existing `transaction(...)`.\n- Exception behavior stays the same: no new catching, wrapping, retrying, or compensation.\n- Timestamp parsing stays exactly as it works today unless Product makes a timezone decision.\n\nBounded implementation:\n1. Extract the due decision into a tiny seam, for example a pure helper or injected policy:\n   - input: `nextChargeAt`, `now`, `gracePeriodMs`\n   - initial logic: parse `nextChargeAt` the same way as today, then compare `parsedNextChargeAt + 48h` against `now`\n2. Add the smallest testability seams needed:\n   - inject `now` via a clock function instead of calling `new Date()` directly inside the method\n   - inject the database or a narrow database interface/factory instead of always constructing and connecting the real database in the constructor\n3. Keep the public API stable. If callers currently do `new BillingScheduler(accountId)`, preserve that constructor shape and add optional collaborators only for tests/composition.\n4. Do not fold in cleanup such as constructor redesign, timezone normalization, or transaction refactoring in the same patch.\n\nWhy this is the safe shape:\n- The risky parts here are hidden time, hard database construction, and unknown caller reliance on current transaction/exception behavior.\n- A pure due-check plus clock/database seams gives fast characterization tests without changing production semantics beyond the grace-period rule.\n- It avoids depending on the slow shared staging database for primary feedback.\n\nVerification plan:\n1. Add characterization tests before the behavior change.\n   - charges when the account is due under today\u2019s rule\n   - does not charge when not due\n   - uses one transaction around insert + mark\n   - propagates exceptions from database operations unchanged\n   - uses the same `now` value for both `chargedAt` and `markCharged(...)`\n2. Add new grace-period tests after the seam exists.\n   - overdue by less than 48 hours => `\"not-due\"`\n   - overdue by more than 48 hours => `\"charged\"`\n   - exact boundary case => blocked on Product decision below\n3. Add parsing-focused tests only to lock current behavior, not to \u201cfix\u201d it.\n   - one test with the actual timestamp format production stores today\n   - if the system currently stores mixed or timezone-less strings, characterize that explicitly and stop short of normalizing it in this change\n4. Use staging only for one bounded smoke check, not for discovery.\n   - only if the team can create a disposable account fixture or isolate a record\n   - verify one account that is overdue by more than 48 hours charges, and one overdue by less than 48 hours does not\n   - do not rely on shared fixtures for timing-sensitive assertions\n\nProduct decisions that must be resolved instead of inferred:\n- Boundary rule: should charging happen at exactly `nextChargeAt + 48h`, or only strictly after that instant?\n- Timezone rule: if stored `nextChargeAt` strings are timezone-less or were historically influenced by local time, what timezone/interpretation is authoritative?\n- Grace definition: is this a true 48-hour rolling interval from the stored timestamp, or a calendar/business rule such as \u201ctwo days later in account local time\u201d?\n- Amount rule during grace: should the charge use the balance at charge time, or the balance that existed when the account first became overdue?\n\nIf Product cannot answer the timezone question yet, the safest implementation is to preserve current parsing exactly, add the 48-hour offset on top of that existing interpretation, and document that timezone cleanup is a separate decision.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:58:37.781111Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5366-660f-7f42-8652-0f8c780739d1.1783810647568044000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

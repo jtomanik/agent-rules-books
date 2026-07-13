@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58d9-07ed-7b30-927a-c814c7fb4a0a",
+  "exit_code": 0,
+  "result": {
+    "answer": "Keep the change surgical. The safest patch under a 45-minute release window is to isolate discount calculation into a tiny helper and add the `partner` rule there, without changing the command flow in `finalize`.\n\nConcrete patch plan:\n1. Extract the discount logic from `finalize` into a private method such as `computeDiscount(account, invoice)`.\n2. Implement the new rule there: `partner` gets `0.15` when `invoice.total >= 500`; otherwise partner stays at `0`. Keep the existing `vip` base discount at `0.1`.\n3. Preserve the existing high-total rule exactly as an additive rule: if `invoice.total > 1000`, add `0.05` on top of whatever base discount already applies.\n4. Leave all side effects and control flow in `finalize` unchanged: preview return shape, balance mutation, `accounts.save`, `lastInvoiceId`, optional `mailer.send`, and `audit.record`.\n5. Add focused tests for the new branch and rerun the existing suite.\n\nA minimal revised sketch:\n\n```ts\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private computeDiscount(a: Account, i: Invoice) {\n    let d = 0;\n\n    if (a.segment === \"vip\") {\n      d = 0.1;\n    } else if (a.segment === \"partner\" && i.total >= 500) {\n      d = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      d += 0.05;\n    }\n\n    return d;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.computeDiscount(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n}\n```\n\nExact scope boundary:\n- Change only discount determination and the tests needed to protect it.\n- Do not change `finalize`\u2019s signature, return shape, or the repository/mailer/audit interfaces.\n- Do not alter preview semantics, `lastInvoiceId` behavior, email gating, audit payload shape, balance mutation order, or numeric handling/rounding.\n- Do not broaden into cleanup of the boolean flags, pricing abstractions, or money-value refactors. Those are real smells, but they are outside a safe release-branch patch.\n\nTests required before shipping:\n- `partner` with `total = 500` gets `discount = 0.15` and the correct `amount`.\n- `partner` with `total = 499.99` gets no partner discount.\n- `partner` with `total > 1000` gets `0.20` total discount, proving the new rule stacks with the existing `> 1000` rule.\n- `vip` behavior is unchanged at both normal and `> 1000` totals.\n- `standard` behavior is unchanged at both normal and `> 1000` totals.\n- At least one non-preview `partner` test should assert the full side-effect path still uses the discounted amount: `accounts.save`, optional `mailer.send`, and `audit.record` receive the expected values.\n- One preview `partner` test should assert `changed: false` and no side effects.\n\nGiven the existing suite is already green on returns and side effects, this is the smallest defensible patch that reduces defect risk without turning a release fix into a rewrite.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:21:16.554569Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=failed to send remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list: error sending request for url (https://chatgpt.com/backend-api/ps/plugins/list?scope=GLOBAL&limit=200&pageToken=eyJzY29wZSI6IkdMT0JBTCIsIndvcmtzcGFjZV9pZCI6bnVsbCwiY3JlYXRvcl9hY2NvdW50X3VzZXJfaWQiOm51bGwsImNvbGxlY3Rpb24iOm51bGwsImluY2x1ZGVfcmVzdHJpY3RlZF9wbHVnaW5zIjp0cnVlLCJlbGlnaWJsZV9wbGFuX3R5cGUiOiJwcm8iLCJlbmZvcmNlX3BsYW5fZWxpZ2liaWxpdHkiOnRydWUsInJhbmtfYnlfcG9wdWxhcml0eSI6dHJ1ZSwiY29udGludWF0aW9uIjp7ImRlcGxveW1lbnRfdHlwZSI6InByaW1hcnkiLCJxdWVyeV9pZCI6InJzNDpjOWQ5OTkwMS1kNzk1LTQyY2UtOWNjNy1lZjFkYzFhODRhYzI6ZERSREFHNjowOmxlYWYtYTVhOWM0ZWEtZmNmMi00OWY4LWJmZjUtYTQ3NjYwYmMzMzY3IiwiY3Vyc29yIjoiWkg2OWRYQzRnTHZ2ZUhMcGhKVUs2ZmppMk5HalBOUzBHc1ZDcEpWWmdfdlVOZUVGY1o1Y2RqUzRDSmdwUlpaZ2hESGZUOUpfaXhtTW9UM245a2Rib3M3Mk54TnFOZm15VVdHaHhxc2RNUy1aZldrYlV0dFFvZVdNUUVFVUxqT0YxU1ZWX2tnczdjWVBwcm15MGtIRW9oU0haaUEycENVSnhPR0NZOW9pek9nek9kc3JoancySlJrR2JiTFYxekt2MVhjUkNGb1NvZGM9In19)\n2026-07-13T00:21:25.476229Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58d9-07ed-7b30-927a-c814c7fb4a0a.1783902046189628000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

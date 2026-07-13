@@ -1,0 +1,66 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5335-e2e8-7aa2-ab76-a39a1d4065eb",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is neither \u201ccrash on every exception\u201d nor \u201ccatch everything and ack.\u201d With `max_deliveries: 0`, no DLX, `restart: always`, and immediate redelivery of unacked messages on exit, crashing on deterministic poison messages creates the exact restart storm you already saw. Broad-catch-and-ack is the opposite failure: it silently drops transient dependency failures and real code bugs.\n\nUse a three-way policy:\n\n1. Quarantine per-message deterministic poison.\nThis includes `JSON.parse` failure and schema/semantic validation failure of `InventoryEvent` before any side effects. These are message defects, not process defects. They should not crash the process and should not be retried indefinitely. Route them to an explicit quarantine/DLQ, then ack the original only after quarantine is durable. Without configuring `dead_letter_exchange` or an equivalent quarantine path, this policy is not safe.\n\n2. Retry, then pause on dependency failure.\nTreat inventory `503`, timeouts, and `200` with malformed dependency JSON as retriable dependency failures, not poison messages. They are not fixed by crashing the worker, because exit causes immediate redelivery to other replicas and amplifies the outage. Retry in-process with bounded backoff and a real timeout. If retries are exhausted, do not ack the message. Instead pause consumption at process/service level and surface unhealthy readiness so operators can stop the deployment without losing the message. Under the current readiness check (`broker_connection_is_open` only), the service cannot express this state, so readiness must include dependency/circuit-breaker state.\n\n3. Crash only for compromised process state or unknown local invariants.\nIf the failure suggests the worker may no longer be trustworthy, let it escape and rely on the supervisor restart. Examples: programmer bugs in local processing paths after classification, impossible internal invariants, suspected corrupted in-memory state, or infrastructure/library failures that leave local state uncertain. Those are process defects, not message defects. Crashing here is appropriate because continuing could ack or mutate state incorrectly.\n\nMinimal changes needed to make this safe and testable:\n\n- Add explicit message classification instead of one broad catch.\n  Validate payload structure before calling dependencies. Handle known poison-message failures by quarantine+ack, known dependency failures by retry/pause/no-ack, and rethrow unknown/internal failures.\n- Configure a quarantine path.\n  Set up `dead_letter_exchange` and a quarantine queue, or an equivalent durable quarantine publish path. Without this, malformed messages have nowhere safe to go.\n- Implement the configured dependency policy.\n  `dependency_retries: 3` and `dependency_timeout_ms` are effectively unused today; `dependency_timeout_ms: 0` is unsafe because a hung dependency can pin deliveries indefinitely. Use a finite timeout and bounded backoff/jitter.\n- Add a pause signal to readiness.\n  Readiness should fail when the dependency circuit is open or the consumer is administratively paused, not only when the broker socket is open.\n- Keep ack strictly after successful business commit or successful quarantine.\n  Never ack a transient dependency failure, and never ack a poison message before durable quarantine succeeds.\n\nA practical handler shape is: parse + validate; on validation failure quarantine and ack; call dependency with timeout/retries; on exhausted dependency failure mark paused/unready and return without ack; run DB transaction; ack; rethrow anything classified as internal/unknown.\n\nTests should cover exactly the boundary:\n\n- malformed body or invalid event schema -> one quarantine action, original acked, process stays up.\n- inventory `503`, timeout, or malformed `200` body -> bounded retries, no ack, consumer enters paused/unready state, process does not crash.\n- injected internal invariant failure / unexpected local exception -> message unacked, exception escapes, process exits.\n\nThat gives you a defensible split: poison data is quarantined, transient shared outages are retried then paused, and only compromised worker state crashes.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Introduce explicit failure classification in the consumer: quarantine deterministic message defects, retry/pause dependency failures, and rethrow unknown/internal failures.",
+        "source_support": [
+          "general judgment",
+          "Rule text from prompt: `max_deliveries: 0` means unlimited delivery attempts.",
+          "Rule text from prompt: If the process exits, every unacknowledged delivery is immediately eligible for redelivery.",
+          "Rule text from prompt: Three malformed messages caused continuous restarts across all six replicas during a staging test."
+        ]
+      },
+      {
+        "recommendation": "Configure an explicit quarantine queue or DLX before acknowledging malformed messages.",
+        "source_support": [
+          "general judgment",
+          "Rule text from prompt: The broker has no quarantine queue unless one is configured explicitly.",
+          "Config text: `dead_letter_exchange: null`"
+        ]
+      },
+      {
+        "recommendation": "Do not crash on inventory dependency `503`, timeout, or malformed `200` JSON; apply bounded timeout/retries and then pause or mark unready without acknowledging the message.",
+        "source_support": [
+          "general judgment",
+          "Operational fact: The inventory dependency can return `503`, time out, or return status `200` with malformed JSON.",
+          "Config text: `dependency_timeout_ms: 0`",
+          "Config text: `dependency_retries: 3`",
+          "Config text: `readiness: broker_connection_is_open`"
+        ]
+      },
+      {
+        "recommendation": "Reserve process crash for compromised process state or unexpected local invariant failures, because continuing after those faults risks incorrect acknowledgements or writes.",
+        "source_support": [
+          "general judgment",
+          "Config text: `supervisor.restart: always`"
+        ]
+      },
+      {
+        "recommendation": "Add focused tests for the three boundary classes: poison message quarantine, dependency retry/pause, and internal-fault crash.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:05:44.651397Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5335-e2e8-7aa2-ab76-a39a1d4065eb.1783807468265078000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

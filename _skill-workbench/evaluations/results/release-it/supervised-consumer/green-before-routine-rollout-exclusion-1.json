@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b8-01c6-7723-aa66-c8d242320fc1",
+  "exit_code": 0,
+  "result": {
+    "answer": "`throw everything` and `catch+ack everything` are both wrong here.\n\nWith the current broker/supervisor settings, letting every exception escape turns one bad delivery into a restart/redelivery storm: `max_deliveries: 0`, no DLQ, `restart: always`, six replicas, and immediate redelivery of all unacked messages. The staging incident is the expected result. The broad `catch` that logs and `ack`s is the opposite failure: it would silently drop valid work on `503`, timeout, malformed downstream `200`, DB outage, or broker `ack` failure.\n\nThe safe boundary is:\n\n- Quarantine and acknowledge: inbound poison messages only. That means malformed JSON, missing required fields, wrong types, or impossible domain values in the consumed message itself. Those messages will never succeed on retry, so they must be removed from the hot path and sent to a quarantine/DLQ with the reason and original payload.\n- Retry, then pause consumption without acknowledging: transient or contract failures of dependencies. That includes inventory `503`, timeout, and inventory `200` with malformed JSON. Per the Release It guidance, malformed downstream data is a dependency-contract failure, not a bad message. The message is still valid; do not quarantine it and do not `ack` it.\n- Crash the process: only when local process correctness cannot be trusted anymore. Examples are failed invariants, corrupted consumer/runtime state, or a failure mode where the worker cannot safely continue or safely enter a paused state. Supervisor restart is for compromised process state, not for ordinary bad inputs or dependency flakiness.\n\nRecommended minimal changes to make that policy safe and testable:\n\n1. Split classification explicitly in code instead of one broad `try/catch`.\n   Parse and validate the inbound message before calling dependencies. Handle poison-message errors separately from dependency errors.\n\n2. Add a real quarantine path.\n   Configure a DLQ/quarantine exchange or queue. On inbound parse/validation failure, reject/no-requeue into DLQ or publish to quarantine and then `ack`. Without this, poison messages can only loop or be dropped.\n\n3. Add explicit dependency timeout and bounded retry with backoff/jitter.\n   `dependency_timeout_ms: 0` is unsafe. Set a finite timeout and keep retries bounded in one place only. Do not retry validation/poison-message errors.\n\n4. Add a consumer pause/circuit-breaker state for dependency failure.\n   After bounded retries are exhausted, stop taking new work, mark readiness as not-ready, and alert. Do not crash-loop the process and do not `ack` the message. With this config, crashing only amplifies redelivery and dependency pressure.\n\n5. Make readiness mean \u201csafe to consume\u201d, not just \u201cbroker socket open\u201d.\n   `readiness: broker_connection_is_open` is too weak for a worker. It should fail when the dependency breaker is open or the worker is paused due to dependency unavailability.\n\n6. Ensure retry safety through idempotency.\n   Because unacked messages will redeliver, the DB write path must be idempotent on `event.id` (for example via a unique constraint/upsert semantics). Otherwise broker or `ack` failures turn normal retries into duplicate state changes.\n\n7. Put a finite restart budget/backoff on crash handling.\n   Crashes should remain possible for compromised state, but `max_restarts_per_minute: 0` plus very short backoff makes crash loops too cheap and too synchronized across replicas.\n\nA compact decision rule for this consumer is:\n\n- Bad inbound message: quarantine + `ack`, keep process alive.\n- Bad dependency or bad dependency response: retry locally, then pause consumer and leave message unacked, keep process alive.\n- Bad process state: crash and let the supervisor restart.\n\nDo not use supervisor restarts as the retry mechanism for queue work, and do not use `ack` as the escape hatch for failures you have not classified.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

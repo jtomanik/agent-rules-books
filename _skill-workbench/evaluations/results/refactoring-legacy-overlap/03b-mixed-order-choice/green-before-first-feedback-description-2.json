@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f536d-7341-7ba3-9afa-c9ae890a1a60",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest order: first gain deterministic control, then do a behavior-preserving ownership extraction, then add the 60-day rule.\n\nWhy this order is safest:\n1. The code is legacy by the evidence given: no focused tests, hard-wired database construction, direct clock reads, and only one slow happy-path test. Changing semantics before breaking those dependencies would force the team to rely on a weak end-to-end signal.\n2. The blocking dependencies are explicit and narrow: `new SubscriptionDatabase(...)` and `new Date()`. Introduce the smallest seam that allows fast observation and substitution, then characterize current behavior of `previewCredit()` and `applyCredit()` around the existing eligibility condition and side effects.\n3. Once that safety net exists, consolidate the duplicated eligibility check as a pure, behavior-preserving move into one clear owner. This should be a separate patch from the product rule so review can confirm that no outcome changed.\n4. After the owner exists and is protected by focused tests, add the new introductory-subscription age rule in exactly one place. That makes the semantic patch small, auditable, and unlikely to drift between preview and apply.\n\nWhy the alternatives are worse:\n- Semantic change first: risky because the current behavior is weakly protected and time-dependent.\n- Extraction first without test control: also risky, because even a \"pure refactor\" can silently change behavior when there is no focused feedback.\n- Extraction and semantic change together: mixes intents, makes review harder, and obscures whether a failure came from ownership movement or the new 60-day policy.\n- Add the 60-day rule in both methods, then consolidate later: duplicates new policy immediately and creates two opportunities for mismatch.\n\nDecisions that must be clarified first:\n- Is the 60-day cutoff inclusive or exclusive at exactly 60 days old?\n- Is age measured from `startedAt` to the current instant, to the current date in a specific timezone, or by some billing-calendar rule?\n- What should happen when `startedAt` is `null` for an introductory subscription: ineligible, eligible, or invalid data path?\n- Must `previewCredit()` and `applyCredit()` remain perfectly aligned on eligibility, or is any divergence intentionally allowed?\n- Is the new rule only for `kind === \"introductory\"`, with all paid subscriptions preserving current behavior?\n- Should old introductory subscriptions return `null` from preview and `\"skipped\"` from apply exactly like other ineligible cases, with no new reason codes?\n\nReviewable patch boundaries:\n1. Test-control patch.\nAdd minimal seams for database and clock injection or overridable providers; add focused characterization tests for current eligibility behavior and current apply side effects; keep production behavior unchanged.\n2. Ownership patch.\nMove the duplicated eligibility condition into one clear owner, ideally a small pure policy function or collaborator that takes `subscription` and `now`; prove behavior preservation with the focused tests; no policy change.\n3. Semantic patch.\nAdd the introductory-subscription older-than-60-days rule in that owner; add targeted tests for boundary cases and `startedAt` handling; keep all non-targeted outcomes unchanged.\n\nA good owner is whichever boundary can express policy without persistence mechanics. In this example that is not the database transaction code; it is a small eligibility policy invoked by both methods. That keeps business rules separate from loading, previewing, and write-side effects.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/refactoring/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T23:05:09.817209Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-912e-70a1-8155-5ce17c7eb4c9.1783811051823450000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T23:05:10.130760Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-90e4-7b71-9f79-6e24d6a6a04d.1783811051749204000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T23:05:10.161391Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-9125-7422-89a2-c50de8cab5d3.1783811051813449000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

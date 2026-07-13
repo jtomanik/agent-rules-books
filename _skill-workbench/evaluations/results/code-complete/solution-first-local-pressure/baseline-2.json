@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/solution-first-local-pressure.md",
+  "case_sha256": "ee5c773939df1918985c87ff93cdd22a4766d30bc2dc0125f36cb99008949587",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5872-58b4-7331-81ed-06de4336c408",
+  "exit_code": 0,
+  "result": {
+    "answer": "I would accept only a narrow bulk handler that preserves the single-account domain operation and adds one pure request validator plus one result aggregator. I would reject the proposed `for body.accounts { catch all; return attempted }` shortcut because it crosses the trust boundary without prevalidation, loses required per-ID outcomes, and makes side effects possible after partial malformed input.\n\nSmallest acceptable construction:\n\n```ts\ntype BulkActivateRequest = { accounts: unknown };\n\ntype ItemResult =\n  | { id: string; status: \"activated\" }\n  | { id: string; status: \"already-active\" }\n  | { id: string; status: \"not-found\" }\n  | { id: string; status: \"unauthorized\" };\n\ntype BulkActivateResponse = {\n  results: ItemResult[];\n  summary: {\n    activated: number;\n    \"already-active\": number;\n    \"not-found\": number;\n    unauthorized: number;\n  };\n};\n\nfunction parseAccountIds(input: unknown): string[] {\n  if (typeof input !== \"object\" || input === null) throw badRequest(\"body must be an object\");\n  const accounts = (input as Record<string, unknown>).accounts;\n  if (!Array.isArray(accounts)) throw badRequest(\"accounts must be an array\");\n  if (accounts.length < 1 || accounts.length > 100) throw badRequest(\"accounts must contain 1..100 ids\");\n\n  const ids: string[] = [];\n  const seen = new Set<string>();\n\n  for (const raw of accounts) {\n    if (typeof raw !== \"string\") throw badRequest(\"each account id must be a string\");\n    const id = raw.trim();\n    if (!isValidAccountId(id)) throw badRequest(`invalid account id: ${raw}`);\n    if (seen.has(id)) throw badRequest(`duplicate account id: ${id}`);\n    seen.add(id);\n    ids.push(id);\n  }\n\n  return ids;\n}\n\nasync function bulkActivate(\n  requestBody: unknown,\n  actor: Actor,\n  deps: { authorize: Authorize; activateOne: ActivateOne }\n): Promise<BulkActivateResponse> {\n  const ids = parseAccountIds(requestBody); // reject before side effects\n\n  const results: ItemResult[] = [];\n\n  for (const id of ids) {\n    const allowed = await deps.authorize(actor, id);\n    if (!allowed) {\n      results.push({ id, status: \"unauthorized\" });\n      continue;\n    }\n\n    const outcome = await deps.activateOne(id);\n    results.push({ id, status: outcome });\n  }\n\n  return {\n    results,\n    summary: {\n      activated: results.filter(r => r.status === \"activated\").length,\n      \"already-active\": results.filter(r => r.status === \"already-active\").length,\n      \"not-found\": results.filter(r => r.status === \"not-found\").length,\n      unauthorized: results.filter(r => r.status === \"unauthorized\").length,\n    },\n  };\n}\n```\n\nWhy this is the minimum:\n- Validation is complete and front-loaded at the trust boundary. No collaborator is called until shape, count, uniqueness, and ID format are all valid.\n- Authorization is evaluated per account, as required.\n- Item statuses are exactly the required public outcomes. No broad exception flattening.\n- Summary is mechanically derived from `results`, so it cannot drift.\n- The existing single-account activation logic stays behind `activateOne`; bulk orchestration does not duplicate domain behavior.\n\nFocused tests I would require before accepting:\n- Rejects non-object body, missing `accounts`, non-array `accounts`, empty array, `>100` items.\n- Rejects non-string ID, malformed ID, duplicate ID, and verifies zero calls to authorization/persistence/audit on those failures.\n- Returns one result per valid input ID in input order.\n- Produces `unauthorized` for an auth denial and does not call activation for that ID.\n- Maps typed activation outcomes to `activated`, `already-active`, and `not-found` exactly.\n- Summary counts equal the counts in `results`, not an independently maintained value.\n- Mixed case test: one activated, one already active, one not found, one unauthorized, with exact result list and summary.\n\nThat is the furthest I would compress it without violating the specification.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:29:17.455293Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-58b4-7331-81ed-06de4336c408.1783895316660674000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

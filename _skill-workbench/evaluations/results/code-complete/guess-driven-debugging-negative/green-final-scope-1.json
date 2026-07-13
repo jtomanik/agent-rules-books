@@ -1,0 +1,41 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/guess-driven-debugging-negative.md",
+  "case_sha256": "c7865c634aeaf84f4188190540d595af587074c4c2dd6a52804567e911750d63",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58ce-84c5-7c82-81d4-6085a6c37017",
+  "exit_code": 0,
+  "result": {
+    "answer": "The next step is to turn this from a timing guess into an observed read-after-write failure.\n\nA second retry is not evidence-supported yet. It only masks one specific hypothesis: eventual visibility caused by timing. This test is deterministic, so first prove where the stale value comes from.\n\n**Next diagnostic steps**\n1. Characterize the failure at the boundary you already have: after `write`, capture what the cache contains, what the backing store contains, and what `read` actually consulted.\n2. Trace the exact path for this test: key used for write, key used for read, session/transaction identifier, cache lookup result, cache miss/hit decision, and any invalidation or population step.\n3. Split the observation points narrowly:\n   - `write` then direct backing-store read\n   - `write` then direct cache read\n   - normal `read`\n   This tells you whether the write is missing, the cache is stale, or the read path is inconsistent.\n4. Check whether stale data already existed before the test starts. A deterministic failure in one integration test often points to leaked fixture state, reused cache state, or ordering-sensitive setup rather than a random race.\n5. Verify whether `write(\"account:42\", \"active\")` is expected to synchronously update/invalidate the cache for same-session reads. That contract has to be explicit before changing behavior.\n6. Add temporary diagnostic logging or probes only long enough to confirm the path and ordering, then remove them.\n\n**Evidence needed before changing code**\n- Proof that `write` completed successfully in the backing store.\n- Proof of whether the cache still holds an older value after that write.\n- Proof of whether `read` prefers cache over fresher source data in this scenario.\n- Proof of whether the failure depends on prior test state or shared cache/session state.\n- Proof of whether the problem is ordering/visibility, wrong cache key/session scope, or missing invalidation/update.\n\n**Minimal correction, only after evidence**\nApply the smallest fix that matches the observed cause:\n- If the cache is not updated or invalidated on same-session write, fix that write-path contract directly.\n- If the read path uses the wrong key or session scope, correct the lookup contract.\n- If test isolation is broken, fix setup/teardown instead of production logic.\n- Only add a retry if you can show the system is intentionally eventually consistent here and the product contract allows delayed read-after-write visibility.\n\nAbsent that evidence, adding a second retry is a no-safety change: it changes timing without establishing the defect.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "working-effectively-with-legacy-code",
+        "sections": [
+          "Testing Strategy Rules",
+          "Test Selection and Understanding Rules",
+          "Forbidden Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:09:53.684049Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58ce-84c5-7c82-81d4-6085a6c37017.1783901357253705000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

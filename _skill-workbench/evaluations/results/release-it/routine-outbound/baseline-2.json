@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5350-d437-7c80-b4f7-8a3dae19bf0d",
+  "exit_code": 0,
+  "result": {
+    "answer": "`reference_mode: none`\n\nFindings:\n\n1. `fetchCarrierQuote` can outlive the checkout request budget before it ever returns `unavailable`.\nThe current code ignores `requestSignal`, `Semaphore.acquire()` waits forever, and `carrierClient.post()` does not time out connection establishment. With `CHECKOUT_REQUEST_TIMEOUT_MS=2500` and `CARRIER_RESPONSE_TIMEOUT_MS=2000`, this path can still block indefinitely on queueing or connect and violate the requirement that checkout continue when the carrier cannot answer within budget. Smallest fix: derive a single deadline/abort signal from the remaining checkout budget and use it for both semaphore acquisition and the outbound HTTP call.\n\n2. Failure classification is wrong for provider `4xx` and malformed `200` responses.\nThe code catches everything and returns `{ kind: \"unavailable\" }`, but the contract says only `429`, `5xx`, timeout, and transport failure map to unavailable. Provider `4xx` is a request/contract bug and should be surfaced distinctly, not downgraded to unavailable. Also, the function returns `available` without checking `response.status`, JSON content type, or the response shape, so a bad `200` payload can be emitted as a valid quote. Smallest fix: validate `200 + JSON + schema` before returning `available`; map `429`/`5xx`/timeout/transport to `unavailable`; throw or otherwise surface `4xx` and invalid `200` bodies as integration errors.\n\nRecommended minimal pre-merge change set:\n\n1. Create a carrier-call deadline bounded by the checkout request budget.\n2. Pass that signal into `Semaphore.acquire(...)` and `carrierClient.post(..., { signal })` so queue wait, connect, and response wait are all bounded.\n3. Check `response.status` before parsing success.\n4. Accept `available` only for `200` JSON with `{ amount: non-negative finite number, currency: /^[A-Z]{3}$/i, expires_at: valid ISO-8601 }`.\n5. Treat `429`, `5xx`, timeout, abort due to budget expiry, and transport failures as `{ kind: \"unavailable\" }`.\n6. Do not downgrade provider `4xx` or malformed `200` responses to unavailable; surface them as contract/integration failures.\n\nI did not find repository `.agents/skills` files to consult in this workspace, so this is based only on the supplied integration and contracts.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "stderr": "2026-07-11T22:33:54.016930Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f534e-e2da-7d60-bc01-cb1704c162c4.1783809108073193000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

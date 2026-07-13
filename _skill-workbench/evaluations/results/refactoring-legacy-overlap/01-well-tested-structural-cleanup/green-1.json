@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55cf-98eb-7480-a6cf-2bd3b94d4603",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small-step refactoring sequence that keeps `price(order)` as the public entrypoint and turns it into orchestration, not a rewrite.\n\nRecommended sequence:\n\n1. Extract subtotal calculation first.\nMake a private helper like `calculateSubtotalCents(items)` and move only the loop. This is the safest extraction because it has no policy and no dependency on later rules.\n\n2. Extract discount policy next.\nAdd `calculateDiscountCents(order, subtotalCents)`. Keep the current threshold and rounding exactly where they are now. Do not generalize tiers or percentages into tables yet.\n\n3. Extract shipping policy as its own helper.\nAdd `calculateShippingCents(order, subtotalCents, discountCents)`. This step matters because shipping depends on the discounted subtotal for domestic free shipping, while international always overrides that. Keep that dependency explicit in the helper signature so the current rule ordering stays obvious.\n\n4. Make the final assembly phase explicit.\nIn `price(order)`, compute `taxableCents`, `taxCents`, and `totalCents` after the three extracted policy calls. If helpful, extract only `calculateTaxCents(taxableCents)`. I would not extract the final object construction unless it still feels noisy after the earlier steps.\n\n5. Stop when `price(order)` reads top-down like this: subtotal, discount, shipping, taxable amount, tax, total, return object.\nAt that point the blocking smell is gone: the mixed responsibilities are separated, the dependency chain is visible, and future pricing changes can target one policy at a time.\n\nWhat this cleanup should not do:\n\n- Do not change the public API, return shape, field names, rounding, or rule order.\n- Do not introduce strategy objects, subclassing, rule engines, config maps, or a `Money` abstraction. With two tiers and two destinations, that would be speculative.\n- Do not merge behavior changes into the cleanup. If a new pricing rule is coming, land this refactor first, then change behavior in a separate patch.\n- Do not replace the module wholesale. The existing method already has a clear linear data flow; it just needs phase separation.\n\nReviewable patch shape:\n\n- Commit 1: extract subtotal.\n- Commit 2: extract discount.\n- Commit 3: extract shipping.\n- Commit 4: optionally extract tax helper and simplify `price(order)` into orchestration.\n- Run the existing focused tests after each step.\n\nIf you want one practical stopping criterion: stop as soon as each pricing concern has exactly one home, `price(order)` is easy to scan, and the next extraction would create one-line helpers or speculative abstractions rather than clearer ownership.",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T10:12:14.708672Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55cf-98eb-7480-a6cf-2bd3b94d4603.1783851096299507000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

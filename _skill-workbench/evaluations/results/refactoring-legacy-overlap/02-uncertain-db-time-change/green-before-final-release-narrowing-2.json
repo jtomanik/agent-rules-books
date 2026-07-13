@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5366-6613-73a3-a65c-77b65897d293",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded approach: treat this as a legacy change, not a direct edit.\n\nImplement the grace period behind the smallest explicit seams needed for fast characterization tests:\n1. Preserve the public behavior shape of `chargeIfDue()` and keep the current transaction block, exception propagation, single captured `now`, and write order unchanged.\n2. Add explicit injection seams for time and the billing database dependency so the class can be tested without the real constructor side effects or shared staging fixtures. Keep the current constructor path as the default production path.\n3. Extract the due-time decision into a small pure function or policy, e.g. compute `graceDeadline = parsedNextChargeAt + 48h` and compare `now` against that deadline. Do not mix this with cleanup or broader refactoring.\n4. Preserve existing parse behavior unless product/data owners explicitly authorize changing it. Today `new Date(account.nextChargeAt)` may already encode relied-on behavior for malformed or timezone-less values.\n\nVerification plan:\n1. Add characterization tests for current behavior before changing semantics:\n- charges when `nextChargeAt` is before `now`\n- current exact-boundary behavior when `nextChargeAt === now`\n- does not charge when `nextChargeAt` is after `now`\n- uses one captured timestamp for both writes\n- wraps both writes in one transaction\n- propagates exceptions from lookup/transaction/write paths unchanged\n2. Add new-behavior tests for the grace rule after the characterization tests exist:\n- not due during the 48-hour grace window\n- due at the grace boundary or only after it, depending on resolved product decision\n- due after the grace window\n3. Do not use shared staging fixtures for write-based discovery. If staging is used at all, keep it read-only and only inspect actual `nextChargeAt` string formats and timezone offsets present in data.\n4. If staging shows mixed formats, especially timezone-less timestamps, stop rollout until product/data owners define how those rows should be interpreted.\n\nProduct decisions that must be resolved explicitly:\n- What exactly is \u201c48-hour grace period\u201d: 48 elapsed hours from the stored instant, or a calendar-day/local-business-time rule?\n- At the end of the grace period, should charging happen exactly at the deadline or only once time is strictly past it?\n- How should timezone-less stored timestamps be interpreted if they exist: UTC, server local time, account local time, or invalid data requiring migration?\n\nWhat should not be inferred from the code:\n- that inclusive charging at the current boundary was intentional\n- that local-time parsing quirks are acceptable\n- that callers can tolerate changed exception behavior or altered transaction boundaries\n\nIf those product decisions are answered, the bounded code change is small: inject clock and database, extract due calculation, change the threshold from `nextChargeAt` to `nextChargeAt + 48h`, and leave everything else behaviorally identical.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:58:26.318679Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5366-6613-73a3-a65c-77b65897d293.1783810647571486000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

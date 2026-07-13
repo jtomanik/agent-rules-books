@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58bc-9c20-7a93-846b-5264a42b848e",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest change is to avoid adding more discount logic inline inside `finalize`. The current risk is not the extra `if` by itself, but that `finalize` already mixes pricing, mutation, persistence, mail, and audit. Under rewrite pressure, the smallest cleanup that makes this change safer is to extract discount calculation into one private helper and leave the rest of the method behavior unchanged.\n\nPatch plan:\n1. Extract the pricing rule into `private calculateDiscount(account: Account, invoice: Invoice): number`.\n2. Encode segment discount first, then preserve the existing `invoice.total > 1_000` bonus exactly as-is.\n3. Keep `finalize` responsible only for orchestration: compute discount, compute amount, handle preview, then persist/email/audit exactly as today.\n4. Do not change method signature, repository interfaces, event names, payload shape, preview semantics, mutation order, or `lastInvoiceId` behavior.\n\nRevised sketch:\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\ntype Invoice = {\n  id: string;\n  total: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    let discount = 0;\n\n    if (a.segment === \"vip\") {\n      discount = 0.10;\n    } else if (a.segment === \"partner\" && i.total >= 500) {\n      discount = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n}\n```\n\nExact scope boundary:\n- In scope: only discount determination for `partner` accounts at `invoice.total >= 500`, plus the minimal extraction needed to isolate that rule.\n- Preserve exactly: preview vs non-preview behavior, account balance mutation, `accounts.save`, `mailer.send`, `audit.record`, audit payload, `lastInvoiceId`, and all existing discounts for `standard` and `vip` accounts.\n- Explicit assumption: the new 15% is a segment discount that still stacks with the existing `total > 1_000` extra 5%. That is the conservative reading of \u201cpreserve all behavior outside that rule.\u201d If product meant \u201c15% total discount, not stackable,\u201d that must be clarified before shipping.\n- Out of scope: removing boolean flags, redesigning pricing objects, changing public interfaces, or broader refactoring justified by the upcoming rewrite.\n\nTests required before shipping:\n1. `partner`, total `499.99`: no partner discount; behavior matches prior non-partner baseline.\n2. `partner`, total `500`: discount is `0.15`; amount is `425`; preview returns `changed: false` and no side effects.\n3. `partner`, total `1000`: discount is still `0.15`; verifies threshold is `>= 500`, not `> 500`.\n4. `partner`, total `1000.01` or `1200`: discount is `0.20` under the stacking assumption; verify returned amount and side-effect arguments use that amount.\n5. Existing regression cases stay green for `standard` and `vip`, especially `vip` above `1000` still yielding `0.15`.\n6. One non-preview `partner` case asserting collaborator arguments, not just that they were called: `accounts.save` sees reduced balance, `mailer.send` gets discounted amount when enabled, and `audit.record` stores the discounted amount.\n\nIf those tests pass, I would ship this as a local change. I would not accept a broader cleanup in the remaining 45 minutes.",
+    "selected_project_skills": [
+      "clean-code",
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

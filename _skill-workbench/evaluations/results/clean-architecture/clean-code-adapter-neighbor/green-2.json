@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/clean-code-adapter-neighbor.md",
+  "case_sha256": "4266be276a1e743926aecda816a6e2fe0a6fa15dca1de25318d1b0769a375fde",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585e-147f-7d61-babc-52d7b25361f1",
+  "exit_code": 0,
+  "result": {
+    "answer": "The main readability problems are the compressed names (`m`, `x`, `b`, `y`), the hidden mode switch in `b`, the mutable `let`, and a comment that narrates code instead of adding rationale.\n\nGiven your constraints, the mapper should stay exactly where it is and keep the same behavior. The smallest worthwhile cleanup is to make the intermediate concepts explicit and remove the narrating comment:\n\n```ts\ntype UserRow = {\n  user_id: string;\n  display_name: string | null;\n  deleted_at: Date | null;\n};\n\ntype UserRecord = {\n  id: string;\n  label: string;\n  active: boolean;\n};\n\nfunction m(x: UserRow, b: boolean): UserRecord {\n  const useUserIdWhenLabelMissing = b;\n  const trimmedDisplayName = x.display_name === null ? \"\" : x.display_name.trim();\n  const label =\n    useUserIdWhenLabelMissing && trimmedDisplayName === \"\"\n      ? x.user_id\n      : trimmedDisplayName;\n\n  return {\n    id: x.user_id,\n    label,\n    active: x.deleted_at === null,\n  };\n}\n```\n\nWhy this is better:\n- `trimmedDisplayName`, `label`, and `active` make the computation readable without tracing `y` mutations.\n- `useUserIdWhenLabelMissing` exposes the meaning of the boolean mode at the point of use, which is the best available option if the parameter itself cannot be renamed.\n- Removing the comment is correct because it only restates the implementation. If a comment is needed at all, it should explain why the fallback mode exists, not what the code does.\n- The behavior is unchanged: `null` becomes `\"\"`, non-null names are trimmed, fallback to `user_id` only happens when `b` is true and the trimmed label is empty, and `active` still depends only on `deleted_at === null`.\n\nIf parameter names are allowed to change while preserving the callable shape, renaming `x` to `row` and `b` to `useUserIdWhenLabelMissing` would be the next improvement. If not, the version above is the right boundary-respecting cleanup.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:06:28.755794Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-b4d9-7102-8958-40cb7304fddf.1783893963993413000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:28.814241Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-b4d9-75d3-a520-085d09d99718.1783893963993443000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:58.550232Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585e-147f-7d61-babc-52d7b25361f1.1783893988479999000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,47 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58b9-4421-7f02-8c5a-84c06d7c8f3c",
+  "exit_code": 0,
+  "result": {
+    "answer": "The shortcut is not safe. Broker transactions and producer idempotence do not make this consumer exactly-once across the real boundary here, because the operation spans three different authorities with different guarantees: the database, the email provider, and the broker offset/ack.\n\nRequired verdict before launch:\n1. Keep the deduplication/idempotency store. Removing it would permit duplicate ledger effects and duplicate receipts after any crash between DB commit and offset commit, which your facts explicitly say can happen.\n2. Do not approve the consumer unchanged. It currently has an uncoordinated multi-write: DB commit, then external email side effect, then broker ack. That is at-least-once processing with non-idempotent side effects.\n\nWhy it is unsafe on the requested dimensions:\n- Duplicate/replay: If the process crashes after `tx.ledger.insert(...)` commits and before `message.ack()`, the message will be replayed from the committed offset. On replay, `markConfirmed`, `ledger.insert`, and `sendReceipt` all run again unless guarded. Broker transactions do not undo the already-committed database work or prevent the re-execution.\n- Unknown-success side effect: `email_provider.timeout_outcome: unknown` means a timeout cannot be interpreted as failure. The provider may have sent the receipt even when the caller times out. Retrying `sendReceipt` without a local send-record/idempotency guard can produce a second visible receipt.\n- Ordering: Two events for the same order can arrive on different partitions because the topic key is `customer_id`. With `max_concurrency: 48` and 24 partitions, same-order events can be processed concurrently or out of order. The consumer has no version/sequence/idempotent transition guard to make that safe.\n- Side-effect atomicity: The broker transaction does not make `database.transaction`, `email.sendReceipt`, and `message.ack` one atomic unit. The code only makes the broker-side work atomic with itself, not with the DB or email provider.\n- Replay rebuild: Because replay is a supported rebuild mechanism, every consumer effect must be replay-safe. Email sending is not replay-safe and should not be coupled directly to raw event replay without a durable dedup/send-state contract.\n\nWhat must change before launch:\n- Preserve a durable idempotency mechanism keyed by a stable event identity or a business key plus effect type. It must gate both the ledger write and the receipt send decision.\n- Make ledger insertion idempotent at the database level as well, for example with a unique constraint on the event/effect identity or a business invariant that prevents duplicate ledger rows.\n- Separate durable state change from external side effect. Record \"receipt pending/sent\" in the database transaction, then drive email from that durable state with retry logic. Since the provider does not support idempotency keys and timeout outcome is unknown, you need a local send log/state machine so retries do not blindly resend.\n- Add an ordering contract for same-order events. Either repartition by `order_id`, or carry a per-order sequence/version and reject/defer stale or out-of-order events. Without that, cross-partition same-order concurrency remains correctness-risky.\n- Define replay policy explicitly: projection rebuild replays must not resend historical emails. Email must be treated as a guarded side effect, not as a replayable projection update.\n\nMinimum acceptable launch position:\n- Keep deduplication.\n- Add DB-enforced idempotency for ledger effects.\n- Introduce durable receipt-send state/outbox-style coordination so email is retried safely and excluded from projection rebuild replay.\n- Add per-order ordering/version protection or repartition by `order_id`.\n\nWithout those changes, the system can duplicate financial effects, send duplicate receipts, and behave incorrectly under replay and cross-partition reordering.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Partitioning and Locality Rules",
+          "Replication Rules",
+          "Transaction Rules",
+          "Review Rules",
+          "Forbidden Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:46:04.755915Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f58b8-4dcf-7f12-a880-2cb7b00761ec.1783899902978940000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T23:46:52.986798Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58b9-4421-7f02-8c5a-84c06d7c8f3c.1783899964463475000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

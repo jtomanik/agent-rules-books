@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585b-4baa-7351-993e-7fb975d2fb9e",
+  "exit_code": 0,
+  "result": {
+    "answer": "The proposed function puts the use case inside a Next.js/Prisma adapter. That is the main design error. `NextRequest`, `NextResponse`, `prisma`, and Prisma `Order`/`Invoice` types are all outer details; the approval rule and invoice-creation action should not depend on them.\n\nSmallest production design:\n\n```ts\n// application/create-invoice.ts\nexport type CreateInvoiceRequest = {\n  orderId: string;\n};\n\nexport type CreateInvoiceResult = {\n  invoiceId: string;\n  totalCents: number;\n};\n\nexport type OrderForInvoicing = {\n  id: string;\n  status: \"APPROVED\" | \"PENDING\" | \"REJECTED\";\n  lines: Array<{ amountCents: number }>;\n};\n\nexport type NewInvoice = {\n  orderId: string;\n  totalCents: number;\n};\n\nexport interface LoadOrderForInvoicing {\n  byId(orderId: string): Promise<OrderForInvoicing | null>;\n}\n\nexport interface SaveInvoice {\n  save(invoice: NewInvoice): Promise<{ id: string }>;\n}\n\nexport class OrderNotApprovedError extends Error {}\nexport class OrderNotFoundError extends Error {}\n\nfunction calculateInvoiceTotal(order: OrderForInvoicing): number {\n  return order.lines.reduce((sum, line) => sum + line.amountCents, 0);\n}\n\nexport class CreateInvoice {\n  constructor(\n    private readonly orders: LoadOrderForInvoicing,\n    private readonly invoices: SaveInvoice,\n  ) {}\n\n  async execute(request: CreateInvoiceRequest): Promise<CreateInvoiceResult> {\n    const order = await this.orders.byId(request.orderId);\n    if (!order) throw new OrderNotFoundError();\n    if (order.status !== \"APPROVED\") throw new OrderNotApprovedError();\n\n    const totalCents = calculateInvoiceTotal(order);\n    const saved = await this.invoices.save({ orderId: order.id, totalCents });\n\n    return { invoiceId: saved.id, totalCents };\n  }\n}\n```\n\nOwnership:\n- Application/core owns `CreateInvoiceRequest`, `CreateInvoiceResult`, `OrderForInvoicing`, `NewInvoice`, and the two interfaces.\n- Application/core also owns the approval check and total calculation.\n- Prisma adapters own database query shapes and row mapping.\n- Next.js adapter owns HTTP parsing and HTTP response mapping.\n\nWhere translation happens:\n- Next.js route: `NextRequest -> CreateInvoiceRequest`, then `CreateInvoiceResult/errors -> NextResponse`.\n- Prisma order adapter: Prisma row/include result -> `OrderForInvoicing`.\n- Prisma invoice adapter: `NewInvoice -> prisma.invoice.create(...)`, then DB result -> `{ id }`.\n\nWhere concrete wiring belongs:\n- In the outermost route/module boundary, for example:\n\n```ts\nconst useCase = new CreateInvoice(\n  new PrismaOrderReader(prisma),\n  new PrismaInvoiceWriter(prisma),\n);\n```\n\nThat route should stay thin: extract `orderId`, call `useCase.execute`, map domain/application errors to HTTP status codes.\n\nTwo important boundary decisions:\n- Do not make the repository return only approved orders. That would hide the approval rule in Prisma code instead of keeping it in application policy.\n- Do not pass Prisma `Order`/`Invoice` types across the boundary. They are persistence models, not use-case models.\n\nA minimal outer adapter sketch:\n\n```ts\nexport async function POST(request: NextRequest): Promise<NextResponse> {\n  const useCase = new CreateInvoice(\n    new PrismaOrderReader(prisma),\n    new PrismaInvoiceWriter(prisma),\n  );\n\n  try {\n    const result = await useCase.execute({\n      orderId: request.nextUrl.searchParams.get(\"orderId\")!,\n    });\n    return NextResponse.json(result, { status: 201 });\n  } catch (error) {\n    if (error instanceof OrderNotFoundError) {\n      return NextResponse.json({ error: \"order not found\" }, { status: 404 });\n    }\n    if (error instanceof OrderNotApprovedError) {\n      return NextResponse.json({ error: \"not approved\" }, { status: 409 });\n    }\n    throw error;\n  }\n}\n```\n\nThis is the smallest design that keeps policy independent while avoiding unnecessary extra layers.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:04:29.590274Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585b-4baa-7351-993e-7fb975d2fb9e.1783893806045486000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

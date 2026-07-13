@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55c1-23af-7d10-ab12-ef02b4c61f99",
+  "exit_code": 0,
+  "result": {
+    "answer": "Neither extreme is safe here. The correct boundary is: quarantine poison input, retry dependency failures, and crash only on unclassified internal failure or compromised process state.\n\nCurrent behavior is unsafe because the top-level `catch` + `throw`, combined with `max_deliveries: 0`, no DLQ, `restart: always`, 6 replicas, and `prefetch: 100`, turns a few bad messages into an endless cluster-wide redelivery storm. The opposite proposal, one broad `catch` that logs and `ack`s, is also unsafe because it would silently drop valid messages on `503`, timeout, or malformed downstream responses.\n\nUse this policy:\n\n1. Malformed inbound message\nThis is poison data at the consumer boundary: invalid JSON, missing required fields, wrong types, impossible values.\nAction: quarantine immediately. Do not retry. Do not crash.\nBroker disposition: reject or nack without requeue into a dead-letter/quarantine queue. `ack` is only acceptable if the broker routes that acked message into quarantine, which is not the case here.\n\n2. Transient dependency failure\nThis includes inventory `503`, timeout, temporary database/connectivity failure, and also `200` with malformed JSON from the inventory service. That last case is a dependency-contract failure, not a poison message.\nAction: bounded retry with explicit timeout and backoff. If retries are exhausted, do not ack the message. Keep the process alive. Escalate to pause consumption or operator intervention rather than crash-looping.\n\n3. Compromised process state\nThis is the only crash boundary: invariant violation, unclassified programmer bug, broken runtime state, or any condition where the worker can no longer trust its own state or safely classify the message outcome.\nAction: log with message context and crash so the supervisor restarts a fresh process.\n\nChanges needed to make that policy safe and testable:\n\n- Add explicit message classification before side effects. Parse and validate the inbound payload first, then map failures into `PoisonMessage`, `RetryableDependencyFailure`, and `FatalConsumerError`.\n- Configure quarantine. `dead_letter_exchange: null` is incompatible with safe poison-message handling. Add a DLQ/quarantine route and use non-requeue rejection for poison messages.\n- Stop using infinite dependency waits. `dependency_timeout_ms: 0` must become a real timeout. Keep retries bounded and backed off.\n- Do not rely on process crash as a retry mechanism for dependency outages. With unlimited broker redelivery and automatic restarts, that amplifies incidents.\n- Cap blast radius during outages. With only deployment-wide pause control, `prefetch: 100` is too high. Reduce it to a low value, preferably `1` until delayed retry or broker-side retry control exists.\n- Make redelivery safe. If not already enforced, make `event.id` idempotent at the database boundary, for example with a unique constraint or equivalent replay-safe write path. Otherwise crash-after-commit or ack failure can duplicate effects.\n- Make retry budget explicit. `max_deliveries: 0` is unsafe once messages leave in-process retry. Use a finite retry budget if broker-managed redelivery remains part of the design.\n\nMinimal test surface:\n\n- Invalid inbound JSON or schema -> quarantined, no dependency call, no crash.\n- Inventory `503` or timeout -> retried, not acked on exhaustion, process stays alive.\n- Inventory `200` with malformed JSON -> treated the same as dependency failure, not quarantined.\n- Unexpected internal exception -> process crash path.\n- Redelivery after post-commit/pre-ack failure -> no duplicate state change.\n\nThe practical decision is: poison messages must be isolated from the fleet, dependency failures must not be acknowledged away or escalated into restart storms, and supervisor restarts are reserved for failures that make the worker itself untrustworthy.",
+    "selected_project_skills": [
+      "release-it",
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

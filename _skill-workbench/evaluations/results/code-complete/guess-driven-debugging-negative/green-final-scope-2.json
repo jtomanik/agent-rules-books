@@ -1,0 +1,49 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/guess-driven-debugging-negative.md",
+  "case_sha256": "c7865c634aeaf84f4188190540d595af587074c4c2dd6a52804567e911750d63",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58cf-2383-7bf3-acea-750a9a72bb7c",
+  "exit_code": 0,
+  "result": {
+    "answer": "Do not add a retry yet. A second retry is a guessed behavioral change, and this test already gives a precise contract: after `write(\"account:42\", \"active\")`, a `read` in the same session must observe `\"active\"`. The next step is to turn the intermittent failure into an observed mechanism, not to mask it.\n\n1. Reproduce deterministically and record the exact failing path.\nCapture whether the stale value comes from the cache layer, the backing store, or session state. The minimum useful evidence is a trace for one failing run showing: requested key, session identifier, value written, cache entry before/after write, read source, and returned value.\n\n2. Characterize the current behavior before changing semantics.\nAdd or use focused observation around this exact write/read pair. You need to know whether the system is violating read-your-own-write in one session, or whether the test is accidentally crossing session boundaries, reusing prior cached state, or reading before cache invalidation/refresh completes.\n\n3. Check the smallest set of likely causes.\nInspect only the path for this key through:\n- write-through vs write-behind behavior\n- cache invalidation timing on `write`\n- per-session vs shared cache scope\n- stale negative/result caching\n- test isolation leakage from earlier tests\n- async completion boundaries inside `store.write()`\n\n4. Decide the fix from the evidence.\nThe minimal correction depends on what the trace proves:\n- If `write()` resolves before cache/store visibility is actually complete, the fix is to make `write()` complete only after the same-session read contract is true.\n- If the cache is shared and not session-aware, the fix is to correct cache scoping or invalidation for same-session reads.\n- If prior test state poisons the cache, the fix is test/setup isolation, not production retries.\n- If `read()` prefers a stale cache entry even after a local write, the fix is to update/evict that entry on write.\n\nEvidence threshold before code change: one failing trace that identifies which layer returned the stale value, plus one focused characterization test or probe proving the behavior is reproducible for that mechanism. Without that, a retry only hides whether the bug is an ordering bug, a cache invalidation bug, or a test contamination bug.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "working-effectively-with-legacy-code",
+        "sections": [
+          "Primary Directive",
+          "Non-Negotiable Rules",
+          "Default Workflow for Legacy Changes",
+          "Testing Strategy Rules",
+          "Test Selection and Understanding Rules",
+          "Preferred Legacy Techniques",
+          "Dependency-Breaking Technique Index",
+          "Legacy Refactoring Heuristics",
+          "Handling Risky Areas",
+          "Review Rules",
+          "Forbidden Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:10:33.466018Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58cf-2383-7bf3-acea-750a9a72bb7c.1783901397891398000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

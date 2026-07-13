@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5348-9efd-7c51-9392-73922cfbd857",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is neither \u201ccrash on every exception\u201d nor \u201ccatch everything and ack.\u201d With `max_deliveries: 0`, no DLX, `restart: always`, 6 replicas, and immediate redelivery of every unacked message, the current `throw` path turns one poison message into a fleet-wide restart loop. The broad `catch + ack` alternative is data loss for every transient inventory or database failure.\n\n**Decision**\n\nUse three classes of failure:\n\n| Failure class | Examples here | Action |\n| --- | --- | --- |\n| Message is bad | invalid JSON in `message.body`, missing/invalid `id` or `sku`, impossible domain values attributable to the message | quarantine, then `ack`; do not crash |\n| Dependency is temporarily bad | inventory `503`, timeout, transport error, inventory `200` with malformed JSON | bounded retry, then requeue/pause; do not `ack`; do not crash on a single message |\n| Process state is not trustworthy | bug/invariant violation, ambiguous commit/ack outcome, broker/db client state broken, quarantine/requeue path unavailable in a way that makes disposition unsafe | let it crash |\n\n`200` with malformed JSON from the inventory service belongs in the dependency-failure bucket, not the malformed-message bucket. The message did not poison the system; the dependency returned an unusable response.\n\n**Exact boundary**\n\n1. Malformed messages\n- Parse and validate the message before any outbound call or DB work.\n- If validation fails, publish the original payload plus reason/metadata to a quarantine path, then `ack` the original.\n- If quarantine cannot be written durably, fail closed: do not `ack`; escalate as fatal rather than silently dropping the message.\n\n2. Transient dependency failure\n- Give the inventory call an explicit finite timeout. `dependency_timeout_ms: 0` is unsafe.\n- Retry only in one layer, with bounded count and backoff/jitter.\n- After retries are exhausted for one message, do not `ack`. Requeue it or let broker redelivery handle it through a bounded retry policy.\n- If failures become dependency-wide, pause consumption behavior rather than crash-looping. In this system that means the consumer should stop taking more work and readiness should go false based on \u201ccan process\u201d state, not merely \u201cbroker socket is open.\u201d Operators can then pause the deployment.\n\n3. Compromised process state\n- Crash only when continuing would make message disposition unsafe or the worker cannot trust its own runtime state.\n- This includes programmer bugs/invariant failures and failures in the ack/nack/quarantine control path where the process no longer knows whether it can safely continue.\n\n**Changes needed to make this safe and testable**\n\n1. Add explicit message validation and typed error classification.\n- Separate `InvalidMessageError`, `RetryableDependencyError`, and `FatalConsumerError` (names unimportant; behavior is).\n- The current single `catch` is too coarse to encode the policy.\n\n2. Add a real quarantine path.\n- Configure a dead-letter/quarantine exchange or equivalent explicit quarantine queue.\n- `dead_letter_exchange: null` is incompatible with safe poison-message handling.\n\n3. Bound retries/redeliveries.\n- `max_deliveries: 0` is the direct cause of endless poison-message replay.\n- Set a finite redelivery limit and route exhausted messages to quarantine/manual review.\n- If delayed redelivery is available, use it; otherwise immediate unlimited replay will continue to amplify outages.\n\n4. Add explicit dependency timeout and disciplined retry policy.\n- Set `dependency_timeout_ms` to a real value.\n- Keep retries in one layer only and add backoff/jitter.\n- Do not retry validation/quarantine failures as if they were transient dependency failures.\n\n5. Change readiness semantics for pause behavior.\n- `readiness: broker_connection_is_open` is too weak.\n- Readiness should reflect whether the worker is willing and able to make progress, for example broker connection open and dependency circuit not open.\n- Liveness should stay green during an intentional pause so supervision does not turn pause into restart churn.\n\n6. Add narrow failure-boundary tests.\n- malformed message => quarantined and acked, no crash\n- inventory `503`/timeout => retried, then not acked and requeued/left for redelivery, no crash\n- inventory `200` with bad JSON => treated as dependency failure, not quarantined as poison input\n- fatal/invariant or disposition-path failure => process crashes\n- readiness false during dependency-wide pause/circuit-open state\n\nIf you want the shortest policy statement: quarantine bad inputs, retry and then pause/requeue on bad dependencies, crash only on compromised process state. Anything broader either causes replay storms or loses messages.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:26:38.321246Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5348-9efd-7c51-9392-73922cfbd857.1783808696104881000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

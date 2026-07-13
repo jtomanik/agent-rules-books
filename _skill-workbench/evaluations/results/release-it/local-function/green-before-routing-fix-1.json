@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/local-function.md",
+  "case_sha256": "005d9e44fd83587e67979d066d261fbb0580ddb8645a67c6e917cae0b34e14f6",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5348-9f9c-7793-8596-245e86005e23",
+  "exit_code": 0,
+  "result": {
+    "answer": "A local split is warranted here. The current friction is exactly what the repository guidance calls out: the function mixes validation, normalization, and calculation, and `doIt`/`x` do not carry intent.\n\nRecommended names:\n- `doIt` -> `calculateDiscountedPrice`\n- `x` -> `input`\n- `p` -> `discountPercent`\n- Validation helper: `assertValidPriceInput`\n- Normalization helper: `normalizeDiscountPercent`\n- Calculation helper: `calculateDiscountedTotal`\n\nThis keeps behavior unchanged:\n- `quantity` and `unitPrice` are still the only validated fields.\n- The thrown error text remains `\"invalid price input\"`.\n- `discountPercent` still defaults `null`/`undefined` to `0`.\n- Non-finite `discountPercent` still behaves exactly as before because normalization still uses the same `Math.min(100, Math.max(0, value))` expression.\n\nResulting TypeScript:\n\n```ts\ntype PriceInput = {\n  quantity: number;\n  unitPrice: number;\n  discountPercent?: number;\n};\n\nexport function calculateDiscountedPrice(input: PriceInput): number {\n  assertValidPriceInput(input);\n\n  const discountPercent = normalizeDiscountPercent(input.discountPercent);\n\n  return calculateDiscountedTotal(\n    input.quantity,\n    input.unitPrice,\n    discountPercent,\n  );\n}\n\nfunction assertValidPriceInput(input: PriceInput): void {\n  if (!Number.isFinite(input.quantity) || !Number.isFinite(input.unitPrice)) {\n    throw new Error(\"invalid price input\");\n  }\n\n  if (input.quantity < 0 || input.unitPrice < 0) {\n    throw new Error(\"invalid price input\");\n  }\n}\n\nfunction normalizeDiscountPercent(discountPercent?: number): number {\n  return discountPercent == null\n    ? 0\n    : Math.min(100, Math.max(0, discountPercent));\n}\n\nfunction calculateDiscountedTotal(\n  quantity: number,\n  unitPrice: number,\n  discountPercent: number,\n): number {\n  return quantity * unitPrice * (1 - discountPercent / 100);\n}\n```\n\nIf you must keep the exported function name stable, keep `doIt` as a thin wrapper and only rename the parameter and locals:\n\n```ts\nexport function doIt(input: PriceInput): number {\n  assertValidPriceInput(input);\n\n  const discountPercent = normalizeDiscountPercent(input.discountPercent);\n\n  return calculateDiscountedTotal(\n    input.quantity,\n    input.unitPrice,\n    discountPercent,\n  );\n}\n```\n\nThat is the smallest local refactor that improves readability without changing observable behavior.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:25:31.526407Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5348-9f9c-7793-8596-245e86005e23.1783808696247355000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

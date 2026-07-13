@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5335-9706-70d1-9294-e697637c24c6",
+  "exit_code": 0,
+  "result": {
+    "answer": "Ship the smallest safe change: isolate discount calculation into a tiny helper, add the `partner` rule there, and leave all mutation and side-effect flow untouched.\n\nExact scope boundary: change only how `d` is computed in `finalize` for `partner` accounts when `i.total >= 500`. Do not change preview semantics, rounding behavior, `amount` formula, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, `lastInvoiceId`, argument order, or return shape.\n\nPatch plan:\n1. Extract the current discount logic into a private `calculateDiscount(a, i)` helper or a local function inside `finalize`.\n2. Implement the new rule as a special case for `partner` accounts with `i.total >= 500`.\n3. Keep all existing side-effect code exactly where it is.\n4. Add targeted tests for the new branch plus regression coverage for nearby thresholds and existing segments.\n5. Do not refactor broader control flow under the \"rewrite next quarter\" constraint.\n\nRevised sketch:\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    if (a.segment === \"partner\" && i.total >= 500) {\n      return 0.15;\n    }\n\n    let d = a.segment === \"vip\" ? 0.1 : 0;\n\n    if (i.total > 1_000) {\n      d += 0.05;\n    }\n\n    return d;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n}\n```\n\nWhy this shape: it keeps the risky surface area small and makes the new rule explicit. I would interpret the requirement as `partner` at `>= 500` gets exactly `15%`, not `15% + 5%` above `1000`; otherwise the rule would normally be phrased as an additional discount. If product intended stacking, that needs explicit confirmation before release.\n\nTests required before shipping:\n1. `partner` with `total = 500` returns `discount = 0.15` and correct `amount`.\n2. `partner` with `total = 499.99` preserves old behavior (`discount = 0`).\n3. `partner` with `total = 1500` gets `discount = 0.15`, not `0.20`.\n4. Preview mode for qualifying `partner` still does not call `accounts.save`, `mailer.send`, or `audit.record`, and returns `changed: false`.\n5. Non-preview qualifying `partner` still updates balance, saves account, records audit, and conditionally sends email.\n6. Regression: `vip` at `400` is still `0.10`.\n7. Regression: `vip` at `1500` is still `0.15`.\n8. Regression: `standard` at `1500` is still `0.05`.\n\nIf time is tight, I would treat tests 1, 3, 4, 5, 7, and 8 as the minimum shipping gate; test 2 is the next most important boundary check.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Keep the change local to discount calculation and avoid broader refactoring because the release pressure and existing green suite favor a narrow-risk patch.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Implement the partner rule as an explicit special case returning exactly `0.15` for `partner` accounts with `invoice.total >= 500`, unless product clarifies that discounts should stack above `1000`.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Require targeted regression tests around the `500` and `1000` thresholds plus side-effect preservation tests before shipping.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:05:12.931197Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5335-9706-70d1-9294-e697637c24c6.1783807448839161000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

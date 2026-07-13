@@ -1,0 +1,63 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5871-4f06-7be1-b64e-ae2780cc9274",
+  "exit_code": 0,
+  "result": {
+    "answer": "Assumption to lock before merge: the new `partner` rule is additive, not replacing existing rules. Under that reading, a `partner` account gets `15%` off at `i.total >= 500`, and the existing `+5%` for `i.total > 1000` still applies. That is the only interpretation that preserves all prior behavior outside the new rule.\n\nExact scope boundary: change only discount calculation inside `InvoiceService.finalize` and add tests for the new pricing rule. Do not change `finalize` call shape, persistence/email/audit sequencing, audit payload shape, `lastInvoiceId` behavior, or introduce broader API cleanup even though the current method has mixed responsibilities and boolean flags.\n\nConcrete patch plan:\n1. Extract discount computation into a small pure helper inside `InvoiceService` or file-local scope, so the behavioral change is isolated from side effects.\n2. Replace magic numbers with named constants for `VIP`, `PARTNER`, `PARTNER_THRESHOLD`, and `LARGE_INVOICE_BONUS`.\n3. Keep `preview`, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, and return shapes exactly as they are.\n4. Add focused tests around the new boundary and one non-preview side-effect case using the discounted amount.\n5. Run the existing suite unchanged plus the new tests; do not broaden refactoring beyond this helper extraction.\n\nRevised sketch:\n```ts\ntype FinalizeResult = {\n  amount: number;\n  discount: number;\n  changed: boolean;\n};\n\nconst VIP_DISCOUNT = 0.10;\nconst PARTNER_DISCOUNT = 0.15;\nconst PARTNER_MIN_TOTAL = 500;\nconst LARGE_INVOICE_BONUS = 0.05;\nconst LARGE_INVOICE_THRESHOLD = 1_000;\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(account: Account, invoice: Invoice): number {\n    let discount = 0;\n\n    if (account.segment === \"vip\") {\n      discount += VIP_DISCOUNT;\n    }\n\n    if (account.segment === \"partner\" && invoice.total >= PARTNER_MIN_TOTAL) {\n      discount += PARTNER_DISCOUNT;\n    }\n\n    if (invoice.total > LARGE_INVOICE_THRESHOLD) {\n      discount += LARGE_INVOICE_BONUS;\n    }\n\n    return discount;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean): FinalizeResult {\n    const discount = this.discountFor(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\nTests required before shipping:\n- `partner` with `total = 499.99`: no partner discount.\n- `partner` with `total = 500`: `discount === 0.15`.\n- `partner` with `total = 1000`: still `0.15` only, proving `> 1000` stayed exclusive.\n- `partner` with `total = 1000.01` or `1200`: `discount === 0.20`, proving stacking with the existing large-invoice rule.\n- Non-partner regression coverage: one `standard` and one `vip` case to prove prior pricing is unchanged.\n- Non-preview `partner` case with `sendEmail = true`: assert returned amount, updated balance, `accounts.save`, `mailer.send`, and `audit.record` all use the discounted amount.\n- Preview `partner` case: assert no save/email/audit side effects.\n\nShip decision: this is the smallest defensible change under rewrite pressure because it localizes the new rule in a pure helper, preserves the existing side-effect path, and adds boundary tests exactly where defect risk increased.",
+    "selected_project_skills": [
+      "clean-code",
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md",
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "clean-code",
+        "sections": [
+          "Priority and behavior",
+          "Core clean code principles",
+          "Naming rules",
+          "Function rules",
+          "Tests",
+          "Change Process",
+          "Implementation preferences",
+          "Review checklist",
+          "Output Expectations",
+          "Hard rules"
+        ]
+      },
+      {
+        "skill": "code-complete",
+        "sections": [
+          "Construction Prerequisites and Decisions",
+          "Pseudocode Programming Process",
+          "Routine Design Rules",
+          "Testing Rules",
+          "Review Checklist",
+          "Final Instruction"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:27:28.844773Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5871-2c52-72a1-b5b0-19322d1976aa.1783895239762520000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:28:33.493261Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5871-4f06-7be1-b64e-ae2780cc9274.1783895248646843000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

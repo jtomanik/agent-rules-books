@@ -1,0 +1,41 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/ordinary-derived-projection.md",
+  "case_sha256": "30b6a09a3b8e39fdbc3f5f2b22f4640691b695e28825d764bf858f2b5ae608dd",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5874-fe82-7d52-9e83-2123c22abede",
+  "exit_code": 0,
+  "result": {
+    "answer": "The direct dual-write is not acceptable under these facts. PostgreSQL is the authority, the API is already successful at PostgreSQL commit, and search is explicitly allowed to lag. That makes the inline `search.documents.update(...)` a non-authoritative best-effort side effect with no durable recovery contract. When it fails, divergence is silent and persists until an unrelated future edit. That is exactly the wrong failure mode for derived data.\n\nThe smallest design correction is to remove ownership of search propagation from `renameProduct` and make search a pure CDC-driven projection from PostgreSQL commits.\n\nMinimum contract needed:\n\n1. Propagation\nSearch documents are derived only from committed PostgreSQL changes, consumed from CDC. The projector must upsert by `productId`, be idempotent, and preserve per-product ordering.\n\n2. Lag visibility\nSearch freshness must be observable. At minimum, track projector checkpoint position and end-to-end lag age, and alert if lag exceeds the allowed ten-minute stale window. If users/operators need to reason about stale results, expose document freshness or index lag in diagnostics.\n\n3. Rebuild\nThe projection must be rebuildable or fully re-syncable from the PostgreSQL authority. A durable consumer checkpoint alone is not enough; you also need a way to bootstrap or recreate the index from authoritative product state if the index is lost or corrupted.\n\n4. Repair\nFailures must repair automatically by retry/replay from the last durable checkpoint, not only on the next product edit. Also provide a targeted reindex path for one product or a bounded backfill range for operational repair.\n\nWith those contracts, `renameProduct` should commit PostgreSQL and return success, while search catches up asynchronously. Without them, the current dual-write hides an ownership error and leaves the derived view unrecoverable.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Event, Log, and Stream Rules",
+          "Derived Data Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:32:05.213693Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-fe82-7d52-9e83-2123c22abede.1783895490178787000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

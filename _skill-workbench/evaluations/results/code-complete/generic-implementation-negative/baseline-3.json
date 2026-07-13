@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/generic-implementation-negative.md",
+  "case_sha256": "e5e0789d2b0abfc834e073cfaae1b867464493069729eb267096489b388d15fc",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5859-fc15-7f30-9867-7b3aa4e95a7b",
+  "exit_code": 0,
+  "result": {
+    "answer": "`clamp` can be implemented directly from the contract:\n\n```ts\nexport function clamp(value: number, minimum: number, maximum: number): number {\n  if (value < minimum) {\n    return minimum;\n  }\n\n  if (value > maximum) {\n    return maximum;\n  }\n\n  return value;\n}\n```\n\nThree representative tests:\n\n```ts\nimport { strict as assert } from \"node:assert\";\n\nassert.equal(clamp(-5, 0, 10), 0);   // below range -> minimum\nassert.equal(clamp(15, 0, 10), 10);  // above range -> maximum\nassert.equal(clamp(7, 0, 10), 7);    // inside range -> unchanged\n```\n\nReview: this matches the full stated contract exactly. With finite inputs and `minimum <= maximum`, there are no additional edge conditions to handle.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:02:00.481824Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-7af5-76b1-bbf8-18584bb23134.1783893687030276000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:02:30.404350Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-fc15-7f30-9867-7b3aa4e95a7b.1783893720087030000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

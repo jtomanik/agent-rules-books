@@ -1,0 +1,69 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5337-3596-7822-8543-759eca0c5279",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is neither \u201ccrash on every exception\u201d nor \u201ccatch everything and ack it.\u201d It is:\n\n- Quarantine the delivery when the failure is provably message-local and permanent.\n  This includes `JSON.parse` failure and any schema/semantic validation failure on `InventoryEvent`. These should be rejected without requeue into a quarantine/DLQ. They should not crash the process, because restart only redelivers the same poison message and the staging result already proved that failure mode.\n- Retry, then pause, when the message is valid but an external dependency is failing.\n  This includes inventory `503`, timeout, malformed JSON from a `200` response, and transient database failures. These should not be acked, because that loses work. They also should not crash the process, because with `restart: always`, `max_deliveries: 0`, no DLQ, and immediate redelivery of unacked messages, crashing just amplifies the retry storm across all 6 replicas. The message should be retried with bounded attempts and backoff; after the retry budget is exhausted, move it to a retry/parking queue or pause consumption for operators.\n- Crash the process only for errors that imply the worker may no longer be trustworthy.\n  This is the narrow class of uncategorized/internal failures: invariant violations, corrupted consumer state, broker client misuse, unrecoverable runtime faults, or any exception that means the process cannot safely decide whether to ack, reject, or continue. That is the point where supervisor restart is useful.\n\nFor this implementation, the practical policy is:\n\n1. Parse and validate the message before the broad `try` block decides disposition.\n2. On invalid message, `reject/nack(requeue=false)` to a configured DLQ/quarantine queue.\n3. On dependency failure, `nack/requeue` through a bounded retry path with delay/backoff.\n4. On exhausted transient retries, stop hot-looping: park the message in a retry/DLQ queue and alert, or pause the deployment.\n5. On unknown/internal corruption, let the exception escape and crash.\n\nMinimal changes needed to make that safe and testable:\n\n- Configure quarantine.\n  Set a `dead_letter_exchange` (or equivalent quarantine queue). Without it, \u201cack malformed and continue\u201d is silent loss, and \u201cthrow malformed\u201d is restart poison.\n- Replace unlimited immediate redelivery.\n  `max_deliveries: 0` is unsafe here. Add a bounded retry count plus delayed redelivery/backoff, or a dedicated retry queue. Immediate unlimited redelivery is what turns transient outages into storms.\n- Classify errors explicitly in code.\n  Treat parse/schema failures as permanent message failures; treat inventory/database timeout/`503`/bad dependency JSON as retryable; rethrow only unknown/internal errors.\n- Add idempotency at the database boundary.\n  Since a crash or ack failure after commit causes redelivery, `eventId` must be uniquely enforced and duplicate delivery must be safe. Otherwise retry/crash behavior is not reliable.\n- Add a pause/circuit-breaker path for dependency-wide outages.\n  With only deployment-level pause available, the consumer should surface a clear unhealthy state after repeated dependency failures instead of continuing unlimited hot retries.\n- Test message disposition, not just exceptions.\n  Unit/integration tests should assert `reject without requeue` for malformed input, `retry/no ack` for transient dependency failures, and `throw` for unknown internal faults.\n\nA narrow sketch of the desired control flow is:\n\n```ts\nexport async function consume(message: Delivery): Promise<void> {\n  const event = parseAndValidate(message); // throws PermanentMessageError\n\n  try {\n    const item = await fetchInventory(event.sku); // throws RetryableDependencyError\n    await persistEvent(event, item); // duplicate-safe by eventId\n    await message.ack();\n  } catch (error) {\n    if (error instanceof PermanentMessageError) {\n      await message.reject({ requeue: false });\n      return;\n    }\n    if (error instanceof RetryableDependencyError) {\n      await message.nack({ requeue: true });\n      return;\n    }\n    throw error;\n  }\n}\n```\n\nThe main conclusion: malformed messages belong in quarantine, dependency failures belong in bounded retry or operator pause, and process crash is reserved for compromised worker state or truly unknown internal faults. In this topology, using crashes as the normal retry mechanism is incorrect, and acking all failures is data loss.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Configure a DLQ/quarantine path and reject malformed messages without requeue instead of crashing or acking them.",
+        "source_support": [
+          "The broker has no quarantine queue unless one is configured explicitly.",
+          "Three malformed messages caused continuous restarts across all six replicas during a staging test."
+        ]
+      },
+      {
+        "recommendation": "Replace unlimited immediate redelivery with bounded retries plus backoff or a retry queue for dependency failures.",
+        "source_support": [
+          "`max_deliveries: 0` means unlimited delivery attempts.",
+          "If the process exits, every unacknowledged delivery is immediately eligible for redelivery.",
+          "supervisor.restart: always",
+          "supervisor.replicas: 6"
+        ]
+      },
+      {
+        "recommendation": "Classify dependency `503`, timeout, and malformed dependency JSON as retryable dependency failures, not malformed input messages.",
+        "source_support": [
+          "The inventory dependency can return `503`, time out, or return status `200` with malformed JSON.",
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Reserve process crash for uncategorized/internal failures that imply compromised worker state.",
+        "source_support": [
+          "supervisor.restart: always",
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Make persistence idempotent on `eventId` so redelivery after commit-before-ack is safe and testable.",
+        "source_support": [
+          "If the process exits, every unacknowledged delivery is immediately eligible for redelivery.",
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Add tests that assert broker disposition by failure class: quarantine, retry, or crash.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:07:13.177714Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-3596-7822-8543-759eca0c5279.1783807554967191000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

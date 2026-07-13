@@ -1,0 +1,86 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/comprehensive-audit.md",
+  "case_sha256": "0eaa579024ed0f8b3bb62be2873acc8ef53ff416a84d91075822ab13465f65fd",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5337-3589-7b91-a39b-bd19a0746372",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Verdict**\nDo not launch as-is. The artifact has multiple release blockers in money movement, overload control, schema change safety, isolation, and operability. The highest-risk path is a non-idempotent payment authorization behind infinite provider deadlines plus stacked retries and an unbounded fallback queue; that combination can hang capacity, duplicate charges, and create unbounded financial reconciliation work.\n\n**Launch Blockers**\n1. **Payment path can double-charge and never fail fast.** `payment.connect_timeout_ms: 0` and `response_timeout_ms: 0` mean no deadline, while `sdk_retries: 2` plus `application_retries: 3` creates layered retries against a non-idempotent authorization. `fallback: enqueue-payment` then pushes failures into an unbounded queue. Immediate failure mode: threads/requests hang, retries multiply ambiguous payment attempts, customers may be charged more than once, and backlog grows without bound. Required before launch: explicit connect and response deadlines, exactly one retry layer, idempotency protection or disable retries for authorization calls, and a bounded payment queue with DLQ and finite delivery cap. Required verification: simulate provider slow-hang, timeout-after-charge, and 5xx patterns; prove one customer order yields at most one provider-side authorization. Required signals/controls: payment attempt count by order, ambiguous-result count, timeout count, retry count, queue depth/age, DLQ depth, manual consumer pause with audited actor identity.\n2. **No backpressure or tenant protection under load.** `max_requests_per_replica: 0` and both rate limits null mean no admission control. Shared outbound pools amplify collapse across dependencies. Immediate failure mode: overload drives queue growth, connection starvation, higher latency, retry storms, and replica-wide failure. Required before launch: bounded concurrency per replica, checkout rate limiting, distinct admin limits, and separate bulkheads for payment, inventory, and background work. Required verification: overload test to the first protection threshold and prove graceful shedding instead of timeout amplification. Required signals/controls: in-flight requests, rejected-by-limit count, pool saturation, p95/p99 latency, timeout rate, CPU/memory saturation.\n3. **Analytics can take down checkout, violating an explicit requirement.** `analytics.workers_share_pool_with_payment: true` and no queue bounds allow analytics failure/backlog to consume payment capacity. Immediate failure mode: analytics backlog starves payment workers or shared resources, reducing checkout availability. Required before launch: dedicated worker pool or separate queue resources for analytics, bounded analytics queue, and a clear drop/defer policy for analytics. Required verification: force analytics downstream failure while running checkout load; prove checkout success rate remains within SLO. Required signals/controls: per-queue depth/age, worker utilization by pool, analytics drop/defer counter, payment queue latency.\n4. **Schema change and deployment strategy are unsafe with mixed-version overlap.** `run_schema_migration: true` on startup, `migration_checkpointing: false`, `strategy: all-at-once`, fifteen-minute old/new overlap, rollback by image redeploy only, and invisible config/migration versions create a high-probability bad release. Immediate failure mode: concurrent replica migrations, partial non-restartable migration, incompatible old/new binaries during overlap, and rollback that does not rollback schema. Required before launch: single-run migration process, restartable/checkpointed migrations, expand-contract compatibility for at least the overlap window, visible app/config/migration versions, and staged rollout with health gates. Required verification: restartable migration test, mixed-version canary for at least fifteen minutes, rollback rehearsal after schema step. Required signals/controls: migration state/version metric, rollout cohort health, config version in logs/metrics, per-version error rate.\n5. **Health checks are not real readiness checks.** Both liveness and readiness are `process_is_running`. Immediate failure mode: pods receive traffic before dependencies/config are usable and remain in service while degraded internally. Required before launch: readiness must verify config validation, DB connectivity, essential queue/client initialization, and safe capacity to serve; liveness should detect stuck process classes, not merely existence. Required verification: startup with missing config, DB unavailable, and dependency hang; prove instances stay unready. Required signals/controls: readiness failure reason counts, startup duration, dependency-init status.\n6. **Operational control plane is insecure and unaudited.** `admin_routes_share_public_listener: true`, `authorization: shared-operator-token`, `audit_log: false`. Immediate failure mode: public exposure of privileged endpoints, weak shared-secret operational access, and no forensic trail for pauses/stops. Required before launch: isolate admin listener or private network path, individual authn/authz, and immutable audit logging for all control actions. Required verification: network-path test proving admin endpoints are unreachable from the public ingress; authorization and audit trail test for pause/stop actions. Required signals/controls: admin access logs, auth failure counts, control-action audit records.\n7. **Fallback queues are unbounded and non-terminating.** `payment.capacity: 0`, `payment.max_deliveries: 0`, `dead_letter: null`; `analytics.capacity: 0`. Immediate failure mode: infinite backlog, poison-message loops, unbounded storage cost, and invisible long-tail customer harm. Required before launch: finite capacities, finite delivery attempts, DLQs, poison-message classification, and queue-age alarms. Required verification: inject permanently failing messages and prove DLQ routing; run backlog-recovery timing test. Required signals/controls: queue depth, oldest-message age, redelivery count histogram, DLQ depth.\n8. **Observability is inadequate for a money-moving launch.** Only `request_count` and `error_count` are listed; correlation is `request-only`, with no async propagation, no queue age, saturation, retry, or breaker state metrics. Immediate failure mode: ambiguous customer/payment incidents cannot be triaged or contained quickly. Required before launch: propagate correlation/order IDs through queues and dependency calls, expose saturation/retry/timeout/queue metrics, and emit structured payment lifecycle events. Required verification: trace a checkout across request, payment queue, provider call, and reconciliation. Required signals/controls: end-to-end correlation coverage, per-stage latency, retry/timeout counters, reconciliation mismatch count.\n9. **Startup safety checks are disabled.** `validate_required_configuration: false`. Immediate failure mode: instances boot with invalid secrets/endpoints/limits and fail only under traffic. Required before launch: strict startup config validation with fail-closed behavior. Required verification: remove required config in staging and prove instance never becomes ready. Required signals/controls: config-validation failure events and startup abort counts.\n10. **Resilience validation is not done.** Dependency failure tests, overload tests, and restartable migration tests are false; the chaos plan has no hypothesis, blast radius, stop condition, or recovery proof. Immediate failure mode: launch relies on untested assumptions in the exact areas already configured unsafely. Required before launch: run targeted dependency-failure, overload, and migration-resume tests; if chaos is used, define guardrails first. Required verification: documented pass/fail evidence for each test. Required signals/controls: test artifacts, rollback criteria, launch gates tied to results.\n\n**Accepted Risks Only If Explicitly Deferred**\n- **Cache remains authoritative for price.** With `authoritative_for_price: true`, `on_outage: reject_checkout`, and `miss_coalescing: false`, a cache outage or stampede becomes direct revenue loss. This is acceptable only if the business explicitly accepts checkout rejection instead of serving stale or DB-backed pricing. Immediate failure behavior: checkout fails closed on cache outage. Operational workaround: temporarily disable traffic or reduce concurrency while restoring cache; do not attempt manual price bypass without a tested path. Required signals/controls: cache hit rate, miss storm rate, backend load from misses, reject-checkout count due to cache state. Longer-term recommendation: miss coalescing plus bounded stale-while-revalidate or an authoritative pricing store that is not the cache.\n- **Inventory remains a synchronous dependency with a short timeout.** `inventory.response_timeout_ms: 1000` and `retries: 1` may produce false negatives during transient slowness. This is acceptable only if the business prefers occasional failed checkouts over oversell. Immediate failure behavior: checkout rejects when inventory does not answer quickly. Operational workaround: lower traffic or temporarily disable affected SKUs if inventory is unstable. Required signals/controls: inventory timeout/error rate, SKU-level rejection counts, retry counts.\n- **Emergency stop exists but is untested.** This is not acceptable as a hidden assumption, but it can be deferred only if launch runbooks state that the control may fail and list the fallback containment action, such as scaling consumers to zero through the platform control plane. Immediate failure behavior: operator-issued stop may not halt payment consumption. Operational workaround: scale payment workers/consumers to zero via deployment tooling and block ingress if needed. Required signals/controls: tested runbook timestamps, actor audit trail, consumer lag after stop action.\n\n**Material Failure Modes, Required Verification, Signals/Controls**\n- **Provider hangs or half-completes payment.** Verify with fault injection for connect stall, read stall, and charge-then-timeout. Signals: attempt/result mismatch, provider timeout rate, ambiguous authorization count. Controls: hard deadlines, single retry layer, idempotency key or compensating reconciliation gate.\n- **Retry storm under dependency slowness.** Verify with payment and inventory latency injection under normal and overload traffic. Signals: retry count, pool saturation, latency inflation, rejected requests. Controls: circuit breaker, concurrency limits, jittered retries only where safe.\n- **Queue poison message or prolonged outage.** Verify max-delivery and DLQ routing using permanently failing payloads. Signals: redelivery count, oldest age, DLQ depth. Controls: finite deliveries, DLQ, replay tooling.\n- **Analytics outage bleeds into checkout.** Verify by breaking analytics while holding checkout load. Signals: worker saturation by pool, payment latency, checkout success rate. Controls: separate pool/queue and optional analytics shedding.\n- **Mixed-version deployment incompatibility.** Verify with old/new overlap for at least fifteen minutes and rollback rehearsal. Signals: error rate by version, schema version skew, migration progress. Controls: expand-contract schema, staged rollout, schema compatibility checks.\n- **Bad config or secret at startup.** Verify missing/invalid config cases. Signals: readiness failure reasons, startup aborts. Controls: mandatory config validation and fail-closed boot.\n- **Cache stampede or cache outage.** Verify coordinated expiry and node loss. Signals: hit ratio, miss burst, checkout rejects, backend pressure. Controls: miss coalescing, staggered TTLs, fallback policy.\n- **Operator misuse or unauthorized admin action.** Verify access path restrictions and audited control use. Signals: admin auth failures, control action logs. Controls: private admin surface, per-user auth, audit log.\n\n**Minimum Launch Gate**\nLaunch should be blocked until payment safety, overload protection, analytics isolation, migration/deployment safety, real readiness checks, bounded queues with DLQ, and basic money-path observability are corrected and verified. If any item is deferred, the launch record must state the exact immediate failure behavior, customer impact, operator workaround, and the signal that tells the operator to act.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Set explicit payment connect and response deadlines, remove layered retries, and add idempotency protection or disable retries for non-idempotent payment authorization attempts.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Add bounded concurrency, rate limits, and separate bulkheads for checkout, payment, inventory, and background work to prevent overload collapse.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Isolate analytics from checkout and payment by using separate worker pools and bounded queues so analytics failure cannot reduce checkout availability.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Replace startup-run multi-replica migrations plus all-at-once deployment with a single-run, restartable migration process and staged rollout compatible with 15 minutes of mixed versions.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Implement real readiness checks, strict startup configuration validation, and fail-closed startup behavior.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Bound the payment and analytics queues, add finite delivery limits and DLQs, and monitor queue depth and age.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Move admin routes off the public listener or behind a private path, replace the shared operator token with individual authn/authz, and enable immutable audit logging.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Add money-path observability: end-to-end correlation IDs across async hops, queue metrics, retry/timeout metrics, saturation metrics, and version visibility for app, config, and migrations.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Run dependency-failure, overload, migration-resume, and controlled chaos validation before launch, with explicit hypotheses, blast-radius limits, stop conditions, and recovery proof.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "If cache-authoritative pricing is intentionally kept, document that cache outage fails checkout closed, define the operator workaround, and add cache stampede protections such as miss coalescing.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:07:22.574357Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-3589-7b91-a39b-bd19a0746372.1783807554953601000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5363-1013-7e40-b900-3218f681965e",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is:\n\n1. Introduce deterministic seams for time and data access without changing behavior.\n2. Add focused characterization tests around current eligibility behavior through those seams.\n3. Add the new `introductory` older-than-60-days ineligibility rule in one place, with tests.\n4. Consolidate `previewCredit()` and `applyCredit()` onto that single eligibility owner only after the rule is covered and behavior is pinned.\n\nThat order is safer because the current worker is hard to test deterministically: it constructs `SubscriptionDatabase` internally and reads `new Date()` directly. Adding the rule first would force either brittle end-to-end coverage or unreviewable mixed changes. Extracting the shared condition first is also riskier than it looks, because the duplication currently hides an important product ambiguity: `previewCredit()` needs `subscription.kind` and `now` for credit estimation, while `applyCredit()` persists a credit and may need richer skip reasons once the legacy 60-day rule exists. If you extract too early, you can accidentally lock in the wrong abstraction before the rule semantics are proven.\n\nThe evidence supports making test-control first and behavior-preserving. A minimal seam such as injected `clock` and `database` (or narrower loader/credit writer interfaces) lets you write fast tests for both methods, including boundary dates. Once those tests pin the existing behavior, the 60-day rule can be added to a single helper such as `isEligibleForAutomaticCredit(subscription, now)`. After that, both methods can delegate to the helper with high confidence that consolidation is semantic no-op apart from the new requirement.\n\nDecisions that should be clarified before coding:\n\n- Whether \"older than 60 days\" means strictly `> 60 days` or `>= 60 days` at the exact timestamp boundary.\n- Whether age is computed by exact elapsed time, calendar day, or UTC-normalized date.\n- What to do when an `introductory` subscription has `startedAt: null`: ineligible, eligible, or data error.\n- Whether only automatic credit eligibility changes, or whether any preview UX is expected to expose a distinct reason for ineligibility.\n- Whether the single owner should be a boolean predicate only, or return a structured eligibility result/reason for future diagnostics.\n\nReviewable patch boundaries:\n\n- Patch 1: behavior-preserving dependency seams for clock/database construction, plus characterization tests for current active/balance/manual-hold behavior in both methods.\n- Patch 2: semantic change only: add the introductory-older-than-60-days rule, with explicit tests for under/over/exactly-60-day boundaries and `startedAt` handling.\n- Patch 3: refactor only: consolidate duplicated eligibility checks behind one owner used by both `previewCredit()` and `applyCredit()`, with no expected behavior delta beyond Patch 2.\n\nI would not combine Patch 2 and Patch 3 unless the codebase is extremely small and the tests in Patch 1 are already strong. Keeping them separate makes review simpler: first verify the new rule, then verify the extraction is a pure cleanup.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "stderr": "2026-07-11T22:54:12.749403Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5363-1013-7e40-b900-3218f681965e.1783810428948484000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55bd-d835-78a2-9d35-dd696fc5ba09",
+  "exit_code": 0,
+  "result": {
+    "answer": "Treat this as a legacy-behavior change. The safest bounded implementation is to preserve every observable behavior except the due-time predicate, and first create enough control to characterize current behavior locally.\n\nImplement only this semantic delta:\n```ts\nconst GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;\n\nfunction isChargeDue(nextChargeAt: string, now: Date): boolean {\n  return new Date(nextChargeAt).getTime() + GRACE_PERIOD_MS <= now.getTime();\n}\n```\nThen have `chargeIfDue()` call that helper and leave everything else unchanged:\n- same constructor entrypoint for production callers\n- same single captured `now`\n- same return values: `\"charged\" | \"not-due\"`\n- same transaction boundary\n- same `charges.insert(...)` then `accounts.markCharged(...)` order\n- same exception propagation\n- same `new Date(account.nextChargeAt)` parsing behavior\n- same `chargedAt` / `markCharged` timestamps derived from the captured `now`\n\nBecause the class has hidden time and hard database construction, add only the smallest seams needed for fast characterization tests:\n- inject a clock or `now(): Date`\n- inject the database, or a narrow database interface/factory\n\nKeep those seams defaulted so production call sites do not change. Do not combine this patch with constructor cleanup, timezone normalization, retries, logging changes, or transaction refactoring.\n\nVerification plan:\n1. Add characterization tests first, before changing semantics.\n2. Use a fake database and fake clock as the primary safety net; do not use shared staging fixtures for discovery.\n3. Characterize current behavior that must stay unchanged:\n- before `nextChargeAt` => `\"not-due\"`, no writes\n- exactly at `nextChargeAt` => current exact-boundary behavior\n- charged path performs both writes inside one transaction\n- the same captured `now` is written to both persistence calls\n- exceptions from `find`, `transaction`, `insert`, and `markCharged` propagate unchanged\n- if `nextChargeAt` is malformed today, capture whether that currently skips charging or fails\n4. Add new grace-period tests:\n- just before `nextChargeAt + 48h` => `\"not-due\"`\n- just after `nextChargeAt + 48h` => `\"charged\"`\n- exact boundary => expected result depends on the product decision below\n- timestamps with `Z` and explicit offsets remain instant-based\n- if timezone-less strings exist in real data, characterize current parsing rather than \u201cfixing\u201d it here\n5. Use staging only for bounded follow-up:\n- read-only inspection of real `nextChargeAt` formats\n- at most one narrow smoke check with a dedicated account if the team can reserve one\n- no shared-fixture cleanup assumptions\n\nProduct decisions that must be resolved instead of inferred:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h`, or only after that instant?\n- Time rule: does \u201c48-hour grace period\u201d mean 48 elapsed hours from the stored instant, or a calendar/business-time rule?\n- Timestamp contract: are stored `nextChargeAt` values guaranteed to include `Z` or an explicit offset, or do legacy timezone-less/local-time strings exist?\n- Rollout rule: should accounts already overdue by more than 48 hours charge immediately on the next scheduler run after deploy?\n- Failure contract: must current exception and transaction behavior remain exactly as-is? Safest assumption is yes.\n\nIf the boundary or timestamp contract is still unresolved, the safest bounded plan is two-step: first add seams plus characterization tests, then ship the grace-period predicate change only after product answers those questions.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

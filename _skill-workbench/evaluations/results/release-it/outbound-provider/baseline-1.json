@@ -1,0 +1,62 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/outbound-provider.md",
+  "case_sha256": "420500ae5fd787a2e9919b3b0bbbb67e620f27ac56b3631d066e7d74b79028c2",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5334-8508-7873-bc3b-9c4698e4ad9d",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Findings**\n1. `authorizePayment` can pin request workers indefinitely. `Semaphore.acquire()` waits forever, the provider call ignores `requestSignal`, both provider timeouts are effectively disabled (`0`), and the SDK can still retry. When the provider stalls, requests accumulate until every worker is blocked. This is the main blocker before routing 100% of traffic on July 13, 2026.\n2. The code multiplies retries under load. The loop does 4 application attempts, while `PAYMENT_SDK_RETRIES=2` adds SDK retries for transport errors and `429`/`5xx`. A single checkout can generate many outbound calls while the provider is already overloaded, which increases latency and saturation instead of shedding load.\n3. A database transaction is opened before any provider wait or retry. Slow provider calls therefore hold DB resources for the full external latency window, which amplifies pool pressure during incidents.\n4. The fallback path is not production-safe. `pendingAuthorizations` is in-memory and `PENDING_AUTHORIZATION_CAPACITY=0` means unbounded growth. On process restart, pending work is lost; during an outage, memory can grow without limit.\n5. Malformed success responses are not handled safely. A `200` HTML page will fail at `response.json()`, get retried blindly, and may end in `pending` without distinguishing a malformed/unknown provider outcome from an ordinary transient failure.\n6. Retries are unsafe unless the provider call is idempotent. Nothing in the snippet shows an idempotency key/header. If the provider processes a request but the client times out or loses the response, retries can create duplicate authorizations.\n\n**Smallest Production-Ready Changes**\n- Put one bounded deadline around the whole provider path: semaphore wait plus provider call(s). Pass `requestSignal` into `ProviderClient.post`, and set explicit `PAYMENT_CONNECT_TIMEOUT_MS` and `PAYMENT_RESPONSE_TIMEOUT_MS` to values comfortably below `CHECKOUT_REQUEST_TIMEOUT_MS`.\n- Stop indefinite queueing at the semaphore. If a slot is not available quickly, fail fast out of the synchronous path instead of waiting for a worker forever.\n- Use only one retry layer. The smallest fix is to set `PAYMENT_SDK_RETRIES=0` and keep at most one short retry in `authorizePayment` for retryable failures only (`429`, transport, `5xx`) if time budget remains. Do not retry malformed `200` responses blindly.\n- Move `database.beginTransaction()` until after a valid provider response is parsed, or only open a transaction when persisting the final outcome. Do not hold a DB transaction open while waiting on the provider.\n- Replace the in-memory pending array with a durable, bounded pending queue/table. `PENDING_AUTHORIZATION_CAPACITY` must be finite. If the queue is full, return a temporary failure rather than accepting unlimited backlog.\n- Validate the response before committing success: require an HTTP success status, JSON `Content-Type`, and the expected fields (`authorization_id`, `state`). Anything else is an integration failure, not an authorization success.\n- Ensure retries and pending reconciliation use an idempotency key. Without that, ambiguous failures are not safe to retry.\n\n**Required Runtime Behavior**\n- When the provider is slow: stop waiting once the internal budget is exhausted; release the semaphore immediately; do not keep the checkout worker blocked past that budget. Persist a bounded pending item for async reconciliation if capacity exists, otherwise return a temporary checkout failure.\n- When the provider is overloaded (`429`): perform at most one short retry within the same deadline budget, with backoff. If it still fails, shed load by going to bounded pending or temporary failure; do not keep hammering the provider.\n- When the provider is unavailable (connect timeout, network error, `5xx`): same handling as overload. No indefinite wait, no long retry chain, no open DB transaction.\n- When the provider returns malformed data (for example `200` with HTML): treat it as an unknown provider outcome. Do not insert an authorization row, do not mark success, and do not blindly retry unless the request is idempotent. Record it for reconciliation through the durable pending path, or fail temporarily if that queue is full.\n\n**Minimum config direction**\n- `PAYMENT_SDK_RETRIES=0`\n- `PAYMENT_CONNECT_TIMEOUT_MS`: non-zero\n- `PAYMENT_RESPONSE_TIMEOUT_MS`: non-zero and below the checkout timeout budget\n- `PAYMENT_MAX_IN_FLIGHT`: reduce from `400` to a value that your worker pool and provider budget can actually sustain\n- `PENDING_AUTHORIZATION_CAPACITY`: non-zero finite limit\n\nThe core rule is simple: this integration must shed load and degrade quickly under provider trouble, not wait indefinitely. Right now it does the opposite.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Propagate cancellation and enforce explicit end-to-end deadlines for semaphore wait and provider calls; do not allow indefinite waits on external payment traffic.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Use only one retry layer, limited to retryable failures (`429`, transport, `5xx`) and bounded by the same overall time budget.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Do not open a database transaction before calling the external provider; start the transaction only when persisting the final outcome.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Replace the in-memory unbounded pending list with a durable, bounded queue/table, and return a temporary failure when that queue is full.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Reject non-JSON or schema-invalid `200` responses as malformed provider outcomes, not successful authorizations.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Require an idempotency key before allowing retries or async reconciliation of ambiguous authorization attempts.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:04:14.019881Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5334-8508-7873-bc3b-9c4698e4ad9d.1783807378742499000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/comprehensive-construction-audit.md",
+  "case_sha256": "64cc13323b5397115605d14b946c3e98c8af55ee4d44fcfdd4b0265b61ac40f2",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5858-25f1-7f62-a2f1-7474161e4f0a",
+  "exit_code": 0,
+  "result": {
+    "answer": "No repository `.agents/skills` Code Complete reference was present in this workspace, so I could not perform the required end-to-end repository-book consultation. This is therefore a best-effort construction audit using a Code Complete-style lens, not a repository-grounded full-reference audit.\n\n**Prioritized Audit**\n1. High: `records.push(...)` depends on an undeclared external mutable global in `store()`. As written, the module is not self-contained, is hard to reason about, and can fail at runtime with `ReferenceError` if `records` is not in scope. This is the clearest construction defect.\n2. High: pervasive `any` usage (`last`, `rows`, `store` params) removes interface contracts and lets malformed rows flow into control logic silently. The code assumes at least three columns and string-like values but never states that in types.\n3. High: `ignore` conflates two behaviors: skip unknown row kinds and suppress exceptions. That makes the API hard to predict and increases the chance of callers masking real defects unintentionally.\n4. Medium: control flow is overly implicit. `kind` uses magic numbers `0/1/2`, `99` is an unexplained sentinel, and nested conditionals make the import rules harder to verify than necessary.\n5. Medium: success accounting is potentially misleading. `ok++` counts a row as imported even when a recognized `person` row is rejected in slow mode because either `row[0]` or `row[1]` is empty. That is either a defect or at least a misleading metric.\n6. Medium: broad `catch (_error)` swallows all failure modes. When `ignore` is true, data corruption and programmer bugs are treated the same as bad input rows.\n7. Medium: `last` stores the last processed row but is never read here and has no declared purpose. That is dead state unless required elsewhere.\n8. Low: the test covers only the happy path for one `person` row in fast mode. It does not exercise unknown kinds, slow mode validation, company rows, exception handling, or count semantics.\n9. Low: names do not communicate intent well enough for maintenance. `fast`, `ignore`, `a/b/c/d`, `ok`, and `kind` all force readers to reconstruct meaning from surrounding code.\n\n**Bounded Remediation Plan**\n1. Define an explicit row model and importer contract: typed row tuple/object, typed storage record, and documented return semantics.\n2. Replace magic numbers and sentinel literals with named domain values, ideally using a discriminated union or enum-like constants.\n3. Split policy flags so unknown-type skipping and error suppression are separate options.\n4. Decide and document whether `ok` means processed, stored, or valid rows; align increments with that definition.\n5. Narrow exception handling to expected failures and surface programmer/configuration errors.\n6. Inject or encapsulate the storage dependency instead of relying on ambient `records`.\n7. Remove `last` if unused, or expose a clear invariant for why it exists.\n8. Expand tests around branch behavior before any refactor to preserve intended behavior.\n\n**Validation Checklist**\n- Unknown row type behavior is covered for both skip and fail policies.\n- Slow-mode `person` imports verify empty-field handling and returned count semantics.\n- `company` imports verify the `fast` flag is propagated as intended.\n- Storage failure behavior is tested separately from invalid input behavior.\n- No ambient globals are required for successful execution.\n- Public API types reject malformed rows at compile time.\n- Every literal with domain meaning has a named constant/type.\n- Tests cover both returned count and stored output records.\n\n**Construction Summary**\nThe main construction risks are weak contracts, hidden dependencies, and overloaded control flags. If intended behavior must be preserved, the safest sequence is: lock current semantics with tests, clarify count/error policy, then refactor types and control flow without changing externally observed results unless the `ok++` behavior is confirmed to be a defect.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:00:47.888508Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5858-25f1-7f62-a2f1-7474161e4f0a.1783893599752162000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

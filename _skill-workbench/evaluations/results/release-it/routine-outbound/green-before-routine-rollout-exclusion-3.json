@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b6-d013-7ac0-aa70-3723de4a0681",
+  "exit_code": 0,
+  "result": {
+    "answer": "1. High: the call can wait forever before it even reaches the carrier. At snippet line 7, `Semaphore.acquire()` has no deadline or signal, and the implementation fact says it waits indefinitely. Under checkout load, this can consume the entire request budget before fallback, violating the requirement that checkout continue with `{ kind: \"unavailable\" }` when the carrier cannot answer in time. Smallest fix: make slot acquisition observe the checkout deadline signal, or fail fast on acquire timeout and return `unavailable`.\n\n2. High: the outbound call is not bounded by the checkout request budget. At lines 10-17, `carrierClient.post()` does not receive `requestSignal`, and `timeoutMs` only covers response waiting, not connection establishment. A connect stall can therefore run past the 2500 ms checkout budget. Smallest fix: pass a signal that is aborted by the checkout deadline, ideally a derived signal representing `min(remaining checkout budget, CARRIER_RESPONSE_TIMEOUT_MS)`.\n\n3. High: the code accepts invalid or wrong-status responses as successful quotes. At lines 18-24 it never checks HTTP status, content type, or response shape. That allows cases like HTTP 500 with JSON, HTTP 200 with malformed fields, negative or non-finite amounts, bad currency, or bad timestamps to be returned as `kind: \"available\"`, which violates the stated provider contract. Smallest fix: only return `available` for HTTP 200, JSON content, and a validated `{ amount, currency, expires_at }` payload; otherwise classify the result as a dependency-contract failure and degrade checkout to `unavailable`.\n\n4. Medium: all failures are flattened into routine unavailability, which hides request/contract defects. At lines 26-28, provider `4xx` and malformed `200` responses are logged as ordinary unavailability even though the contract says they indicate request or integration problems, not transient carrier unavailability. Checkout can still fall back to `unavailable`, but these cases should be logged/metriced separately so they are visible before release. Smallest fix: distinguish at least `4xx`/invalid-response` from `429`/`5xx`/timeout/transport in logs and metrics.\n\nAssumptions: `requestSignal` represents the checkout request deadline or can be replaced by a deadline-backed signal. I did not recommend retries, breakers, or broader checkout changes because the request explicitly forbids retries and this is a narrow pre-merge failure-behavior review.\n\nMinimal pre-merge bar:\n- Bound semaphore acquisition by the request deadline.\n- Pass a deadline signal into the HTTP client so connect stalls are aborted.\n- Validate status, content type, and payload before returning `available`.\n- Split contract/request failures from transient unavailability in diagnostics.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

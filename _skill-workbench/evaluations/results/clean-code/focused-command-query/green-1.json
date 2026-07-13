@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/focused-command-query.md",
+  "case_sha256": "bade0e9ce79858f47d07125e55d2ac72623fb5d89d19580ea2124bbb337646fa",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55d6-df47-7cc0-b7f7-0b05836df43d",
+  "exit_code": 0,
+  "result": {
+    "answer": "`findUser` is not clean-code-compliant as written under the command-query and hidden-side-effect guidance.\n\nRuling: reviewer 1 is correct on the rule. This method answers a question and also mutates object state by populating `usersById`. The fact that the mutation is an internal lazy cache does not make it a query. Under the clean-code guidance, cache population is still mutation, and here it is hidden behind a query-shaped name.\n\nReviewer 2 is only correct in a narrower sense: a strong-reason exception does exist, but it is explicitly an exception to command-query separation, not a case that satisfies it. If you keep the load-and-return shape, you should treat it as a deliberate tradeoff and make the mutation visible in the API, typically through naming.\n\nWhy this fails the guidance:\n- `findUser` reads like a nonmutating lookup.\n- The first call changes internal state; later calls can behave differently because of that state.\n- That makes the mutation hidden, even if it is \"harmless\" and even if no external observable behavior changes beyond caching.\n\nSmallest acceptable alternatives:\n\nStrict CQS split:\n```ts\nclass UserDirectory {\n  private readonly usersById = new Map<string, User | undefined>();\n\n  constructor(private readonly repository: UserRepository) {}\n\n  loadUser(id: string): void {\n    if (!this.usersById.has(id)) {\n      this.usersById.set(id, this.repository.findById(id));\n    }\n  }\n\n  findCachedUser(id: string): User | undefined {\n    return this.usersById.get(id);\n  }\n}\n```\nThis is the cleanest ruling under the guidance: one command, one query.\n\nSmallest strong-reason exception:\n```ts\nclass UserDirectory {\n  private readonly usersById = new Map<string, User | undefined>();\n\n  constructor(private readonly repository: UserRepository) {}\n\n  getOrLoadUser(id: string): User | undefined {\n    if (!this.usersById.has(id)) {\n      this.usersById.set(id, this.repository.findById(id));\n    }\n\n    return this.usersById.get(id);\n  }\n}\n```\nThis is acceptable only if you intentionally choose the exception. The important part is that the name tells the truth: it may load and mutate cache state.\n\nBottom line: keep `findUser` only if it is a true query. If it lazily populates cache, either split it into command plus query, or rename it to an explicit load/get-or-load form and treat that as a justified exception rather than calling it command-query separation.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

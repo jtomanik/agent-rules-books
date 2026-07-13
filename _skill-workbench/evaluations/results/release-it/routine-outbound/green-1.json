@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55cb-1297-7ae0-a899-fc5dd8d712d3",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n\n1. `carrierSlots.acquire()` can wait forever, so carrier saturation can stall checkout past the 2500 ms request budget before the HTTP call even starts. That violates the optional-quote contract and defeats `CARRIER_RESPONSE_TIMEOUT_MS`, because the queue wait is currently unbounded. Smallest fix: bound acquisition by the checkout deadline or `requestSignal`, and return `{ kind: \"unavailable\" }` immediately when no slot is obtained in time.\n\n2. The outbound call is not tied to the checkout lifetime. `carrierClient.post()` is not given `requestSignal`, and the documented `timeoutMs` does not cover connection establishment. In practice, DNS/TCP/TLS/connect stalls can outlive the request budget and keep work running after checkout should have moved on. Smallest fix: pass an abort signal derived from the checkout deadline into the client call, and make that deadline cover the whole operation, not just response wait.\n\n3. The response boundary is not validated, so invalid provider behavior is currently accepted as `kind: \"available\"` or misclassified as ordinary unavailability. The contract says only HTTP 200 + JSON + valid `{ amount, currency, expires_at }` is success; `429`/`5xx`/timeout/transport are degraded unavailability; `4xx` means request or contract fault. Smallest fix: explicitly check status, content type, and payload shape before returning `available`, and log/metric `4xx` or malformed `200` separately from transient unavailability. For checkout continuity, those cases can still degrade to `{ kind: \"unavailable\" }` for this request, but they should not be operationally indistinguishable from timeouts.\n\nRecommended pre-merge minimum:\n- Make semaphore acquisition deadline-aware.\n- Pass a deadline-aware abort signal into the carrier client.\n- Validate status/content type/body and classify failures into transient-unavailable vs provider-contract fault with distinct telemetry.\n\nI did not find a need for retries, breakers, or broader resilience work here given the stated scope and the existing `CARRIER_RETRIES=0`; the immediate gaps are the missing end-to-end time bound and missing boundary classification.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

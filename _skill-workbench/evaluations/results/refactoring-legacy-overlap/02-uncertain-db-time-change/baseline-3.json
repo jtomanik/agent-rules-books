@@ -1,0 +1,56 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5338-5895-7a11-9571-47531a6f346b",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded change: do not change transaction shape, exception propagation, timestamp source, or the comparison boundary beyond adding an explicit 48-hour offset to the due check.\n\nImplement the eligibility test as \u201ccharge only when `now >= nextChargeAt + 48h`\u201d, while continuing to parse `nextChargeAt` exactly as the current code does and continuing to use the same single `now` value for both the check and the inserted `chargedAt`/`markCharged` timestamps. That keeps existing behavior around parsing, exception flow, and transaction boundaries intact, and narrows the change to one business rule.\n\nA minimal code shape would be:\n```ts\nconst dueAt = new Date(account.nextChargeAt);\nconst gracePeriodMs = 48 * 60 * 60 * 1000;\nconst eligibleAt = new Date(dueAt.getTime() + gracePeriodMs);\n\nif (eligibleAt <= now) {\n  // existing transaction block unchanged\n}\n```\nThis is safer than rewriting storage, normalizing time zones, or changing the comparison to `<`/`<=` based on guesswork.\n\nProduct decisions that must be resolved, not inferred:\n1. Boundary semantics: should charging happen exactly at `nextChargeAt + 48h`, or only after that instant?\n2. Time basis: is the 48-hour grace period defined as a strict 48 elapsed hours from the stored timestamp, or as \u201ctwo local calendar days\u201d in some business timezone?\n3. Invalid/ambiguous stored timestamps: if `nextChargeAt` was historically written with inconsistent timezone handling, should this change preserve current parsing behavior or should bad rows be migrated/blocked separately?\n4. Post-grace charging intent: if an account remains overdue for much longer than 48 hours, is a single catch-up charge still correct, or are there any escalation/notification requirements before charge?\n5. Zero/negative balances: should the scheduler still create a charge row for non-positive `balanceCents`, or is that existing behavior accidental?\n\nVerification plan, bounded and low-risk:\n1. Add characterization tests around current behavior before changing logic. Because there are no tests, first pin the existing contract: not due before `nextChargeAt`; charged at/after `nextChargeAt`; transaction wrapper invoked once; `charges.insert` and `accounts.markCharged` both receive the same `now.toISOString()`; database exceptions propagate unchanged.\n2. Introduce time control in tests by stubbing `Date`/clock so boundary cases are deterministic.\n3. Add new grace-period tests: not due one millisecond before `nextChargeAt + 48h`; charged at the exact chosen boundary; charged after the boundary; no database writes when not due.\n4. Add parsing-focused tests using representative stored timestamp formats already present in production/staging data, but only as read-only observation. Do not \u201cfix\u201d timezone behavior in this change; use tests to document what currently happens.\n5. In staging, run read-only queries first to inventory real `nextChargeAt` formats and a few boundary examples. Avoid shared-fixture mutation until the team confirms boundary semantics and whether a disposable test account exists.\n6. If staging write verification is still needed, use one dedicated account agreed with the team, capture its before/after state explicitly, and perform exactly one end-to-end charge test. Do not rely on ad hoc cleanup of shared fixtures.\n\nWhat I would not change in this task: constructor behavior, synchronous API shape, transaction nesting, exception handling, timestamp serialization, or local-vs-UTC parsing behavior. Those are all observable behaviors with unknown callers, so changing them alongside the grace period would add unnecessary risk.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Implement the grace period by adding a fixed `48 * 60 * 60 * 1000` delay to the existing due timestamp and leave the transaction block, exception behavior, and timestamp generation unchanged.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Add characterization tests for the current boundary, transaction, and exception behavior before changing the due logic, since the class currently has no automated tests and callers may rely on those behaviors.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Require product to decide the exact post-grace boundary (`>=` at exactly 48 hours vs strictly after) instead of inferring intent from the current `<= nextChargeAt` check.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Treat timezone/local-time concerns as a separate decision and verification track; preserve current parsing semantics in this change unless product explicitly requests a migration or normalization.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Use staging first for read-only inspection of real timestamp formats and boundary cases, and avoid shared-fixture mutation except possibly one tightly controlled end-to-end test on a dedicated account.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:07:09.620407Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-e63b-7072-a051-53b7cb20df50.1783807600187424000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:07:46.852410Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5338-5895-7a11-9571-47531a6f346b.1783807629461757000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58cc-f07e-7cb2-90b3-3f2571654ac7",
+  "exit_code": 0,
+  "result": {
+    "answer": "Keep this as a local behavior change, not a branch added inline to the existing mixed routine.\n\nPatch plan:\n1. Extract discount calculation into a small private helper on `InvoiceService`, for example `calculateDiscount(account, invoice)`, and leave `finalize(...)` side-effect flow unchanged.\n2. Implement the new rule only there: `partner` gets `0.15` when `invoice.total >= 500`.\n3. Preserve the existing high-total rule exactly as-is by adding `0.05` when `invoice.total > 1_000`, regardless of eligible segment.\n4. Keep `preview`, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, and `lastInvoiceId` behavior untouched.\n5. Do not widen scope into signature cleanup, flag removal, rounding changes, repository changes, or policy abstraction beyond the private helper.\n\nRevised sketch:\n```ts\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    let d = 0;\n\n    if (a.segment === \"vip\") {\n      d = 0.1;\n    } else if (a.segment === \"partner\" && i.total >= 500) {\n      d = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      d += 0.05;\n    }\n\n    return d;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount selection logic for `partner` accounts at `>= 500`, plus minimal extraction needed to make that logic easy to verify.\n- Out of scope: refactoring `finalize` into multiple commands, changing public interfaces, changing thresholds for existing `vip` or `> 1_000` rules, adding rounding/currency handling, changing persistence/audit/email payload contracts, or introducing a new policy subsystem.\n\nTests required before shipping:\n1. `partner` with total `500` in preview mode returns `discount: 0.15`, `amount: 425`, `changed: false`.\n2. `partner` with total just below threshold, e.g. `499.99`, gets no partner discount.\n3. `partner` with total `1_200` gets combined discount `0.20` and correct amount `960`.\n4. One non-preview test for `partner` at `500` verifies balance decrement and that `accounts.save`, `mailer.send`, and `audit.record` all receive the discounted amount.\n5. Regression coverage for an unchanged path: `vip` still gets `0.10` at ordinary totals, and existing `> 1_000` behavior still applies.\n\nShip criterion: all existing tests remain green, plus the new targeted partner tests above. That is the smallest defensible change under the time constraint.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:08:15.425018Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58cc-f07e-7cb2-90b3-3f2571654ac7.1783901253758629000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

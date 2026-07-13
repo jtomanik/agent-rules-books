@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55c1-234b-7120-805d-f1af757cdb5b",
+  "exit_code": 0,
+  "result": {
+    "answer": "The crash boundary should be narrow. In this setup, letting every exception escape is unsafe because `restart: always` plus `max_deliveries: 0`, no dead-letter queue, six replicas, and immediate redelivery turns one bad delivery into a fleet-wide retry storm. The opposite extreme, one broad catch that logs, acknowledges, and moves on, is also unsafe because it discards valid work on transient or dependency-contract failures.\n\nRecommended failure boundary:\n\n1. Malformed inbound message: quarantine, do not crash.\nIf `message.body` is invalid JSON, required fields are missing, or the event is syntactically/domain-invalid, classify it as poison input at the consumer boundary. Reject it to a quarantine path and acknowledge/remove it from the hot queue. Do not rethrow, and do not keep retrying it. With today\u2019s broker config, this requires an explicit quarantine mechanism; otherwise poison messages loop forever.\n\n2. Transient dependency failure: retry briefly, then pause consumption, do not acknowledge, do not crash.\n`503`, timeout, and `200` with malformed dependency JSON are all dependency failures, not poison messages. The message itself may be valid. Handle these with bounded retry and backoff at exactly one layer, then stop taking more work when the dependency is unhealthy. Do not ack the message on failure. Do not crash the process, because a crash immediately redelivers the same work to another replica and amplifies load. If retries are exhausted, leave the message for later redelivery through a delayed retry path and mark the consumer unready or otherwise pause consumption until the dependency recovers.\n\n3. Compromised process state: crash.\nReserve process exit for failures that make the worker no longer trustworthy, such as invariant corruption in shared runtime state, a broken consumer/channel state the process cannot safely recreate, or a bug proving the process may continue in an unknown state. Ordinary per-message parse errors, dependency failures, and expected database/network exceptions are not in this category.\n\nApplied to the current code, the handler should classify errors instead of `catch` + `throw` for everything. The current implementation treats malformed input, dependency outage, dependency contract breakage, and genuine process corruption as equivalent. That is the wrong boundary.\n\nMinimal changes needed to make this safe and testable:\n\n- Add explicit inbound validation before any side effect. Parse JSON, validate `InventoryEvent`, and route invalid messages to quarantine.\n- Configure quarantine explicitly. `dead_letter_exchange: null` is incompatible with safe poison-message handling. Add a dead-letter/quarantine queue and use reject or nack-without-requeue for malformed inbound messages.\n- Remove unlimited hot-loop retries. `max_deliveries: 0` is unsafe here. Bound deliveries and send exhausted messages to a retry or quarantine path depending on class.\n- Add a real timeout. `dependency_timeout_ms: 0` is forbidden for this dependency path; choose a finite value.\n- Keep retries disciplined at one layer only. Either use the configured dependency retries with backoff/jitter or broker redelivery with delay, but not nested immediate retries plus unlimited redelivery.\n- Add a dependency unhealthy state that pauses consumption instead of crashing. Readiness should reflect actual ability to process messages, not just `broker_connection_is_open`.\n- Keep crash semantics for only unrecoverable process-state failures, ideally via a distinct error type or top-level fatal path.\n- Make the handler testable by extracting a classifier that maps failures to `quarantine`, `retry/pause`, or `fatal crash`, then cover at least these cases: invalid message JSON, invalid event shape, inventory `503`, inventory timeout, inventory `200` malformed JSON, database transient failure, and explicit fatal-process error.\n\nA practical policy statement for this service is:\n\n- Inbound message invalid: quarantine and ack/remove.\n- Dependency unavailable or dependency response invalid: retry with bounds, then pause consumption and preserve the message for later redelivery; never ack as success.\n- Process no longer trustworthy: crash and let supervision restart.\n\nThat boundary fits the broker and supervisor behavior you described and avoids both poison-message crash loops and silent data loss.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T09:57:20.077848Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55c1-234b-7120-805d-f1af757cdb5b.1783850148683901000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

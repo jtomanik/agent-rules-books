@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5347-79ed-7843-a936-6c25b8047289",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is neither \u201ccrash on every exception\u201d nor \u201ccatch everything, ack, and continue.\u201d It is:\n\n- Quarantine permanent, message-local failures.\n  This includes `JSON.parse` failure and any missing/invalid `InventoryEvent` fields or impossible values discovered during explicit validation. These failures will never succeed on redelivery, so they must not crash the worker and must not be retried forever. They should be rejected to a quarantine/DLQ and then considered complete from the main queue.\n- Retry, then pause, for valid messages blocked by dependencies.\n  This includes inventory `503`, inventory timeout, inventory `200` with malformed JSON, and transient database failures. The message is valid; the environment is not. These must not be acked, because that loses work. They also should not use process crash as the retry mechanism, because with `restart: always`, `max_deliveries: 0`, no DLQ, `prefetch: 100`, and 6 replicas, a single poison or outage condition becomes a redelivery storm across up to 600 in-flight deliveries. Retry these with bounded attempts and backoff, and when the retry budget or failure threshold is exhausted, stop hot-looping by pausing consumption or parking messages in a retry queue for operators.\n- Crash only when the process may no longer be trustworthy.\n  Let the exception escape only for uncategorized internal failures: corrupted in-memory state, violated invariants, broker client/state-machine corruption, impossible transaction state, or any condition where the worker cannot safely decide whether to ack, reject, or retry. That is the narrow place where supervisor restart helps.\n\nApplied to the current code and config, the current \u201crethrow everything\u201d policy is unsafe because malformed messages trigger endless restarts and unlimited redelivery. The broad \u201ccatch and ack everything\u201d alternative is also unsafe because transient dependency failure would silently drop valid work.\n\nThe minimal changes needed to make this policy safe and testable are:\n\n1. Add explicit quarantine.\nA `dead_letter_exchange: null` makes permanent-message handling impossible. Configure a DLQ/quarantine path and reject malformed messages with `requeue=false`.\n\n2. Replace unlimited immediate redelivery.\n`max_deliveries: 0` is incompatible with transient failure handling here. Use a bounded retry count with delay/backoff, or a dedicated retry queue. Immediate unlimited redelivery is what turns outages into storms.\n\n3. Add explicit error classification in code.\nDo not treat all exceptions alike. Separate:\n- permanent message errors: parse/schema/domain validation failure\n- retryable dependency errors: `503`, timeout, malformed dependency payload, transient DB failure\n- fatal internal errors: rethrow and crash\n\n4. Put a real timeout on the dependency call.\n`dependency_timeout_ms: 0` is not safe. The consumer needs a finite timeout so retry and pause decisions are deterministic and testable.\n\n5. Add a pause/breaker path for dependency-wide failure.\nAfter repeated retryable failures, stop consuming new work instead of continuing to churn. With current operations, deployment pause is the available coarse control; code should surface this state clearly rather than looking healthy just because the broker connection is open.\n\n6. Make duplicate delivery safe at the persistence boundary.\nA crash after DB commit but before `ack()` will redeliver. `event.id` needs an enforced uniqueness/idempotency guard so retry/crash behavior does not duplicate writes.\n\n7. Test message disposition, not just thrown exceptions.\nTests should assert:\n- malformed message => quarantine / reject without requeue\n- inventory `503` or timeout => no ack, retry path taken\n- inventory `200` malformed JSON => retry path taken\n- fatal internal error => exception escapes and worker crashes\n- post-commit redelivery => duplicate-safe persistence\n\nOne implementation shape is to validate before processing, then map failures to disposition explicitly. The core rule is: malformed input goes to quarantine, transient dependency failure stays unacked and is retried with backoff then paused/parked, and only compromised worker state is allowed to crash the process.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:24:46.097278Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5347-79ed-7843-a936-6c25b8047289.1783808621282745000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f536d-7317-75e1-9207-12075aee0c5c",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is:\n\n1. Gain deterministic test control first.\n2. Consolidate the duplicated eligibility rule into one owner with no semantic change.\n3. Add the new `introductory`-older-than-60-days rule in that owner.\n\nWhy this order is safest:\n\n- The code is legacy for this task: no focused tests, hard-wired database construction, and direct clock reads. Changing behavior before breaking those dependencies would be edit-and-pray.\n- Consolidating before test control is also unsafe. Even a \"pure refactor\" can change behavior here because there is no fast feedback and the worker mixes policy with runtime dependencies.\n- After deterministic control exists, extracting the shared eligibility owner before the new rule is safer than adding the rule in both methods first. It reduces the semantic change to one place, avoids duplicated edits, and keeps the extraction reviewable as behavior-preserving.\n- Adding the rule and the extraction in the same patch is less safe because it mixes structural and behavioral intent. Review becomes harder: a failure could come from the seam work, the ownership move, or the 60-day logic.\n\nThe concrete sequence I would recommend:\n\n1. Introduce the smallest seams needed for deterministic tests.\n   Make time and subscription/data access substitutable. The minimum useful seam is usually injected `clock` plus injected database or narrow collaborators/factories. Then add focused characterization tests for current `previewCredit()` and `applyCredit()` outcomes, including current side effects and skip/apply behavior.\n2. Extract one eligibility owner that preserves today\u2019s rule exactly.\n   Example shape: `isEligibleForAutomaticCredit(subscription, now)` or a small policy object. Both methods call it, but behavior stays identical. This is a refactoring patch, not a feature patch.\n3. Add the new 60-day introductory rule only in that owner.\n   Add focused tests for the new boundary behavior and keep prior characterization tests passing for every unaffected case.\n\nWhy not the alternatives:\n\n- Add the 60-day rule first, then refactor: unsafe because the new rule must be duplicated in two places in untested code, and later consolidation can hide whether regressions came from the feature or the extraction.\n- Extract first, then add test control: unsafe because the extraction itself is not protected and the current code has hidden time and construction dependencies.\n- Combine seam work, extraction, and feature in one patch: too much mixed intent for weakly tested code.\n- Add broad end-to-end coverage only: too slow and too imprecise. The risky logic is local policy; it needs focused tests.\n\nDecisions that must be clarified first:\n\n- Exact boundary: is \"older than 60 days\" strictly `> 60 days`, meaning exactly 60 days is still eligible?\n- Time semantics: compare by exact timestamp, by UTC calendar date, or by a business timezone/date rule?\n- `startedAt: null` for `introductory`: should that make the subscription ineligible, eligible, or preserve current behavior unless product says otherwise?\n- Invalid/unparseable `startedAt`: fail closed, fail open, or treat as data error?\n- Scope of \"automatic credit\": should both `previewCredit()` and `applyCredit()` use the new rule identically? The prompt suggests yes, but this should be explicit.\n- Non-introductory subscriptions: confirm there is no intended change for `paid` subscriptions or any other current eligibility rule.\n\nReviewable patch boundaries:\n\n1. Patch A: test-control only.\n   Inject seam(s) for clock and database/collaborator creation. Add characterization tests for current behavior. No eligibility logic change.\n2. Patch B: ownership only.\n   Introduce one shared eligibility owner and route both methods through it. Existing tests should remain unchanged.\n3. Patch C: feature only.\n   Add the 60-day `introductory` rule in the shared owner plus boundary tests. No additional refactoring.\n\nWhat I would look for in review:\n\n- Patch A proves deterministic control without changing outcomes.\n- Patch B is behavior-preserving and removes duplicate eligibility knowledge from the worker.\n- Patch C changes only the intended cases and explicitly covers the 60-day boundary and `startedAt` policy.\n\nThat sequencing follows the safest legacy-change pattern here: gain control, isolate ownership, then change semantics.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T23:05:09.787117Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-912e-70a1-8155-5ce17c7eb4c9.1783811051823450000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T23:05:10.122233Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-90e4-7b71-9f79-6e24d6a6a04d.1783811051749204000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T23:05:10.151765Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-9125-7422-89a2-c50de8cab5d3.1783811051813449000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

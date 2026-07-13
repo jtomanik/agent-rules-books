@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5363-1011-7563-b757-42613e956ae7",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest order:\n\n1. Add deterministic control seams first, together with focused characterization tests.\n2. Consolidate eligibility into one owner with no semantic change.\n3. Add the new `introductory > 60 days` rule in that single owner.\n\nWhy this order is safest:\n\nThe current code has two risk multipliers: hidden dependencies (`new SubscriptionDatabase(...)`, `new Date()`) and duplicated business logic. Without deterministic control over storage and time, any focused test added for the 60-day rule will either be slow, indirect, or brittle. Without characterization tests first, extracting the duplicated condition risks silently changing behavior while claiming to be a refactor. And combining extraction with the new rule makes failures ambiguous: you would not know whether a break came from the refactor or the policy change.\n\nSo the lowest-risk sequence is:\n\n- First create injection seams for database access and clock reads, then add focused tests around `previewCredit()` and `applyCredit()` for the current behavior.\n- Next move the duplicated eligibility condition behind one owner, but keep the tests proving behavior is unchanged.\n- Only after that, extend that owner with the 60-day introductory rule and add the new targeted cases.\n\nThat is safer than the main alternatives:\n\n- Rule first: highest risk, because the worker is currently hard to test deterministically and only has one end-to-end success path.\n- Extraction first without test seams: still risky, because you cannot cheaply prove it is a pure refactor.\n- Extraction and rule together: poor reviewability and poor failure isolation.\n- Tests after refactor: too late; you lose a reliable baseline of legacy behavior.\n\nDecisions that need clarification before implementation:\n\n- Exact threshold semantics: does \u201colder than 60 days\u201d mean strictly `> 60 * 24h`, `>= 60 days`, or a calendar-day rule?\n- Time basis: should age be computed from absolute timestamps, or in a business timezone?\n- `startedAt: null` for `introductory`: should that be ineligible, eligible, or treated as invalid data?\n- Preview semantics: when ineligible under the new rule, should `previewCredit()` return `null` exactly like other ineligible cases?\n- Scope of the policy: does \u201cautomatic credit\u201d apply equally to both `previewCredit()` and `applyCredit()`? The prompt suggests yes, but it should be confirmed.\n- Parsing/error behavior: if `startedAt` is malformed, should the worker fail, skip, or treat it as ineligible?\n\nReviewable patch boundaries:\n\n1. Deterministic test control only.\n- Introduce constructor seams for database and clock, or equivalent overridable factories.\n- Add focused tests for current behavior of both methods.\n- No business-rule changes.\n\n2. Eligibility ownership only.\n- Extract one eligibility owner used by both `previewCredit()` and `applyCredit()`.\n- Keep semantics identical to the legacy condition.\n- Tests should show no outcome changes.\n\n3. Policy change only.\n- Add the `introductory` age rule in the single owner.\n- Add boundary tests: under 60 days, exactly 60 days, over 60 days, `startedAt = null`, and unaffected `paid` subscriptions.\n- No unrelated cleanup.\n\nA practical test shape is to freeze `now`, stub subscription records, and assert both return values and side effects separately. For `applyCredit()`, verify no credit insert and no `markCredited()` call when ineligible.\n\nIf I were reviewing this work, I would expect three small patches or three clearly separated commits in exactly that order.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "stderr": "2026-07-11T22:54:28.793705Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5363-1011-7563-b757-42613e956ae7.1783810428946049000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

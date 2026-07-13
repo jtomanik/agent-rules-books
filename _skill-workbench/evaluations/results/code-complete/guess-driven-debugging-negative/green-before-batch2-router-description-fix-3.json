@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/guess-driven-debugging-negative.md",
+  "case_sha256": "c7865c634aeaf84f4188190540d595af587074c4c2dd6a52804567e911750d63",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585f-1b55-7761-9d17-a91cdaba50ff",
+  "exit_code": 0,
+  "result": {
+    "answer": "Do not add a retry yet. A deterministic failing test is weak evidence for a race and stronger evidence for a consistent ordering, invalidation, or read-source-selection bug.\n\nNext diagnostic steps:\n1. Reproduce the failure repeatedly and confirm whether it is truly deterministic in this test shape, or only when run after/with other tests. That separates an intra-test defect from leaked state.\n2. Instrument the single path for this scenario only: `write(\"account:42\", \"active\")` and the immediately following `read(\"account:42\")`. Capture whether `write` updates the backing store, updates the cache, invalidates the cache, or defers any of those actions.\n3. Trace the read decision order. Record whether `read` returns from session state, cache, or backing store, and what value each source held at read time.\n4. Check the session boundary semantics. The test says \u201csame session\u201d; verify whether `write` is buffered/transactional while `read` consults a cache that is not session-aware.\n5. Eliminate cross-test contamination. Inspect whether cache keys, singleton stores, or shared fixtures survive between tests and preload `account:42` with an older value.\n6. Add a characterization observation before any fix if current behavior is not already visible from logs or assertions. The key question is not \u201cis there a race?\u201d but \u201cwhich stale source won, and why?\u201d\n\nEvidence needed before changing code:\n- A concrete timeline for this call pair: write invoked, cache action taken or skipped, backing-store action taken or deferred, read source selected, value returned.\n- Proof of the stale source: e.g. cache still contained old data, cache invalidation happened after read selection, read bypassed session state, or shared test state injected the stale value.\n- One failing characterization that distinguishes the real defect from a guessed race.\n\nMinimal evidence-supported correction should follow directly from that observation:\n- If `read` incorrectly prefers cache over same-session pending writes, fix source precedence for same-session reads.\n- If `write` updates persistence but not cache, fix write-through or invalidation at the write boundary.\n- If state leaks across tests, fix test isolation or cache lifecycle, not production retry logic.\n- Only if diagnostics show an actual asynchronous visibility window should a synchronization change be considered; a blind second retry would otherwise mask the bug and reduce diagnostic signal.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:07:58.787080Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585f-1b55-7761-9d17-a91cdaba50ff.1783894055825994000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

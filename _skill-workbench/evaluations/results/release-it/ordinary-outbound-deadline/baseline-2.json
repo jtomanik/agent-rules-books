@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/ordinary-outbound-deadline.md",
+  "case_sha256": "e36fb927113591edb2d1482aec5933927fdcc8ebccd3e522427dc1656910d32b",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55d5-5607-7781-a74e-8566ad86c766",
+  "exit_code": 0,
+  "result": {
+    "answer": "It does not fully meet the contract.\n\n`No retries` is satisfied because `recommendationClient.get()` does not implicitly retry and this function adds no retry loop.\n\nThe `150 ms optional deadline` is not satisfied because the outbound call has no deadline at all. As written, checkout can block indefinitely waiting for the provider instead of falling back to `{ kind: \"unavailable\" }` after 150 ms.\n\nSmallest correction before merge: add a 150 ms timeout/abort to `recommendationClient.get()` on this call path and keep the existing fallback in `catch`.\n\nExample shape:\n\n```ts\nexport async function fetchRecommendation(\n  cartId: string,\n): Promise<RecommendationResult> {\n  try {\n    const response = await recommendationClient.get(`/carts/${cartId}`, {\n      signal: AbortSignal.timeout(150),\n    });\n    return { kind: \"available\", recommendation: await response.json() };\n  } catch {\n    return { kind: \"unavailable\" };\n  }\n}\n```\n\nIf this client does not accept `signal`, use its equivalent per-request timeout option. The key requirement is enforcing the 150 ms cap on this outbound call without adding retries.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

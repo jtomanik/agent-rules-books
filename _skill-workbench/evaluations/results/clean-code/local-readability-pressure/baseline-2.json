@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5336-a291-7fb0-b9e2-24356f1d6ddc",
+  "exit_code": 0,
+  "result": {
+    "answer": "Patch plan:\n1. Change only the discount decision path in `finalize`; leave state mutation, call ordering, payload shapes, and return shapes untouched.\n2. Implement `partner` as a base discount rule of `0.15` when `i.total >= 500`.\n3. Keep the existing `i.total > 1000` increment exactly as-is, so qualifying partner invoices become `0.20` total discount. That is the narrowest interpretation of \u201cpreserve all behavior outside that rule.\u201d\n4. Run the existing suite, then add only targeted tests for the new branch and a few non-regression cases around the thresholds.\n\nRevised function sketch:\n```ts\nfinalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n  let d = 0;\n\n  if (a.segment === \"vip\") {\n    d = 0.1;\n  } else if (a.segment === \"partner\" && i.total >= 500) {\n    d = 0.15;\n  }\n\n  if (i.total > 1_000) {\n    d += 0.05;\n  }\n\n  const amount = i.total * (1 - d);\n\n  if (preview) {\n    return { amount, discount: d, changed: false };\n  }\n\n  a.balance -= amount;\n  this.accounts.save(a);\n  this.lastInvoiceId = i.id;\n\n  if (sendEmail) {\n    this.mailer.send(a.id, i.id, amount);\n  }\n\n  this.audit.record(\"invoice-finalized\", {\n    accountId: a.id,\n    invoiceId: i.id,\n    amount,\n  });\n\n  return { amount, discount: d, changed: true };\n}\n```\n\nExact scope boundary:\n- In scope: discount computation for `partner` accounts only.\n- Preserve exactly: preview behavior, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, `lastInvoiceId`, audit payload contents, email arguments, and the `> 1000` threshold behavior.\n- Out of scope: refactoring the service, changing interfaces, adding rounding, altering persistence/mail/audit sequencing, or redesigning discount rules.\n\nTests required before shipping:\n1. `partner` with `total = 499.99` gets `discount = 0`, existing side effects unchanged.\n2. `partner` with `total = 500` gets `discount = 0.15` and `amount = 425`.\n3. `partner` with `total = 1000` gets `discount = 0.15`.\n4. `partner` with `total = 1000.01` or `1500` gets `discount = 0.20`, proving the old `> 1000` increment still stacks.\n5. `vip` cases remain `0.10` base and `0.15` above `1000`.\n6. `standard` cases remain `0` base and `0.05` above `1000`.\n7. One preview test for a qualifying `partner` invoice proving no save/email/audit mutation beyond the existing preview contract.\n8. One non-preview `partner` test proving `accounts.save`, optional `mailer.send`, and `audit.record` still receive the discounted amount.\n\nRecommendation: ship the local branch, not a discount-engine refactor. Under the rewrite constraint and 45-minute window, the safest change is a narrow conditional plus threshold-focused regression tests.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Implement the smallest possible local change in `finalize` rather than extracting a broader pricing abstraction right now.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Interpret the new partner rule as a base discount that still stacks with the existing `> 1000` increment, because that preserves all other current behavior.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Require threshold-focused regression tests for `499.99`, `500`, `1000`, and `>1000` before shipping.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": ""
+}

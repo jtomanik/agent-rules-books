@@ -1,0 +1,56 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/legacy-code-neighbor.md",
+  "case_sha256": "f188119e75f1f1994886544057a92077f18eb9e7dee00e828f17634283bcbf6e",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5338-88a0-7d62-aebd-87604428d10c",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is to control observation first, then make the smallest seam needed for characterization, then add the grace-period rule as a separate behavioral change.\n\nFirst, learn what is currently relied on before changing logic:\n- Confirm the exact suspension trigger in production: whether `due_at < now` is the only criterion, what timezone/clock source matters, and whether `null` or malformed `due_at` values exist.\n- Identify externally visible effects beyond the returned boolean and DB update: downstream jobs, support workflows, notifications, reporting, and callers outside the repository that may assume suspension happens immediately at overdue time.\n- Capture a few real account timelines from production-like data so the team can state expected behavior for: not due yet, just overdue, overdue by 1-6 days, overdue by 7+ days, already suspended, and missing account.\n\nThe smallest dependency intervention I would make is to introduce a narrow seam for time and database access without broad refactoring. Concretely, keep the public behavior entrypoint intact, but add the minimal ability to supply a clock/\"current time\" and a connection or query executor in tests. That allows characterization tests around the current behavior without opening the real database, while avoiding architectural cleanup.\n\nI would separate the work into two commits or reviewable steps:\n1. Structural safety step only: add the minimal injection seam and characterization tests that lock down current behavior exactly as it is today. No grace-period logic in this step.\n2. Rule step only: change the overdue condition from `due_at < now` to `due_at < now minus 7 days` or equivalent `due_at plus 7 days < now`, then extend tests to cover 0-6 day overdue accounts staying active and 7+ day overdue accounts being suspended.\n\nDuring the rule step, explicitly decide boundary behavior before coding:\n- Whether suspension starts at exactly 7 days overdue or only after 7 full 24-hour periods.\n- Whether the comparison is instant-precise or date-based.\n- Which timezone/clock defines \"7 days\".\n\nI would not start with naming cleanup, SQL cleanup, or wider architecture work. Those may be worthwhile later, but for this change they increase risk in code whose production behavior is not fully understood.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Establish current production semantics and external dependencies before changing suspension timing, including real data cases and caller expectations.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Create the smallest possible seam for controllable time and database interaction so characterization tests can run without the real constructor side effects.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Separate structural safety work from the grace-period behavior change into distinct steps or commits.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Define the exact seven-day boundary semantics before implementation: inclusive/exclusive cutoff, instant-vs-date comparison, and timezone source.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Avoid opportunistic cleanup during this change; defer broader refactoring until after behavior is characterized and the rule change is proven.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": ""
+}

@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/manual-focused.md",
+  "case_sha256": "5eedbaf2961c3140e16a4ada3001e1230a1cb557f6fee7f7fd08f19edc758ae4",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f587e-3a58-7253-98c9-e6f1acaaa426",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a validated table.\n\nFor a stable 6-cell mapping from `(zone, service)` to shipping cents, this is data selection, not branching logic. Under statement/conditional guidance, an `if` chain is acceptable when the logic itself is the point. Here the logic is only lookup across a closed Cartesian product. Under table-driven guidance, a small fixed table is the clearer representation because it makes completeness and omissions visible immediately.\n\nThe smallest representation is:\n- a constant `2 x 3` table indexed by validated `zone` and `service` enum values, if both dimensions are already normalized to compact enums\n- otherwise, a constant 6-entry map keyed by `(zone, service)`\n\nPrefer the `2 x 3` form only if the enum/index mapping is already explicit and stable. If not, the 6-entry keyed table is safer because it avoids hidden ordinal coupling.\n\nSmallest validation tests:\n- One exhaustive expectation test covering all 6 valid `(zone, service)` pairs and their expected cents.\n- One invalid-input test proving unknown `zone` or `service` is rejected before lookup.\n- If using a keyed table, one structure test asserting exactly 6 entries and no duplicate keys.\n- If using an indexed `2 x 3` table, one structure test asserting the declared dimensions match the allowed domain sizes.\n\nThat is enough to resolve the construction question without a broader audit: replace the `if` chain with a validated table, but keep the representation as small and explicit as the existing type model allows.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:41:35.485518Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f587e-0671-7001-bfab-666943944621.1783896082033509000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:41:35.527434Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f587e-0642-7991-933c-7ecbc6bfc38f.1783896082001352000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:41:35.567031Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f587e-0642-75b0-ac69-fdccd716daae.1783896082001352000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:42:27.001571Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f587e-3a58-7253-98c9-e6f1acaaa426.1783896095321141000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

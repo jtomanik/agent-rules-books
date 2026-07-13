@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5355-6a35-7942-a327-52eba29de7e8",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded change: preserve all existing transaction, exception, return-value, and timestamp-writing behavior, and change only the due check.\n\nImplement the rule as `eligibleAt = parsed(nextChargeAt) + 48h` and charge when `now` reaches that threshold. Do not also \u201cfix\u201d parsing, timezone handling, constructor I/O, or transaction structure in the same patch. The smallest safe shape is:\n\n```ts\nconst GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;\n\nconst dueAt = new Date(account.nextChargeAt);\nconst eligibleAt = new Date(dueAt.getTime() + GRACE_PERIOD_MS);\n\nif (eligibleAt <= now) {\n  this.database.transaction(() => {\n    this.database.charges.insert({\n      accountId: account.id,\n      amountCents: account.balanceCents,\n      chargedAt: now.toISOString(),\n    });\n    this.database.accounts.markCharged(account.id, now.toISOString());\n  });\n  return \"charged\";\n}\n```\n\nBecause the class is untested and current behavior is uncertain, the safer implementation plan is two-step:\n\n1. Add a minimal seam for tests only where it unlocks observation: injectable clock and injectable database, or an extracted pure predicate such as `isChargeEligible(nextChargeAt, now, graceMs)` plus a thin integration path in `chargeIfDue()`.\n2. Add characterization tests before changing semantics, then add the 48-hour behavior tests.\n\nCharacterization tests to add first:\n- Charges exactly at `nextChargeAt` under current behavior.\n- Does not charge just before `nextChargeAt`.\n- Uses one transaction for `insert` + `markCharged`.\n- Returns `\"charged\"` only when writes occur, otherwise `\"not-due\"`.\n- Propagates the same database exceptions it does today.\n- Writes the same `now.toISOString()` value to both `chargedAt` and `markCharged`.\n\nNew behavior tests after the seam exists:\n- Does not charge at `nextChargeAt + 47h 59m 59.999s`.\n- Charges at the exact grace boundary if product confirms inclusive behavior.\n- Does not perform any writes before the grace boundary.\n- Still preserves existing transaction and exception behavior.\n\nVerification plan:\n- Make fast tests the primary feedback path; do not rely on the shared staging database for correctness.\n- Before changing code, inspect a read-only sample of real `nextChargeAt` values from staging or a safe replica to see whether stored strings are ISO-with-offset, `Z`, or naive local timestamps. That is observation, not a fixture-dependent test.\n- After unit/characterization coverage is in place, run one narrow staging smoke check only if needed: one controlled account whose eligibility is already safely beyond the new threshold, verifying that a charge still records correctly without changing cleanup scope.\n\nProduct decisions that must be resolved instead of inferred:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h` (`<=`) or only after more than 48 hours (`<`)?\n- Time semantics: is the grace period exactly 172800000 ms after the stored instant, or \u201c2 local calendar days\u201d in some business/account timezone?\n- Legacy timestamp interpretation: if stored `nextChargeAt` strings are sometimes timezone-naive or historically affected by local time, should this change preserve current parsing behavior or is a separate timestamp-normalization project required?\n\nWhat should not change in this task unless explicitly approved:\n- Constructor side effects.\n- Database transaction boundaries.\n- Exception propagation behavior.\n- Return values.\n- Timestamp format written to persistence.\n\nThat gives the smallest defensible patch: isolate eligibility logic enough to test it, characterize current externally visible behavior, then add the 48-hour offset without folding in unrelated cleanup or timezone \u201cfixes.\u201d",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:39:57.230589Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5355-6a35-7942-a327-52eba29de7e8.1783809534592800000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

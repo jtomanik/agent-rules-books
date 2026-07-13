@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/clean-code-adapter-neighbor.md",
+  "case_sha256": "4266be276a1e743926aecda816a6e2fe0a6fa15dca1de25318d1b0769a375fde",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5857-4995-7811-9c8a-0c85bc8642e0",
+  "exit_code": 0,
+  "result": {
+    "answer": "No behavioral issues stand out in the mapper. The improvement surface is local clarity.\n\nMain findings:\n- `m`, `x`, `b`, and `y` hide intent. In a private adapter helper, the biggest readability win is naming the intermediate values after what they mean.\n- The boolean mode is the least clear part. `b` controls a specific fallback policy: use `user_id` when the trimmed display name is blank. That policy should be spelled out in a local alias or comment.\n- The existing comment is too broad to be useful. It repeats that the function computes `label` and `active`, but not the only non-obvious rule: trimming plus optional fallback-to-id.\n- The current `let` plus reassignment works, but a single expression for `label` reads more directly once the pieces are named.\n\nA cleaner version that preserves the exact signature and behavior:\n\n```ts\nfunction m(x: UserRow, b: boolean): UserRecord {\n  const displayName = x.display_name === null ? \"\" : x.display_name.trim();\n  const active = x.deleted_at === null;\n\n  // If enabled, blank display names fall back to the stable user id.\n  const label = b && displayName === \"\" ? x.user_id : displayName;\n\n  return { id: x.user_id, label, active };\n}\n```\n\nIf you want to make the boolean mode even clearer without changing the signature, use a local alias:\n\n```ts\nfunction m(x: UserRow, b: boolean): UserRecord {\n  const useIdWhenNameBlank = b;\n  const displayName = x.display_name === null ? \"\" : x.display_name.trim();\n  const label = useIdWhenNameBlank && displayName === \"\" ? x.user_id : displayName;\n\n  return {\n    id: x.user_id,\n    label,\n    active: x.deleted_at === null,\n  };\n}\n```\n\nThat keeps the mapper inside the PostgreSQL adapter, adds no domain leakage, preserves the contract, and makes the fallback rule explicit.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T21:59:43.844768Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5857-4995-7811-9c8a-0c85bc8642e0.1783893543318080000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/database-only-refactoring-negative.md",
+  "case_sha256": "ec1929ab4dd3f95d3280e05ff55c1c7c44dbf8babed1763b00f0a8dd454a7b75",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5857-817e-7111-99fc-3a0a5f4ba311",
+  "exit_code": 0,
+  "result": {
+    "answer": "```ts\ntype User = {\n  id: string;\n  email: string;\n};\n\nexport class PgUsers {\n  constructor(private readonly db: DatabaseClient) {}\n\n  async one(id: string): Promise<User | null> {\n    const result = await this.db.query(\n      \"select id, email from users where id = $1\",\n      [id],\n    );\n    if (result.rows.length === 0) {\n      return null;\n    }\n    return this.toUser(result.rows[0]);\n  }\n\n  async all(): Promise<User[]> {\n    const result = await this.db.query(\n      \"select id, email from users order by id\",\n    );\n    return result.rows.map((row) => this.toUser(row));\n  }\n\n  private toUser(row: { id: unknown; email: unknown }): User {\n    return {\n      id: String(row.id),\n      email: String(row.email),\n    };\n  }\n}\n```\n\n```ts\nimport { describe, expect, it, vi } from \"vitest\";\n\ndescribe(\"PgUsers\", () => {\n  it(\"one() returns null when no row exists\", async () => {\n    const db = { query: vi.fn().mockResolvedValue({ rows: [] }) };\n    const users = new PgUsers(db as unknown as DatabaseClient);\n\n    await expect(users.one(\"u1\")).resolves.toBeNull();\n    expect(db.query).toHaveBeenCalledWith(\n      \"select id, email from users where id = $1\",\n      [\"u1\"],\n    );\n  });\n\n  it(\"one() maps the first row with String()\", async () => {\n    const db = {\n      query: vi.fn().mockResolvedValue({\n        rows: [\n          { id: 123, email: 456 },\n          { id: \"ignored\", email: \"ignored@example.com\" },\n        ],\n      }),\n    };\n    const users = new PgUsers(db as unknown as DatabaseClient);\n\n    await expect(users.one(\"u1\")).resolves.toEqual({\n      id: \"123\",\n      email: \"456\",\n    });\n  });\n\n  it(\"all() preserves row order and maps each row with String()\", async () => {\n    const db = {\n      query: vi.fn().mockResolvedValue({\n        rows: [\n          { id: 2, email: \"b@example.com\" },\n          { id: 1, email: 999 },\n        ],\n      }),\n    };\n    const users = new PgUsers(db as unknown as DatabaseClient);\n\n    await expect(users.all()).resolves.toEqual([\n      { id: \"2\", email: \"b@example.com\" },\n      { id: \"1\", email: \"999\" },\n    ]);\n    expect(db.query).toHaveBeenCalledWith(\n      \"select id, email from users order by id\",\n    );\n  });\n});\n```\n\nThis is the minimal local cleanup: repeated row mapping is extracted into `toUser()`, while SQL, `null` behavior, row-order preservation, and `String()` coercion remain unchanged.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T21:59:49.771279Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5857-817e-7111-99fc-3a0a5f4ba311.1783893557631333000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

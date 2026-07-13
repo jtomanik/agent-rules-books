@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/legacy-code-neighbor.md",
+  "case_sha256": "f188119e75f1f1994886544057a92077f18eb9e7dee00e828f17634283bcbf6e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f534a-22e3-7f20-80a0-e08cf538b5a2",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is to gain control of current behavior before adding the seven-day rule.\n\n1. First learn and pin down what must not change.\n- Treat this as legacy code: no tests, hidden constructor side effect, and external callers mean the existing ugly behavior may be depended on.\n- Characterize the current semantics of `process`: when it returns `true`, whether callers rely on immediate suspension once `due_at < now`, whether repeated calls are expected to be idempotent, and what happens for `null` or malformed `due_at` values.\n- Confirm the business rule precisely before coding: is the grace period exactly `7 * 24h` from `due_at`, or seven calendar days in a billing timezone? That detail changes the implementation.\n- Check production data shape and caller usage first, because this code reaches the real database and some callers are outside the repo.\n\n2. Make the smallest dependency intervention that gives repeatable feedback.\n- Break only the first real barriers to safe testing: real DB construction and ambient time.\n- Keep the public constructor for compatibility, but introduce the narrowest seam behind it so tests can supply a fake or test connection and control \"now\".\n- Do not start with broader cleanup, query abstraction, renaming, or repository redesign. The minimum useful seam here is enough to instantiate `BillingService` without opening the real database and enough to evaluate overdue logic against a fixed time.\n\n3. Separate structural work from the behavior change.\n- Patch 1: behavior-preserving structural change only. Add the seam for injected connection and time, and add characterization tests for current behavior exactly as it exists today.\n- Patch 2: implement the new rule in the smallest policy slice possible, ideally as a small extracted decision that answers whether suspension should happen for `(dueAt, suspended, now)`.\n- Patch 3, if needed: follow-up cleanup only if the rule change exposed a very local readability problem. Stop there.\n\nFor the actual rule, the semantic change should be narrowly defined as: suspend only when the account is overdue by more than seven days and not already suspended. Everything else should stay fixed, including constructor compatibility, return-value behavior, and database write behavior unless characterization proves a mismatch.\n\nBecause production behavior is not fully understood, I would also require a release check before rollout: estimate how many accounts would stop being suspended immediately under the new rule, and make the change observable and reversible. With external callers and live billing data, the risk is not the `if` statement itself; it is changing an uncontrolled contract without first knowing who depends on it.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring",
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

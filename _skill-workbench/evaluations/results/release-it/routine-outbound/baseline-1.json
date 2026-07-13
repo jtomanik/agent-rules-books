@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5350-d415-7ac3-b387-b76b660fc883",
+  "exit_code": 0,
+  "result": {
+    "answer": "1. High: the call can outlive the checkout budget before it even reaches the carrier. `Semaphore.acquire()` waits forever, `requestSignal` is ignored, and `timeoutMs` does not cover connection setup. In the current code that means a saturated semaphore or stalled TCP/TLS connect can hang this path past the 2500 ms checkout budget instead of degrading to `{ kind: \"unavailable\" }`. Smallest fix: make both queueing and the outbound request abort on `requestSignal` or an equivalent deadline derived from the checkout budget.\n\n2. High: all provider `4xx` responses are being downgraded to `unavailable`. The contract says `4xx` means request/contract bug, while only `429`, `5xx`, timeout, and transport failure should map to quote unavailability. Right now a bad payload, auth problem, or schema drift will be silently hidden in production. Smallest fix: classify failures before the catch-all fallback. Return `unavailable` only for timeout/abort/transport/`429`/`5xx`; surface other `4xx` as a hard integration error with error logging.\n\n3. Medium: successful responses are not validated against the provider contract. The code accepts any status, any content type, and any body shape, then returns `kind: \"available\"` with unchecked fields. That can leak malformed quotes into checkout instead of failing closed. Smallest fix: require HTTP 200, JSON content, and validate `{ amount, currency, expires_at }`; on invalid success payload, treat it as a contract error rather than `unavailable`.\n\nNo retry issue found: `carrierClient.post()` has no implicit retries and `CARRIER_RETRIES=0` is aligned with the requirement.\n\nMinimal pre-merge change set:\n- Thread `requestSignal` through semaphore acquisition and the HTTP call.\n- Enforce a real end-to-end deadline that covers queue wait plus connect plus response.\n- Classify response/error types so only availability failures return `{ kind: \"unavailable\" }`.\n- Validate the success contract before returning `kind: \"available\"`.\n\nIf you want the narrowest possible policy-preserving behavior, the intended shape is: budget/transport/`429`/`5xx` => `{ kind: \"unavailable\" }`; `4xx` or malformed `200` => explicit integration failure; validated `200` JSON => `kind: \"available\"`.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "stderr": ""
+}

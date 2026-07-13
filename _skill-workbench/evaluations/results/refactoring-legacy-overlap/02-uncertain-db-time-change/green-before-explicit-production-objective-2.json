@@ -1,0 +1,36 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b9-da89-7731-a0f5-20b27070751f",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommendation**\nTreat this as a legacy-change task, not a simple `+ 48h` edit. The safest bounded change is:\n1. Add a narrow seam for time and the database so `chargeIfDue()` can be tested without the real database.\n2. First write characterization tests for the current transaction, exception, and timestamp-comparison behavior.\n3. Then change only the due-check threshold from `nextChargeAt` to `nextChargeAt + 48h`.\n4. Do not change constructor behavior, transaction structure, exception flow, timestamp parsing rules, or persistence shape in the same patch.\n\nA minimal implementation shape is:\n```ts\nconst GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;\n\nchargeIfDue(): \"charged\" | \"not-due\" {\n  const account = this.database.accounts.find(this.accountId);\n  const now = this.clock.now();\n  const dueAt = new Date(account.nextChargeAt);\n  const eligibleAt = new Date(dueAt.getTime() + GRACE_PERIOD_MS);\n\n  if (eligibleAt <= now) {\n    this.database.transaction(() => {\n      this.database.charges.insert({\n        accountId: account.id,\n        amountCents: account.balanceCents,\n        chargedAt: now.toISOString(),\n      });\n      this.database.accounts.markCharged(account.id, now.toISOString());\n    });\n    return \"charged\";\n  }\n\n  return \"not-due\";\n}\n```\nThe seam should be as small as possible: preserve the public constructor, but allow injected `database` and `clock` in tests through optional/internal dependencies.\n\n**What must be characterized before changing behavior**\nAdd focused tests that lock down current behavior:\n- `nextChargeAt < now` charges.\n- `nextChargeAt === now` currently charges.\n- `nextChargeAt > now` does not charge.\n- `transaction()` wraps both writes.\n- Exceptions from `find`, `insert`, `markCharged`, or `transaction` still propagate.\n- `chargedAt` and `markCharged(...timestamp...)` both use the same `now` value.\n- Constructor-side connection behavior stays unchanged.\n\nThose tests are the safety net for the exact things the team said are unknown.\n\n**New behavior tests after the seam exists**\nAdd only these new assertions:\n- `nextChargeAt + 48h - 1ms` => `\"not-due\"`.\n- `nextChargeAt + 48h` => boundary behavior, but only after product confirms whether the boundary is inclusive.\n- `nextChargeAt + 48h + 1ms` => `\"charged\"`.\n- Existing transaction and exception behavior is unchanged under the new threshold.\n\n**Product decisions that must be resolved, not inferred**\nThese are not safe to guess from the code:\n- Is the grace period based on the exact stored instant plus 48 hours, or on a billing timezone/local calendar concept?\n- What should happen for timestamps stored without a timezone offset, if historical data was written under local-time assumptions?\n- At the exact grace boundary, should charging happen at `nextChargeAt + 48h` or only after it?\n- For accounts already overdue by more than 48 hours at rollout time, should they charge immediately on the next run, or should rollout apply only to newly overdue accounts?\n\nIf product cannot answer quickly, the least-assumptive implementation is \u201cexact stored instant plus 48 hours\u201d while explicitly recording that as a temporary policy decision.\n\n**Verification plan**\n1. Prefer fast tests over staging for behavior discovery.\n2. Use a fake database collaborator to verify calls, ordering, transaction wrapping, and exception propagation.\n3. Use a fake clock so all boundary tests are deterministic.\n4. Before rollout, run a read-only staging query to inventory `nextChargeAt` formats: UTC strings, explicit offsets, and no-offset/local-looking strings.\n5. Avoid shared-fixture mutation in staging unless the team can create a disposable account specifically for this test.\n6. If a staging mutation is allowed, verify only one disposable case: an account just under the 48-hour threshold and one just over it.\n\n**Bounded scope**\nDo not combine this patch with:\n- timestamp normalization or data migration\n- retry/rollback redesign\n- transaction API changes\n- constructor cleanup\n- broader scheduler refactoring\n\nThat keeps the change reviewable and limits risk to one business rule: the eligibility threshold for charging.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring",
+      "release-it",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T09:49:07.177407Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55b9-da89-7731-a0f5-20b27070751f.1783849671357098000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b1-bedf-76c0-b2ce-3c3b3ba0e5da",
+  "exit_code": 0,
+  "result": {
+    "answer": "Primary findings:\n\n1. High: the semaphore can block forever, so the optional quote path can consume the whole checkout budget instead of degrading quickly.\nThe stated contract is \u201ccontinue with `{ kind: \"unavailable\" }` when the carrier cannot answer within the request budget.\u201d `Semaphore.acquire()` waits indefinitely, and this code does not pass a deadline or `requestSignal`. Under saturation, `CARRIER_MAX_IN_FLIGHT=32` becomes an unbounded wait queue rather than a bulkhead. Smallest fix: make acquisition abortable/deadline-bound and return `{ kind: \"unavailable\" }` when a slot is not obtained within the remaining request budget.\n\n2. High: the outbound call is not tied to the caller\u2019s cancellation, and the configured timeout does not cover connection establishment.\n`carrierClient.post()` ignores `requestSignal` unless passed explicitly, and the provided `timeoutMs` does not cover connect time. That means DNS/TCP/TLS/connect stalls can outlive the checkout budget. Smallest fix: pass an abort signal to the client and ensure it represents the effective deadline for the carrier call, including connection setup. Practically, use a derived signal/deadline that is bounded by both the remaining checkout budget and `CARRIER_RESPONSE_TIMEOUT_MS`, then map abort/timeout/transport failure to `{ kind: \"unavailable\" }`.\n\n3. Medium: response validation is missing, so provider failures and malformed responses can be misclassified as successful quotes.\nThe contract says a valid response is exactly HTTP 200, JSON, and `{ amount: non-negative finite number, currency: three-letter string, expires_at: ISO-8601 timestamp }`. The current code parses JSON unconditionally and returns `kind: \"available\"` without checking status, content type, or field validity. A `4xx`/`5xx` JSON error body, or malformed payload, can therefore become a bogus available quote. Smallest fix: validate status/content type/body before returning `available`. Treat `429`, `5xx`, timeout, transport failure, and malformed/nonconforming responses as `unavailable`. Treat provider `4xx` as a request/contract defect in diagnostics, but still degrade checkout to `unavailable` unless product explicitly wants checkout failure.\n\nWhat does not need changing before merge:\n\n- No retry behavior is the correct choice here. The client already does no implicit retries, and `CARRIER_RETRIES=0` matches the stated contract.\n- A circuit breaker is not the smallest necessary pre-merge change for this first-release optional dependency. The immediate gap is bounded waiting and correct failure classification.\n\nSmallest pre-merge change set:\n\n1. Make semaphore acquisition fail fast on request cancellation/deadline.\n2. Pass an explicit abort/deadline signal into `carrierClient.post()` so connect + response are both bounded.\n3. Validate HTTP status, JSON content type, and payload shape before returning `available`.\n4. Split diagnostics at least into `provider_4xx/contract defect` versus `dependency unavailable` so real integration bugs are visible instead of buried in routine warning noise.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

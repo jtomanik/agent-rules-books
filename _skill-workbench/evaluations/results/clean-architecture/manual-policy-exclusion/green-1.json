@@ -1,0 +1,40 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5889-84f7-7030-aade-aca30e18dcbe",
+  "exit_code": 0,
+  "result": {
+    "answer": "The current proposal puts three separate concerns in one function: HTTP transport (`NextRequest`/`NextResponse`), application policy (approved-only invoicing and total calculation), and persistence (`prisma`). The smallest production design is to move the rule and action into one use case that owns plain input/output models and the ports it needs, then keep Next.js and Prisma as adapters.\n\nA minimal shape:\n\n```ts\n// application/create-invoice.ts\nexport type CreateInvoiceCommand = {\n  orderId: string;\n};\n\nexport type CreateInvoiceResult = {\n  invoiceId: string;\n  totalCents: number;\n};\n\nexport type OrderForInvoicing = {\n  id: string;\n  status: \"APPROVED\" | \"PENDING\" | \"CANCELLED\";\n  lines: Array<{ amountCents: number }>;\n};\n\nexport interface OrderForInvoicingReader {\n  findById(orderId: string): Promise<OrderForInvoicing | null>;\n}\n\nexport interface InvoiceWriter {\n  save(draft: { orderId: string; totalCents: number }): Promise<{ id: string }>;\n}\n\nexport class OrderNotApprovedError extends Error {}\nexport class OrderNotFoundError extends Error {}\n\nexport class CreateInvoice {\n  constructor(\n    private readonly orders: OrderForInvoicingReader,\n    private readonly invoices: InvoiceWriter,\n  ) {}\n\n  async execute(command: CreateInvoiceCommand): Promise<CreateInvoiceResult> {\n    const order = await this.orders.findById(command.orderId);\n    if (!order) throw new OrderNotFoundError();\n    if (order.status !== \"APPROVED\") throw new OrderNotApprovedError();\n\n    const totalCents = order.lines.reduce((sum, line) => sum + line.amountCents, 0);\n    const invoice = await this.invoices.save({ orderId: order.id, totalCents });\n\n    return { invoiceId: invoice.id, totalCents };\n  }\n}\n```\n\nOwnership and translation points:\n\n- Application layer owns `CreateInvoiceCommand`, `CreateInvoiceResult`, `OrderForInvoicingReader`, and `InvoiceWriter`.\n- The use case owns the approval check and invoice-total calculation.\n- Next.js route is only a controller/adapter: read `orderId` from the request, call `useCase.execute({ orderId })`, translate result/errors into HTTP status and JSON.\n- Prisma adapters are only persistence translators: fetch Prisma rows, map them into `OrderForInvoicing`; persist invoice draft, map saved row into `{ id: string }`.\n- Concrete wiring belongs at the outer edge, where the route or bootstrap code constructs `new CreateInvoice(prismaOrderReader, prismaInvoiceWriter)`.\n\nThat keeps the application action independent from both Next.js and Prisma without adding more architecture than this use case plus two ports. A minimal wiring sketch:\n\n```ts\n// adapters/http/create-invoice-route.ts\nexport async function POST(request: NextRequest) {\n  const useCase = new CreateInvoice(\n    new PrismaOrderForInvoicingReader(prisma),\n    new PrismaInvoiceWriter(prisma),\n  );\n\n  try {\n    const result = await useCase.execute({\n      orderId: request.nextUrl.searchParams.get(\"orderId\")!,\n    });\n\n    return NextResponse.json(result, { status: 201 });\n  } catch (error) {\n    if (error instanceof OrderNotApprovedError) {\n      return NextResponse.json({ error: \"not approved\" }, { status: 409 });\n    }\n    throw error;\n  }\n}\n```\n\nIf you want the smallest directory shape, organize it around the use case, not technology:\n\n- `src/invoicing/create-invoice/application/create-invoice.ts`\n- `src/invoicing/create-invoice/adapters/http/next-route.ts`\n- `src/invoicing/create-invoice/adapters/persistence/prisma-order-reader.ts`\n- `src/invoicing/create-invoice/adapters/persistence/prisma-invoice-writer.ts`\n\nThat is enough separation for production while keeping the rule, models, interfaces, translation, and wiring in the right ownership boundaries.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-architecture/references/index.md",
+      ".agents/skills/clean-architecture/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "clean-architecture",
+        "sections": [
+          "Required Layer Responsibilities",
+          "Code Generation Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:54:52.157915Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5889-84f7-7030-aade-aca30e18dcbe.1783896835404723000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

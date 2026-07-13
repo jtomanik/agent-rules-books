@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f536d-7342-7c53-8223-3b36a2af0363",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest order: gain deterministic control first, then do a behavior-preserving consolidation, then add the 60-day rule.\n\nWhy this order is safest:\n1. This is legacy code by evidence, not by taste: no focused tests, internal database construction, direct clock reads, and only one slow end-to-end success path. Changing behavior or extracting shared logic before creating a seam would be edit-and-pray.\n2. The first real barriers are hidden time and hard-wired database construction. Break those first with the smallest seam that allows focused tests. That gives repeatable observations for both `previewCredit()` and `applyCredit()` without changing their current outcomes.\n3. Once that safety net exists, consolidate the duplicated eligibility condition into one owner as a strictly behavior-preserving patch. That is the right preparatory refactoring here because Product explicitly wants one clear owner, and the new rule must affect both call sites identically. Doing the extraction after tests but before the semantic change reduces the chance of implementing the 60-day rule in one branch differently from the other.\n4. After the owner exists, add the new introductory-subscription age rule in that single place, with focused tests for the new behavior and regression coverage for unchanged paths.\n\nRecommended patch sequence:\n1. Deterministic control only.\nAdd the smallest seam for `SubscriptionDatabase` and time, ideally by injecting a database-like collaborator and a clock/time provider while preserving the current production default. Then add focused characterization tests around externally visible behavior of `previewCredit()` and `applyCredit()` for the current rules.\n\n2. Shared eligibility owner only.\nExtract the current predicate\n`state === \"active\" && balanceCents >= 0 && !manualHold`\ninto one clear owner that accepts `subscription` and `now` explicitly. Keep this patch behavior-preserving. A small method or focused policy object is enough; do not broaden the design yet.\n\n3. 60-day rule only.\nChange that owner so introductory subscriptions older than 60 days are ineligible. Add new tests for:\n- introductory and older than 60 days: `previewCredit()` returns `null`, `applyCredit()` returns `\"skipped\"`\n- introductory at or under the boundary: current intended behavior\n- paid subscriptions: unchanged\n- existing disqualifiers: unchanged\n\nWhy the alternatives are less safe:\n- Semantic change first in both methods: duplicates the risky edit and invites drift between preview and apply.\n- Extraction first without seams/tests: structural surgery in unobserved legacy code, with no way to prove behavior was preserved.\n- One combined patch for seams, extraction, and new rule: hard to review, hard to bisect, and easy to hide whether a failure came from dependency breaking, refactoring, or the feature itself.\n- Semantic change first and consolidation later: temporarily creates two owners for the same rule and increases the chance that one branch gets corrected differently.\n\nDecisions to clarify before implementation:\n- Boundary semantics: does \u201colder than 60 days\u201d mean strictly `> 60` days, so exactly 60 days remains eligible?\n- Time basis: compare exact instants, UTC calendar days, or some business timezone/day boundary?\n- `startedAt === null` for `kind === \"introductory\"`: ineligible, eligible, or invalid-data failure?\n- Required parity: should both `previewCredit()` and `applyCredit()` use exactly the same eligibility owner and outcome mapping (`null` vs `\"skipped\"`) for every rule?\n- Acceptable seam shape: is constructor dependency injection acceptable, or must a factory/defaulted dependency object preserve the public constructor signature?\n\nReviewable patch boundaries:\n- Patch 1 review goal: no business-rule change, only deterministic seams and characterization tests.\n- Patch 2 review goal: no behavior change, only single ownership of the existing predicate.\n- Patch 3 review goal: only the 60-day introductory rule changes, with boundary tests and unchanged-path regressions.\n\nThat sequence follows the safest legacy-change pattern here: control first, preparatory refactoring second, behavior change third.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T23:05:09.804794Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-912e-70a1-8155-5ce17c7eb4c9.1783811051823450000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T23:05:10.127912Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-90e4-7b71-9f79-6e24d6a6a04d.1783811051749204000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T23:05:10.159141Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-9125-7422-89a2-c50de8cab5d3.1783811051813449000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

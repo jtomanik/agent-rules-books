@@ -1,0 +1,55 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5896-dbe4-7ad2-a7a9-771be2720c43",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is neither \u201clet every exception crash\u201d nor \u201ccatch everything and ack.\u201d It is classification at the message boundary.\n\nMalformed inbound message:\nTreat invalid JSON, missing or wrong-typed `id`/`sku`, and impossible domain values as poison input. Do not retry them and do not crash the process for them. Quarantine them to an explicit dead-letter or parking queue, then ack the original message only after the quarantine write succeeds. The staging incident proves that crashing on poison data is unsafe here: `max_deliveries: 0`, no DLX, 6 replicas, and immediate redelivery turns three bad messages into a fleet-wide restart loop.\n\nTransient dependency failure:\nTreat inventory `503`, timeout, and `200` with malformed JSON as dependency failures, not malformed messages. The message may be valid, so do not ack or quarantine it. Use a finite timeout and a small bounded retry budget with backoff/jitter around the inventory GET. If that budget is exhausted, requeue or leave the message unacked for later redelivery, but keep the process alive. If failures become systemic, pause consumption for the replica or deployment rather than crash-looping or burning unlimited redeliveries. With the current config, unlimited redelivery plus no delay control will otherwise create a hot retry storm.\n\nCompromised process state:\nCrash only when the worker can no longer trust its own state or recovery path, for example an invariant violation in handler code, a broken shared DB/broker client that cannot be re-established cleanly, or process-level corruption such as OOM. That is the legitimate let-it-crash boundary because a fresh process may restore correctness. Ordinary per-message parse errors and ordinary remote-call failures are not in this category.\n\nNeeded changes to make that policy safe and testable:\n\n1. Add explicit error classification in `consume`.\nClassify into `MalformedMessage`, `DependencyFailure`, and `FatalProcessState`. The catch block should branch on that classification instead of logging and rethrowing everything.\n\n2. Configure quarantine explicitly.\nSet a dead-letter exchange or equivalent parking queue for poison messages. Without that, there is nowhere safe to put malformed input.\n\n3. Put a real timeout on the inventory call.\n`dependency_timeout_ms: 0` is unsafe because it permits stuck workers. The timeout must be finite and part of the retry budget.\n\n4. Make retries bounded and desynchronized.\nKeep the retry count small, add backoff/jitter, and never retry malformed input. Retrying a `GET` is acceptable; retrying poison data is not.\n\n5. Make replay safe.\nRedelivery is guaranteed after crashes or ack uncertainty, so processing must be idempotent. The minimum change is a uniqueness guarantee on `eventId` in `inventoryEvents` and duplicate handling as a successful no-op/ack path. Otherwise a DB commit followed by crash before `ack()` can reapply the same event.\n\n6. Add a pause mechanism tied to dependency health.\nWhen the dependency is broadly unhealthy, stop consuming instead of repeatedly failing messages. At minimum, readiness should not stay \u201cready\u201d solely because the broker connection is open while the consumer cannot safely make progress.\n\nRecommended behavior table:\n\n- Malformed inbound message: quarantine, then ack, keep process alive.\n- Inventory `503` or timeout: bounded local retry; on exhaustion requeue/not-ack; pause consumption if systemic; do not crash.\n- Inventory `200` with malformed JSON: same as dependency failure; it is a bad downstream response, not poison input.\n- Duplicate redelivery after prior success: detect by `eventId`, treat as already applied, ack.\n- Invariant violation or unrecoverable shared-state corruption: log with high severity and crash the process.\n\nWhat not to do:\n\n- Do not let every exception escape. In this topology that converts poison messages into restart storms and replays unrelated in-flight work.\n- Do not use one broad catch that logs, acks, and continues. That silently drops valid messages during dependency outages.\n\nTests that should exist for this policy:\n\n- Invalid JSON is quarantined and acked.\n- Missing `sku`/`id` is quarantined and acked.\n- Inventory timeout/`503` retries within budget, then is requeued or left unacked.\n- Inventory `200` malformed JSON is treated as dependency failure, not quarantined.\n- DB commit succeeds but `ack()` fails or process exits before ack; redelivery is deduplicated by `eventId`.\n- Fatal classifier path causes process exit.\n- Sustained dependency failure opens the pause path and stops new consumption.\n\nNet decision:\nUse quarantine for permanent message defects, retry then pause for transient dependency failure, and reserve process crash for compromised process state only.",
+    "selected_project_skills": [
+      "release-it",
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md",
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "release-it",
+        "sections": [
+          "Dependency Protection Rules",
+          "Data Boundary Rules",
+          "Runtime State and Restart Safety Rules",
+          "Testing Rules"
+        ]
+      },
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Idempotency and Replay Rules",
+          "Transaction Rules",
+          "Testing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:10:10.633372Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5896-dbe4-7ad2-a7a9-771be2720c43.1783897709540544000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

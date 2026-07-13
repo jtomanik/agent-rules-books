@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5356-f9b5-7913-9ea8-cd2f5ada3ad3",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a three-patch sequence.\n\n**Patch 1: Gain control without semantic change**\nAdd focused tests around `quote()` and `renew()` first, and introduce only the smallest seams needed to make those tests fast and deterministic.\n\nWhat must be learned or controlled before semantic edits:\n- Whether `quote()` and `renew()` are intentionally governed by the same eligibility rule. The current duplication strongly suggests yes, but product wording says \"automatic renewal\"; confirm that ineligible trial accounts must also get `quote() === null`.\n- The exact 30-day boundary: `> 30 days` ineligible, `== 30 days` still eligible.\n- The timestamp contract for `trialStartedAt`: expected format, timezone/UTC handling, and what to do if a trial account has `null` or malformed data.\n- Current relied-on outcomes for non-trial accounts and existing disqualifiers: `closed`, `paused`, negative balance.\n- Renewal side effects that must stay unchanged: one transaction, same insert/mark order if observable, same timestamps passed to persistence.\n\nControl to add before behavior changes:\n- Replace hidden construction with injectable dependencies: database collaborator and clock/`now()` provider, keeping current constructor defaults for production.\n- Add characterization tests for current outcomes before introducing the new rule.\n- Keep the worker externally behaving the same in this patch.\n\nFocused tests to add in Patch 1:\n- `quote()` returns a price for eligible active accounts.\n- `quote()` returns `null` for `closed`, `paused`, and negative-balance accounts.\n- `renew()` returns `renewed` and performs the existing writes for eligible accounts.\n- `renew()` returns `skipped` and performs no writes for existing ineligible cases.\n- One clock-driven test proving both methods use the same injected instant.\n\nPatch boundary:\n- Allowed: constructor signature/default wiring, dependency injection, test doubles/fakes, focused tests.\n- Not allowed: any eligibility-rule change, extracting policy ownership, altering transaction behavior, changing persistence payloads.\n\n**Patch 2: Add the trial-age rule only**\nWith tests and seams in place, add the new behavior in the narrowest possible way: trial accounts older than 30 days are ineligible for automatic renewal.\n\nBehavior change to implement:\n- If `account.plan === \"trial\"` and `now - trialStartedAt > 30 days`, treat the account as ineligible.\n- Preserve every other current outcome.\n\nTests to add/update in this patch:\n- Trial account older than 30 days is ineligible.\n- Trial account exactly 30 days old remains eligible.\n- Paid accounts are unaffected.\n- Existing disqualifiers still win exactly as before.\n\nPatch boundary:\n- Allowed: only the minimum logic needed for the new rule and its tests.\n- Prefer temporarily updating both duplicated conditionals if that is the smallest semantic edit.\n- Not allowed: ownership cleanup, method extraction whose main purpose is deduplication, unrelated renames or redesign.\n\n**Patch 3: Eliminate duplicated eligibility logic as behavior-preserving refactor**\nOnce Patch 2 is green, consolidate the condition into one clear owner.\n\nRecommended owner:\n- A pure domain-level predicate/function or small policy object, for example `isEligibleForAutomaticRenewal(account, now)`.\n- Keep database I/O and transaction orchestration in `RenewalWorker`; move only eligibility policy.\n\nWhy this owner is safer:\n- It centralizes the duplicated business rule without dragging persistence concerns into the policy.\n- It becomes directly unit-testable without database setup.\n- `quote()` and `renew()` can share the exact same eligibility decision.\n\nBehavior-preserving constraints for Patch 3:\n- No outcome changes versus Patch 2.\n- Keep the same public method results and same write behavior.\n- Reuse existing Patch 2 tests unchanged as the safety net.\n- Add, at most, focused tests for the extracted owner if they improve readability; do not rewrite the test suite around internals.\n\nPatch boundary:\n- Allowed: extraction, renaming, moving the predicate to its owner, replacing repeated conditionals with a single call site.\n- Not allowed: changing the 30-day semantics, changing data parsing rules, broad class redesign, introducing speculative abstractions.\n\n**Review checkpoints**\n- Patch 1 is purely about testability/control.\n- Patch 2 is the only semantic patch.\n- Patch 3 is strictly behavior-preserving cleanup.\n- If any ambiguity remains around `quote()` vs `renew()` applicability or `trialStartedAt === null`, stop and resolve that before Patch 2 rather than guessing.\n\nThis sequence follows the safe order for weakly tested legacy code: establish a safety net, break the clock/database dependencies, make the feature change, then remove the duplication under that protection.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:41:39.644744Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5356-f9b5-7913-9ea8-cd2f5ada3ad3.1783809636790045000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

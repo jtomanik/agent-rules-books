@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/outbound-provider.md",
+  "case_sha256": "420500ae5fd787a2e9919b3b0bbbb67e620f27ac56b3631d066e7d74b79028c2",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5347-79d0-7b90-9244-35f71fcd1e31",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Findings**\n1. The integration can wait forever in three places: `Semaphore.acquire()`, `provider.post(...)`, and the SDK-level connect/response timeouts, because all are currently unbounded. That exactly matches the load-test failure where latency rose until every request worker was occupied.\n2. Retries are duplicated and uncontrolled. The SDK already retries transport errors and `429`/`5xx`, and the wrapper adds 4 more attempts with fixed 100 ms sleeps. Under failure, one checkout can fan out into many provider calls, amplifying load on both the provider and your own workers.\n3. A DB transaction is opened before the remote call and held across provider stalls and retries. When the provider is slow, this ties up DB resources in addition to request workers.\n4. The fallback queue is effectively unbounded. `pendingAuthorizations.push(...)` has no capacity check, and `PENDING_AUTHORIZATION_CAPACITY=0` means unlimited backlog if the provider degrades.\n5. Malformed `200` responses are not validated at the boundary. `response.json()` failure is treated like any other retryable error, and there is no content-type or schema check before writing provider data.\n\n**Minimum production-ready changes before 100% traffic**\n1. Put an explicit end-to-end deadline on authorization that is shorter than `CHECKOUT_REQUEST_TIMEOUT_MS`, and pass cancellation into the provider call. `authorizePayment` must combine `requestSignal` with an internal timeout budget; the provider call must not outlive the request.\n2. Set explicit non-zero provider timeouts. `PAYMENT_CONNECT_TIMEOUT_MS=0` and `PAYMENT_RESPONSE_TIMEOUT_MS=0` are unsafe here. The total provider budget should be comfortably below the 2500 ms checkout timeout so the app still has time to persist fallback state and respond.\n3. Remove nested retries. Keep one retry layer only, with a small bounded count and jittered backoff. Either disable SDK retries and keep the wrapper policy, or remove the wrapper loop and use the SDK policy; do not do both.\n4. Do not hold a DB transaction while waiting on the provider. Start the transaction only after a validated authorization response is available, or use a very short transaction only for the insert/commit.\n5. Bound concurrency and waiting. `PAYMENT_MAX_IN_FLIGHT` should remain a hard bulkhead, but acquisition must have a short timeout or fail-fast path. If no slot is available quickly, stop waiting and degrade.\n6. Bound the pending queue and define full behavior. Set `PENDING_AUTHORIZATION_CAPACITY` to a finite value. If the queue is full, do not accept more background work; return an explicit retryable unavailable result instead of silently growing memory.\n7. Validate provider responses before commit: HTTP status, content type, JSON parse, required fields (`authorization_id`, `state`), and basic semantics. A `200` HTML page is a provider failure, not a success.\n8. Add the minimum operational signals: timeout count, retry count, slot saturation, pending queue depth/full events, malformed-response count, and dependency latency/error metrics.\n\n**Required behavior by failure mode**\n- Slow provider: stop waiting when the auth deadline or slot-acquire deadline is reached, release the slot, avoid opening or holding a DB transaction, enqueue as `pending` only if queue capacity exists, otherwise return a retryable unavailable result.\n- Overloaded provider (`429`/`5xx`): use one bounded retry policy with backoff/jitter inside the same total deadline; after that, degrade exactly as above. Do not keep hammering the provider.\n- Unavailable provider (transport/connect/timeout): fail on the bounded deadline, emit dependency-failure metrics, and fall back to bounded pending or explicit unavailable.\n- Malformed `200` response: reject it at the boundary, never write unvalidated provider data, count it separately, and treat it as provider failure for fallback purposes.\n\n**Configuration direction**\n- `PAYMENT_CONNECT_TIMEOUT_MS`: set to a small finite value.\n- `PAYMENT_RESPONSE_TIMEOUT_MS`: set to a finite value that keeps total auth time below checkout timeout.\n- `PAYMENT_SDK_RETRIES`: set so there is only one retry layer overall.\n- `PENDING_AUTHORIZATION_CAPACITY`: set to a finite bound.\n- `PAYMENT_MAX_IN_FLIGHT`: keep as a bulkhead, but only if slot wait is also bounded.\n\nWithout those changes, shifting 100% of checkout traffic tomorrow is not production-safe: the current design turns provider slowness into worker exhaustion, can also consume DB capacity, and has no bounded degradation path.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:23:41.463173Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5347-49ba-7550-8960-ef289a9f403f.1783808608698718000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:24:45.373078Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5347-79d0-7b90-9244-35f71fcd1e31.1783808621130391000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

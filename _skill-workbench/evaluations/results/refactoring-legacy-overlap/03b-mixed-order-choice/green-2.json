@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55d1-cd64-71e2-9058-c25d023c46eb",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is:\n\n1. Gain deterministic control first.\n2. Add focused characterization tests for current `previewCredit()` and `applyCredit()` behavior.\n3. Do a behavior-preserving extraction of the shared eligibility rule into one owner.\n4. Add the new 60-day introductory-subscription rule in that owner.\n5. Keep the existing slow end-to-end test as a boundary check, not as the primary safety net.\n\nWhy this order is safest:\n\nThis code is legacy for this task: there are no focused tests, the worker allocates its own database, and it reads the system clock directly. Those are the two concrete barriers to trustworthy feedback. Until clock and database control exist, any semantic change or extraction is edit-and-pray.\n\nDeterministic test control should come before either extraction or the 60-day change. The smallest useful seam is to make time and subscription/database access substitutable, while preserving the production default constructor path. In practice that means introducing explicit collaborators for `now` and data access, or a thin policy-facing wrapper, only as far as needed to write fast tests around the two methods.\n\nAfter that safety net exists, extract the duplicated eligibility condition before adding the new rule. The evidence favors that sequence because the product requirement explicitly says `previewCredit()` and `applyCredit()` should have one clear owner. Once current behavior is characterized, that extraction is a small behavior-preserving refactor. Adding the 60-day rule after extraction means the new rule is implemented once, reviewed once, and cannot accidentally diverge between preview and apply.\n\nThat is safer than the alternatives:\n\n- Adding the 60-day rule first in both methods duplicates a new business rule in two places and creates unnecessary divergence risk.\n- Extracting first without tests is still risky because it changes control flow in an unprotected area.\n- Doing the semantic change and extraction together makes review harder because structural and behavioral intent are mixed.\n\nDecisions that need clarification before the semantic patch:\n\n- What is the exact boundary for \u201colder than 60 days\u201d? Strictly `startedAt < now - 60 days`, or inclusive at exactly 60 days?\n- What timezone/calendar basis defines the cutoff? Exact timestamp difference, UTC date, or business-local date?\n- What should happen when an `introductory` subscription has `startedAt: null`? Treat as ineligible, preserve current eligibility, or error?\n- Must the new ineligibility affect both preview and apply identically? The requirement strongly implies yes, but it should be confirmed.\n- When ineligible, is the intended outcome still `null` from `previewCredit()` and `\"skipped\"` from `applyCredit()`? That matches current shape and is the safest assumption, but it should be explicit.\n- What counts as the \u201cclear owner\u201d? Safest default is a local eligibility policy function or small policy object, not a broader redesign of `Subscription` or database layers.\n\nReviewable patch boundaries:\n\nPatch 1: deterministic test control only.\n- Introduce the smallest seam for clock and subscription/data access.\n- Preserve current public behavior and production construction path.\n- Add focused tests covering current outcomes for both methods, including at least active/eligible, non-active, negative balance, and manual hold.\n\nPatch 2: shared ownership only.\n- Extract the duplicated eligibility predicate to one owner.\n- No business-rule change.\n- Tests from patch 1 should pass unchanged.\n\nPatch 3: 60-day rule only.\n- Add the introductory-subscription age rule in the shared owner.\n- Add tests for younger-than-60, exactly-60 if clarified, older-than-60, and `startedAt: null` if relevant.\n- Verify paid subscriptions keep existing behavior.\n\nPatch 4: optional cleanup only if justified.\n- Stop if the change is already easy to understand and covered.\n- Only do follow-up cleanup if it removes immediate friction without widening scope.\n\nRecommended ownership shape:\n\nUse one narrow eligibility owner close to the worker, such as `isEligibleForAutomaticCredit(subscription, now)`. That is the smallest behavior owner that satisfies the requirement without forcing a broader domain redesign. If later rules expand, that function can become a dedicated policy object, but doing that now would be speculative unless the surrounding code already supports it.\n\nSo the recommended sequence is: create seams and focused tests first, then extract shared eligibility ownership, then add the 60-day rule in that one place. That order maximizes determinism, keeps patches reviewable, and minimizes the chance of changing unintended behavior.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

@@ -1,0 +1,39 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/comprehensive-construction-audit.md",
+  "case_sha256": "64cc13323b5397115605d14b946c3e98c8af55ee4d44fcfdd4b0265b61ac40f2",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5871-2c5f-79f0-a65a-646236c03c4d",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Prioritized Audit**\n1. High: invalid rows can be reported as successful imports without being stored ([snippet line 17](#), [snippet line 21](#), [snippet line 34](#)). If `row[2]` is neither `\"person\"` nor `\"company\"` and `ignore === false`, `kind` stays `0`, no `store()` call happens, but `ok++` still executes. The same silent-success pattern exists for non-fast `person` rows with empty `row[0]` or `row[1]` ([snippet line 25](#), [snippet line 34](#)). This violates routine contract clarity and makes the return value untrustworthy.\n2. High: exception handling destroys diagnosability and uses ad hoc failure semantics ([snippet line 35](#)). The catch block swallows every exception when `ignore === true`, and returns bare `-1` when `ignore === false`. That hides root cause, row index, and offending row, and it treats programmer errors, boundary-validation failures, and storage failures as the same class of event.\n3. High: the trust boundary is effectively unvalidated ([snippet line 4](#), [snippet line 10](#), [snippet line 13](#), [snippet line 45](#)). `rows` is `any[][]`; code assumes each row has indexes `0..2` with compatible types. Malformed rows can reach control flow and storage, relying on exceptions instead of deliberate validation. Under Code Complete, this is a defensive-programming gap.\n4. Medium: the main routine mixes too many concerns ([snippet line 4](#)). `import()` performs row decoding, classification, validation, persistence dispatch, error policy, progress accounting, and state bookkeeping. That increases working-memory load and makes defect isolation harder.\n5. Medium: data meaning is opaque because the API is built from flags, indexes, `any`, and magic numbers ([snippet line 2](#), [snippet line 4](#), [snippet line 11](#), [snippet line 23](#), [snippet line 30](#), [snippet line 45](#)). `fast`, `ignore`, `kind`, `0`, `1`, `2`, `99`, `a`, `b`, `c`, `d`, and `row[0..2]` all force the reader to reconstruct semantics manually.\n6. Medium: `store()` hides a global side effect through `records.push(...)` ([snippet line 45](#), [snippet line 46](#)). The class contract does not expose that dependency, which weakens module boundaries and complicates testability.\n7. Low: `last` is incidental mutable state with unclear purpose ([snippet line 2](#), [snippet line 33](#)). If it exists for diagnostics, it should be part of explicit error reporting; if not, it is bookkeeping noise.\n8. Low: the comment narrates obvious mechanics instead of intent ([snippet line 7](#)). It adds no non-obvious information.\n9. Low: test coverage only exercises the happy path ([snippet line 50](#)). No tests cover unknown kinds, malformed rows, ignored failures, empty fields, or storage exceptions.\n\n**Bounded Remediation Plan**\n1. Define the routine contract first: decide, explicitly, whether `import()` returns `stored row count`, `accepted row count`, or `all processed rows`. The current implementation is internally inconsistent; preserving behavior is reasonable everywhere except the silent-success defects above.\n2. Replace positional/flag-heavy inputs with named types: e.g. a `RawRow`/`ImportedRecord` shape, a `RowKind` enum, and named constants for stored record attributes. This removes most of the inspection cost without changing business behavior.\n3. Split `import()` into small internal steps: `classifyRow`, `validateRow`, `storePerson`, `storeCompany`, and `handleImportError`. Keep counting and continuation policy in one obvious place.\n4. Make boundary handling explicit: reject malformed rows and unsupported kinds deliberately, and distinguish validation failures from storage/runtime failures. If `ignore` remains a mode, constrain it to expected data-quality failures, not arbitrary exceptions.\n5. Remove or justify incidental state and hidden dependencies: inject the record sink instead of using global `records`, and either delete `last` or convert it into explicit diagnostic output.\n\n**Validation Checklist**\n- Verify the chosen contract with tests for `unknown kind`, `missing columns`, `empty person fields`, and `company/person` success paths.\n- Add tests proving that ignored rows are not counted as successful if the contract is `stored row count`.\n- Add tests for failure semantics: validation error vs storage exception, with `ignore` both `true` and `false`.\n- Confirm no malformed row can reach `store()` without explicit acceptance.\n- Confirm magic values are replaced by named types/constants and that routine names describe intent rather than mechanics.\n- Confirm the class no longer depends on hidden global state, or document that dependency explicitly if it must remain.\n- Remove or replace the non-informative comment.\n\nNet assessment: this module works for the single happy-path test, but under the full Code Complete lens it is construction-fragile. The most important corrections are to make success counting truthful, make boundary/error handling explicit, and move meaning out of flags/indexes/magic values into types and names.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "code-complete",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:28:20.976964Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5871-2c5f-79f0-a65a-646236c03c4d.1783895239775999000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

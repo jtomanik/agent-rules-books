@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/focused-replica-read.md",
+  "case_sha256": "e5c642e655a2e69acfcb89ca0045bf6c520c92d54a608af9a640320b87cd206b",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5859-6f1f-77d2-a3d6-7f275e4a6bcc",
+  "exit_code": 0,
+  "result": {
+    "answer": "The redirect cannot be allowed to do an unfenced read from an asynchronous replica.\n\nRequired contract: this flow needs failover-safe read-after-write for the updating user, not general strong consistency for everyone. Concretely:\n1. `updateProfile` may return success only after the write is durable on a node set that can survive the configured follower promotion.\n2. The redirected `showProfile` must read from a replica only if that replica has applied at least the write\u2019s commit position; otherwise it must read from the current leader or wait for a caught-up replica.\n3. Other users can keep reading stale replica data for up to 30 seconds.\n\nWhy this is the minimum: with async replication, a plain `primary` commit plus redirect to `nearestReplica` does not satisfy the product contract. The replica may lag for 18s, and failover can promote a follower between the write and read. If success was acknowledged before any promotable follower had the write, the write can disappear from the new leader, so no post-redirect routing trick can recover the guarantee.\n\nSmallest implementation strategy:\n- Strengthen write acknowledgment for this endpoint: do not return success until the write has replicated to at least one promotable follower, producing a failover-safe commit position.\n- Put that commit position in the redirect context (cookie, header, or signed query token).\n- On the redirected read, compare required commit position with the target node\u2019s `replica_applied_position`.\n- If `applied >= required`, read there.\n- If not, route this one read to the current leader or block briefly until a replica catches up.\n- Clear the token after the guaranteed read.\n\nThat is the narrowest design that satisfies all stated facts, including failover. \u201cRead from async replica after redirect\u201d is acceptable only when it is fenced by the commit/applied position check, and only if the write success itself was failover-safe.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:01:24.259504Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-12c9-78a3-96eb-7f00879346c6.1783893660386702000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:02:06.465150Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-6f1f-77d2-a3d6-7f275e4a6bcc.1783893683999903000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

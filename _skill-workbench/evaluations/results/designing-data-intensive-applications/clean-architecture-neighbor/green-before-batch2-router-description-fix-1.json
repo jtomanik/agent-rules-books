@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/clean-architecture-neighbor.md",
+  "case_sha256": "e0c7d8bbefafebd21e408aec394c970cd66fad80cee32f70cb0aa207abd0333c",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585b-7292-7c81-ab56-f21c1f408d9f",
+  "exit_code": 0,
+  "result": {
+    "answer": "Move the pricing rule into inward policy code and leave Express and Prisma as adapters.\n\nA clean split here is:\n\n1. Domain policy\nCreate a pure pricing function or domain object such as `calculateQuote(lines, customerTier)` that returns `{ subtotal, discount }`.\n- It owns the gold-tier / `subtotal >= 10000` / `Math.round(subtotal * 0.1)` rule.\n- It depends only on plain data, not `Request`, `Response`, Prisma types, or ORM models.\n\n2. Application use case\nCreate a `quoteOrder` use case that orchestrates the action with policy-owned ports:\n- `loadCustomer(customerId) -> { id, tier }`\n- `createQuote({ customerId, subtotal, discount }) -> Promise<void>`\n\nThe use case flow stays:\n- load customer\n- compute subtotal and discount via the pure pricing policy\n- call `createQuote(...)` once as the authoritative write\n- return `{ subtotal, discount }`\n\nThat preserves the current behavior exactly. Do not introduce a larger transaction, retry, event, cache, projection, or cross-repository unit of work. The current authoritative durable write remains `quote.create()`.\n\n3. Outer adapters\nKeep framework and ORM code at the edge:\n- Express controller: map `req.params.customerId` and `req.body.lines` into a plain request model, call the use case, then send `201` with JSON.\n- Prisma adapters: implement the two ports using `customer.findUniqueOrThrow(...)` and `quote.create(...)`.\n- Composition root: construct `PrismaClient`, build the Prisma-backed adapters, inject them into the use case, and hand the use case to the Express handler.\n\nMinimal shape:\n\n```ts\ntype QuoteLine = { price: number; quantity: number };\ntype CustomerTier = \"gold\" | \"silver\" | \"bronze\";\n\nexport function calculateQuote(lines: QuoteLine[], tier: CustomerTier) {\n  const subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);\n  const discount = tier === \"gold\" && subtotal >= 10000\n    ? Math.round(subtotal * 0.1)\n    : 0;\n\n  return { subtotal, discount };\n}\n```\n\n```ts\nexport interface CustomerReader {\n  loadCustomer(customerId: string): Promise<{ id: string; tier: CustomerTier }>;\n}\n\nexport interface QuoteWriter {\n  createQuote(input: { customerId: string; subtotal: number; discount: number }): Promise<void>;\n}\n\nexport async function quoteOrder(\n  deps: { customers: CustomerReader; quotes: QuoteWriter },\n  input: { customerId: string; lines: QuoteLine[] },\n) {\n  const customer = await deps.customers.loadCustomer(input.customerId);\n  const { subtotal, discount } = calculateQuote(input.lines, customer.tier);\n\n  await deps.quotes.createQuote({\n    customerId: customer.id,\n    subtotal,\n    discount,\n  });\n\n  return { subtotal, discount };\n}\n```\n\n```ts\nexport async function quoteOrderHttp(req: Request, res: Response) {\n  const result = await quoteOrder(useCaseDeps, {\n    customerId: req.params.customerId,\n    lines: req.body.lines,\n  });\n\n  res.status(201).json(result);\n}\n```\n\nWhy this is the right boundary placement:\n- The pricing formula is business policy, so it belongs in domain/use-case code, not in the Express handler.\n- The use case owns the interfaces it needs; Prisma implements them outwardly.\n- Express and Prisma become replaceable details. Replacing either should not require rewriting the pricing rule.\n\nTest strategy:\n- Add fast unit tests for `calculateQuote(...)` covering the gold-threshold rule and rounding behavior.\n- Add use-case tests with fake `CustomerReader` and `QuoteWriter` asserting one write with the computed values.\n- Keep the existing integration tests unchanged to verify the HTTP contract and current persistence behavior remain intact.\n\nOne important non-change: do not collapse the read and write behind a new repository method if that hides the boundary. The use case should still express the application action explicitly: load customer, apply policy, perform the single authoritative write.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:03:37.187100Z ERROR codex_models_manager::manager: failed to renew cache TTL: EOF while parsing a value at line 1 column 0\n2026-07-12T22:04:20.486226Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585b-7292-7c81-ab56-f21c1f408d9f.1783893815955220000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

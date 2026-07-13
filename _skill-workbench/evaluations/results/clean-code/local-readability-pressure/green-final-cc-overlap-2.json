@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58d9-b9c8-7fd2-a18c-9bf5606401d9",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest safe change is to isolate discount calculation and change only that rule.\n\nPatch plan:\n1. Extract discount selection into a pure helper such as `private discountFor(a: Account, i: Invoice): number` or a local pure function above `finalize`.\n2. Encode the new base-discount rule there:\n   - `vip` gets `0.10`\n   - `partner` gets `0.15` when `total >= 500`, otherwise `0`\n   - everyone still gets the existing `+0.05` for `total > 1000`\n3. Leave `finalize` side effects and ordering unchanged: preview early return, then `balance` mutation, `accounts.save`, `lastInvoiceId`, optional `mailer.send`, `audit.record`, final return.\n4. Do not broaden into API cleanup, flag removal, or service redesign under this release window.\n\nRevised sketch:\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\ntype Invoice = {\n  id: string;\n  total: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(a: Account, i: Invoice): number {\n    let d = 0;\n\n    if (a.segment === \"vip\") d = 0.10;\n    if (a.segment === \"partner\" && i.total >= 500) d = 0.15;\n    if (i.total > 1_000) d += 0.05;\n\n    return d;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.discountFor(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n}\n```\n\nAssumption I would ship with: partner discount stacks with the existing high-total surcharge rule, because the requirement adds a partner rule and says to preserve behavior outside that rule. That means a partner invoice of `1200` gets `0.20`, not `0.15`.\n\nExact scope boundary:\n- In scope: discount computation only, plus tests proving the new amounts and collaborator payloads.\n- Out of scope: changing method signature, removing boolean flags, renaming public APIs, changing side-effect order, changing preview semantics, changing `lastInvoiceId` behavior, or refactoring other services because of the planned rewrite.\n\nTests required before shipping:\n1. `partner` with `total === 500` in preview returns `discount: 0.15`, `amount: 425`, `changed: false`, and no save/send/audit calls.\n2. `partner` with `500 < total <= 1000` in finalize applies `0.15`, updates balance by the discounted amount, and passes that amount to `accounts.save`, `mailer.send` when enabled, and `audit.record`.\n3. `partner` with `total > 1000` gets stacked discount `0.20` and all collaborator payloads use the discounted amount.\n4. `partner` with `total < 500` behaves like current non-vip logic: no partner discount.\n5. Regression coverage for existing rules stays intact: `vip` still gets `0.10`, `vip` over `1000` still gets `0.15`, standard over `1000` still gets `0.05`.\n\nGiven the current suite already covers returns and collaborator calls, I would prefer adding 2 new focused partner tests and extending an existing table-driven discount test if the suite already has one, rather than rewriting the test structure under time pressure.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:22:12.403031Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58d9-b9c8-7fd2-a18c-9bf5606401d9.1783902091721048000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

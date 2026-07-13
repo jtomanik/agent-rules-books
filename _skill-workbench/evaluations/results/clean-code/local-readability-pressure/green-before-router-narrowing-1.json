@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5363-ebdc-7532-8745-a347f3b82db2",
+  "exit_code": 0,
+  "result": {
+    "answer": "Add the rule as a small local refactor, not as one more anonymous branch inside `finalize`. The current risk is that pricing logic is already mixed with persistence, email, and audit side effects; under rewrite pressure, the smallest safe move is to isolate discount calculation into a pure helper and then change only that helper.\n\n**Patch Plan**\n1. Extract discount calculation from `finalize` into a private pure helper such as `calculateDiscount(account, invoice)`.\n2. Preserve current rules exactly inside that helper first: `vip => 0.10`, then `total > 1000 => +0.05`.\n3. Add the new partner rule in the helper: if `account.segment === \"partner\"` and `invoice.total >= 500`, use a base discount of `0.15`.\n4. Keep the existing `> 1000` uplift as an additional rule, because that behavior exists outside the new partner rule and should remain unless product explicitly says partner should be capped at 15% total.\n5. Leave `finalize` side effects unchanged: same preview short-circuit, same `accounts.save`, same `lastInvoiceId`, same optional email, same audit event name and payload shape.\n6. Do not broaden the patch into new abstractions, new services, or interface changes beyond the local helper.\n\n**Revised Sketch**\n```ts\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    let discount = 0;\n\n    if (a.segment === \"vip\") {\n      discount = 0.10;\n    }\n\n    if (a.segment === \"partner\" && i.total >= 500) {\n      discount = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\n**Exact Scope Boundary**\nIn scope: local discount computation for `partner` accounts at `invoice.total >= 500`, plus tests that pin the new behavior.\n\nOut of scope: changing rounding, changing side-effect order, changing audit payload contents, changing email behavior, changing repository interfaces, introducing a new pricing subsystem, or rewriting `finalize` beyond extracting the discount helper.\n\n**Tests Required Before Shipping**\n- `partner` with `total = 500` gets `discount = 0.15` and correct `amount`.\n- `partner` with `total = 499.99` gets no partner discount.\n- `partner` with `total > 1000` gets `0.20` total discount under the preservation rule above.\n- qualifying `partner` invoice in `preview` mode returns `changed: false` and still performs no `save`, `send`, or `audit` calls.\n- one non-partner regression each for `standard` and `vip` to confirm existing discount behavior remains unchanged.\n- one non-preview qualifying `partner` test that still asserts the existing side effects: `accounts.save` called with reduced balance, `mailer.send` gated by `sendEmail`, and `audit.record` unchanged except for the new computed `amount`.\n\nIf product actually means \"partner gets exactly 15% even above 1000,\" that is a different business rule and should be clarified explicitly before release; otherwise I would ship the additive interpretation above because it preserves all pre-existing behavior outside the new segment threshold.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

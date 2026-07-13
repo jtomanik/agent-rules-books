@@ -1,0 +1,41 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/manual-focused.md",
+  "case_sha256": "81efb4343a129c395cbca0848502a29576372992d4abedb2827284ec88816431",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f587f-7dcc-7840-8119-5f7b3540783c",
+  "exit_code": 0,
+  "result": {
+    "answer": "A five-second replica lag target is not sufficient to resolve this workflow. It is an operational SLO about typical freshness, not a correctness contract. In this path, the user writes on the primary and is then redirected to a random asynchronous replica; without an explicit read-your-writes rule, the product is intentionally allowing the user to miss their own update during normal lag, follower catch-up, and failover.\n\nThe decision should be: this flow needs an explicit session/position contract.\n\nContract:\n- On successful profile update, the write response must carry a session read position from the source of truth, such as a commit LSN/version/sequence.\n- Subsequent reads in that user workflow may go to a replica only if that replica has applied at least that position.\n- If the chosen replica is behind, the system must not serve an older version as if it were current.\n\nFallback behavior:\n- First choice: route the read to a replica that has already caught up to the required position.\n- Otherwise: route the read to the primary/source-of-truth path for that session.\n- If neither can prove the required position yet, return an explicit pending state or short bounded retry, not a silent stale read.\n\nFailover requirement:\n- The same session token/required position must survive failover.\n- A promoted replica may serve the session only after it can prove it has applied at least the required position.\n- If failover can promote a node that may not contain the acknowledged write, then the system must either degrade to a source that can prove the write, or explicitly treat the write as not yet visible/confirmed across failover. Otherwise the product is lying about write visibility.\n\nPractical resolution of the dispute:\n- If product intent is \u201cafter editing my profile, I immediately see my change,\u201d then yes, you need explicit read-your-writes across catch-up and failover; the lag target remains a monitoring goal, not the contract.\n- If product intent is \u201cpost-edit reads may be stale for several seconds and possibly across failover,\u201d then document that as the product contract and accept visible stale reads. That is a weaker product decision, not an infrastructure tuning issue.\n\nFor this specific workflow, the defensible choice is the explicit read-your-writes contract with position-based routing and primary fallback.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/designing-data-intensive-applications/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/designing-data-intensive-applications/references/index.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Consistency Rules",
+          "Replication Rules",
+          "Distributed Fault, Clock, and Consensus Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:43:31.256415Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f587f-7dcc-7840-8119-5f7b3540783c.1783896178125134000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55cb-122f-7a31-9287-896f5162eeee",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings\n1. `fetchCarrierQuote` can wait forever before it even sends the request because `Semaphore.acquire()` has no deadline and does not use `requestSignal` (snippet line 5). Under carrier-slot saturation, checkout can burn its entire `2500 ms` budget queued behind other calls instead of degrading to `{ kind: \"unavailable\" }`. Smallest fix: bound slot acquisition by the checkout deadline, ideally with the same abort signal or an explicit remaining-time deadline.\n\n2. The outbound call is not tied to the checkout abort path, and the configured `timeoutMs=2000` does not cover connection establishment (snippet lines 8-18). A connect stall can therefore outlive the request budget, hold a semaphore slot, and delay later checkouts even though the product contract says checkout must continue when the carrier cannot answer in time. Smallest fix: pass an abort signal/deadline into `carrierClient.post()` based on `requestSignal` and the remaining checkout budget, not just `timeoutMs` in the JSON payload.\n\n3. The success path accepts any JSON body as an available quote without enforcing the provider contract (snippet lines 19-25). Non-`200` responses, wrong content type, malformed payloads, negative/NaN amounts, bad currency, or invalid timestamps can be returned as `kind: \"available\"`, which turns a dependency or contract failure into bad application data. Smallest fix: require `200`, JSON content type, and validate `{ amount, currency, expires_at }` before returning `available`; otherwise treat `429`/`5xx`/timeout/transport as `unavailable`, and log provider `4xx` as a contract/request defect while still failing this quote path safely.\n\nRecommended pre-merge change set\n- Derive a carrier deadline from the checkout budget and use it for both semaphore acquisition and the HTTP call.\n- Pass `requestSignal` (or a child signal with the earlier carrier deadline) into `carrierClient.post()`.\n- Validate status, content type, and payload shape before returning `kind: \"available\"`.\n- Keep `CARRIER_RETRIES=0`; that part already matches the contract.\n\nResidual note\n- `CARRIER_MAX_IN_FLIGHT=32` is a reasonable bulkhead for an ordinary first release, but only if acquisition is bounded; without that bound it becomes an unbounded queue, not effective isolation.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

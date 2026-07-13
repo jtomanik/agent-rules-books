@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b8-01c7-7e20-b224-60fab3376d4a",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is neither \u201ccrash on every exception\u201d nor \u201ccatch everything and ack.\u201d In this system, those are the two unsafe extremes.\n\nThe policy should be:\n\n1. Malformed inbound message: quarantine, then ack.\nA bad `message.body` or failed `InventoryEvent` validation is poison data. It should not be retried and it should not crash the process. Right now there is no quarantine path (`dead_letter_exchange: null`) and `max_deliveries: 0` means unlimited replay, which is exactly why three bad messages caused a restart storm. The consumer should move the original message to a quarantine/DLQ with failure metadata, and only ack after that handoff succeeds.\n\n2. Transient dependency failure: retry briefly, then pause intake or leave unacked, but do not ack and do not crash.\n`503` and timeout from `inventoryClient` are retryable dependency failures. Acking here loses work. Crashing here is also wrong under this supervisor: exit makes every unacked prefetched message immediately redeliver across six replicas, amplifying the outage. The right boundary is bounded local retry with timeout/backoff/jitter, then stop making progress on that message and pause consumption or mark the worker unable to proceed. Since there is no fine-grained pause control, the minimal safe behavior is to keep the process alive, stop pulling new work if possible, and surface that state operationally.\n\n3. Malformed downstream `200` JSON: treat as dependency-contract failure, not poison message.\nThe message is still valid; the dependency response is not. This belongs on the same side of the boundary as `503`/timeout: retry briefly, then pause or leave unacked. Do not quarantine the message and do not ack it.\n\n4. Compromised process state: crash.\nTerminate only when the worker can no longer safely judge or process future messages: invariant corruption, broken DB/client state that cannot be reset, resource corruption, or other fatal runtime conditions. \u201cSupervisor will restart it\u201d is valid only for this class of failure, where continuing is less trustworthy than restarting.\n\nWhy the current implementation is unsafe:\n\n- The current `catch` just logs and rethrows, so parse errors, dependency outages, and fatal corruption all take the same path.\n- With `prefetch: 100`, `replicas: 6`, unlimited deliveries, and immediate redelivery on exit, a single poison message can trigger repeated crash/replay across hundreds of in-flight deliveries.\n- `dependency_timeout_ms: 0` allows infinite waits, which means workers can also hang instead of failing cleanly.\n- `readiness: broker_connection_is_open` is too weak for a worker whose actual ability to make progress depends on inventory and database health.\n\nMinimal changes needed to make this safe and testable:\n\n- Add explicit error classification in the consumer: `PoisonMessageError`, `RetryableDependencyError`, and `FatalProcessError` (names not important; separation is).\n- Validate inbound message shape after JSON parse. Parse/schema failure goes to quarantine, then ack.\n- Configure an actual quarantine path: set a `dead_letter_exchange` or equivalent explicit quarantine queue.\n- Make retries disciplined in one place only. Add a finite dependency timeout and bounded retry with backoff/jitter for inventory calls. Do not combine unlimited broker redelivery with aggressive in-process retries.\n- Bound broker redelivery. `max_deliveries` must be finite so unexpected crash loops eventually park messages instead of replaying forever.\n- Expose a paused/unable-to-progress state in health/metrics. Readiness should reflect \u201ccan safely make progress,\u201d not merely \u201cbroker socket is open.\u201d\n- Log with message id / event id / sku / failure class so tests and operators can distinguish quarantine from retryable dependency failure from fatal crash.\n\nThe exact boundary decision is:\n\n- Quarantine + ack: malformed message body, invalid event shape, other permanent input rejection.\n- Retry, then pause or leave unacked without process exit: dependency `503`, timeout, malformed dependency response, other retryable external failures.\n- Crash: only when process state is no longer trustworthy for subsequent messages.\n\nWhat not to do:\n\n- Do not use one broad catch that logs, acks, and continues. That turns transient dependency failures into silent data loss.\n- Do not let every exception escape to the supervisor. In this broker/supervisor setup, that converts poison data and dependency outages into replay storms.\n\nTests needed for this policy:\n\n- Bad JSON / invalid event is routed to quarantine and original message is acked.\n- `503` and timeout perform bounded retries, are not acked, and do not terminate the process.\n- Malformed dependency `200` JSON is classified as dependency-contract failure, not quarantined.\n- Fatal classified error terminates the process.\n- Quarantine handoff failure does not ack the original message.\n- Health/metrics distinguish paused dependency failure from fatal crash.\n\nThat is the narrow safe boundary for this worker as deployed today.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

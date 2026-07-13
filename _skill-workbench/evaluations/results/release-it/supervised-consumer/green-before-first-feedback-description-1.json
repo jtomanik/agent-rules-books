@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55c3-5f2a-7402-9050-ca6670987dc8",
+  "exit_code": 0,
+  "result": {
+    "answer": "The correct boundary is neither \u201ccrash on everything\u201d nor \u201ccatch everything and ack.\u201d\n\nMalformed inbound messages are poison data. They should be classified at the consumer boundary, quarantined, and then acknowledged only after quarantine succeeds. With `max_deliveries: 0`, no DLQ, and immediate redelivery on exit, letting parse/validation errors escape is what created the six-replica restart storm. A broad catch that acks everything is also wrong because it would silently discard transient outages and real bugs. Add explicit schema validation after `JSON.parse`, treat invalid JSON or invalid `InventoryEvent` shape as non-retryable, publish the original payload plus failure metadata to a quarantine queue or DLQ, then `ack` the original message. If quarantine publish fails, do not ack; that is an operational failure, not a reason to discard the message.\n\nTransient dependency failures should stay with retry or pause, not quarantine and not default crash. `503`, timeout, and `200` with malformed dependency JSON are dependency failures; the message itself is still valid. Bound the dependency call with a real timeout, keep retries finite and backed off, and after retries are exhausted leave the message unacked. At that point the consumer should stop taking more work for a while rather than crash-looping the whole deployment. In this system, that means adding an explicit consumer pause mechanism or dependency-health gate; if the platform cannot actually drain consumers on readiness, this is the point where operators should pause the deployment. Do not ack these messages, and do not route them to quarantine unless you are using a DLQ only as a last-resort backstop for unexpectedly repeated failures.\n\nProcess crash is reserved for compromised local process state: invariant corruption, an internal bug that means the worker can no longer trust its own memory or control flow, failure in ack/quarantine bookkeeping that leaves message disposition unknown, or similar \u201cthis process is no longer trustworthy\u201d conditions. That is where supervisor restart is appropriate. A bad message is not a bad process. A flaky dependency is not a bad process.\n\nChanges needed to make this safe and testable:\n1. Introduce explicit error classification in `consume`: `MalformedMessage`, `DependencyFailure`, and `CompromisedProcessState` or equivalent.\n2. Validate message syntax and schema before any side effects; quarantine only malformed inbound messages.\n3. Treat malformed dependency responses as dependency-contract failure, not poison input.\n4. Configure an actual quarantine path: dead-letter exchange or explicit quarantine queue. Without that, \u201cack after logging\u201d is data loss.\n5. Set a finite dependency timeout. `dependency_timeout_ms: 0` is unsafe because a stuck dependency can pin consumer capacity indefinitely.\n6. Add a bounded pause/backoff path for exhausted dependency retries so replicas stop pulling more work during an outage instead of hot-restarting.\n7. Make redelivery safe by enforcing idempotency on `eventId` at the database boundary, since any crash or ack failure after commit will cause replay.\n8. Add focused tests for the boundary: malformed message goes to quarantine and acks; dependency `503`/timeout/bad JSON does not ack and triggers retry then pause; compromised-state error escapes and crashes.\n\nOne configuration backstop is also warranted: unlimited redelivery with no DLQ is unsafe. Even with correct classification, set a dead-letter path and a finite delivery limit as containment for misclassified or newly introduced repeat offenders. That backstop should not be the primary handling for normal transient dependency outages, but it is necessary to prevent another infinite replay incident.",
+    "selected_project_skills": [
+      "release-it",
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

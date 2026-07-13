@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5337-7279-7bb2-a8ce-e3d1df88ec35",
+  "exit_code": 0,
+  "result": {
+    "answer": "A safe restructuring sequence is:\n\n1. Extract pure private helpers inside `OrderPricer` for each existing calculation stage, in current execution order: `computeSubtotalCents(order)`, `computeDiscountCents(order, subtotalCents)`, `computeShippingCents(order, subtotalCents, discountCents)`, `computeTaxableCents(subtotalCents, discountCents, shippingCents)`, and `computeTaxCents(taxableCents)`.\n2. Change `price(order)` to become straight-line orchestration that calls those helpers and assembles the existing `Price` object unchanged.\n3. Keep every helper\u2019s logic byte-for-byte equivalent in behavior: same thresholds, same dependency order, same `Math.floor`, same free-shipping check against `subtotalCents - discountCents`, and the same international-shipping override.\n4. After the orchestration split is in place, do one small naming pass only if it improves legibility without changing semantics. For example, `taxableCents` is already a good intermediate and should remain the basis for `taxCents` and `totalCents`.\n5. Stop there. Do not introduce new domain objects, strategy classes, configuration tables, inheritance, policy injection, or a changed public API. Do not collapse all rules into a generic rule engine. Do not broaden test scope unless a tiny helper-level characterization test is needed locally during the refactor and removed or kept only if the team wants that style.\n\nThe cleanup boundary is structural decomposition, not redesign. This code is already well protected by focused behavioral tests, so the goal is to make the sequencing of subtotal -> discount -> shipping -> tax explicit and reviewable before adding new pricing rules. The key invariant to preserve is that discount is computed before shipping eligibility, and shipping is included in the taxable amount.\n\nA reviewable intermediate end state would look like `price()` as a five-step pipeline with private helper calls, while all conditionals and arithmetic remain in this module. If the team reaches a point where they are debating new abstractions instead of simply isolating existing decisions, they have gone past the appropriate stopping point for this cleanup.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Refactor by extracting private helper methods that preserve the current calculation order and keep `price(order)` as the orchestrator.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Preserve the existing dependency chain exactly: subtotal drives discount, discounted subtotal drives domestic free shipping, and shipping is included in the taxable amount.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Stop after structural decomposition; do not introduce new abstractions, change the public API, or redesign pricing rules in this cleanup.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:06:45.993569Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-7279-7bb2-a8ce-e3d1df88ec35.1783807570554084000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

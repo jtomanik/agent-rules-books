@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/focused-command-query.md",
+  "case_sha256": "bade0e9ce79858f47d07125e55d2ac72623fb5d89d19580ea2124bbb337646fa",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55ac-4e9d-7ec1-80c2-153ab5cce127",
+  "exit_code": 0,
+  "result": {
+    "answer": "Under the Clean Code guidance, this method is not command-query separation. `findUser` looks like a query, but on a cache miss it mutates `usersById`. That is a hidden side effect, so the strict ruling is: reviewer 1 is correct on the rule.\n\nA strong-reason exception does exist, but it stays an exception. The skill guidance is explicit: cache population still mutates, and a `load-and-return` shape is not CQS; it is only tolerable when the ergonomics or performance benefit is strong enough to justify the impurity. Reviewer 2 is only partially right: internal lazy caching can be acceptable, but it is not a harmless non-issue under Clean Code. It should be treated as a deliberate tradeoff, not as compliant-by-default.\n\nSmallest acceptable alternatives:\n\nStrict CQS split:\n```ts\nclass UserDirectory {\n  private readonly usersById = new Map<string, User | undefined>();\n\n  constructor(private readonly repository: UserRepository) {}\n\n  loadUser(id: string): void {\n    if (!this.usersById.has(id)) {\n      this.usersById.set(id, this.repository.findById(id));\n    }\n  }\n\n  findUser(id: string): User | undefined {\n    return this.usersById.get(id);\n  }\n}\n```\n\nSmallest exception-shaped alternative, if you intentionally keep load-and-return:\n```ts\nclass UserDirectory {\n  private readonly usersById = new Map<string, User | undefined>();\n\n  constructor(private readonly repository: UserRepository) {}\n\n  getOrLoadUser(id: string): User | undefined {\n    if (!this.usersById.has(id)) {\n      this.usersById.set(id, this.repository.findById(id));\n    }\n\n    return this.usersById.get(id);\n  }\n}\n```\n\nRuling: if you want Clean Code compliance on command-query and hidden-side-effect grounds, split it. If you keep the lazy cache inside the returning method, the minimum acceptable move is to name it as a command-query hybrid and treat it as a strong-reason exception rather than pretending it is a pure query.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

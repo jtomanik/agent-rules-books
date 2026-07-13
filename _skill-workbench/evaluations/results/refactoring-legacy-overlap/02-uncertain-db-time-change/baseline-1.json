@@ -1,0 +1,62 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5337-727d-70f1-8b2e-17e2802c50f1",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded change: keep the method\u2019s control flow, exception behavior, and transaction boundaries intact, and only change the due check from `nextChargeAt <= now` to `nextChargeAt + 48 hours <= now`.\n\nConcretely, the implementation should:\n- Parse `account.nextChargeAt` once.\n- Compute a grace cutoff as `new Date(nextChargeAt.getTime() + 48 * 60 * 60 * 1000)`.\n- Charge only when `graceCutoff <= now`.\n- Leave `now` creation, inserted `chargedAt`, transaction wrapper, and return values unchanged.\n\nThat is the smallest behavior change consistent with \u201c48-hour grace period\u201d and avoids guessing about caller reliance on current exception or transaction semantics.\n\nRecommended shape:\n```ts\nchargeIfDue(): \"charged\" | \"not-due\" {\n  const account: AccountRow = this.database.accounts.find(this.accountId);\n  const now = new Date();\n  const nextChargeAt = new Date(account.nextChargeAt);\n  const graceCutoff = new Date(nextChargeAt.getTime() + 48 * 60 * 60 * 1000);\n\n  if (graceCutoff <= now) {\n    this.database.transaction(() => {\n      this.database.charges.insert({\n        accountId: account.id,\n        amountCents: account.balanceCents,\n        chargedAt: now.toISOString(),\n      });\n      this.database.accounts.markCharged(account.id, now.toISOString());\n    });\n    return \"charged\";\n  }\n\n  return \"not-due\";\n}\n```\n\nProduct decisions that must be resolved instead of inferred:\n- Whether \u201c48-hour grace period\u201d means exactly 48 elapsed hours from the stored timestamp, or a calendar-day rule such as \u201cafter two local midnights.\u201d\n- Which timezone defines the rule if product intends a local-time interpretation. The code currently compares absolute instants; that is not the same as account-local billing dates.\n- Whether existing `nextChargeAt` values are trustworthy UTC/offset timestamps. If some rows were historically stored in local time or without offsets, adding 48 hours mechanically may preserve bad legacy interpretation rather than correct it.\n- Whether charging exactly at the boundary is intended. The current code uses `<=`; the minimal safe change preserves that at `nextChargeAt + 48h`, but product should confirm it.\n- Whether grace applies uniformly to all accounts, including already-overdue backlog rows, or only to newly scheduled charges after a rollout point.\n\nSafest verification plan:\n1. Add characterization tests before changing behavior. Cover current transaction and exception semantics so they are preserved, not inferred.\n2. Unit-test only the due decision with fixed timestamps, not staging fixtures.\n3. Use a fake or mocked `BillingDatabase` and a controllable clock so tests do not depend on real time or shared data.\n4. Cover these cases explicitly:\n- `now` before `nextChargeAt` -> `\"not-due\"`\n- `now` exactly at `nextChargeAt` -> currently `\"charged\"`, after change should be `\"not-due\"`\n- `now` one millisecond before `nextChargeAt + 48h` -> `\"not-due\"`\n- `now` exactly at `nextChargeAt + 48h` -> confirm intended result with product; minimal implementation gives `\"charged\"`\n- `now` after `nextChargeAt + 48h` -> `\"charged\"`\n- transaction callback throws during insert or markCharged -> exception propagation unchanged\n- no duplicate side effects when not due\n5. Add timestamp-format tests for inputs with `Z`, explicit offsets, and any known legacy format the system has actually stored.\n6. Use staging only for a narrow, non-cleanup verification: inspect a few representative `nextChargeAt` values and run one controlled account through the path if the team can reserve a fixture. Do not rely on shared staging to discover semantics.\n7. Roll out behind a temporary metric/log if possible: record accounts that would have charged under old logic but are deferred by grace. That validates business impact without changing transaction behavior further.\n\nResidual risk: without resolving the timezone/storage-format question, the code change can be mechanically correct but still wrong for business intent. That is the main decision to force before implementation.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Implement the grace period as the smallest possible change to the due predicate only: compare `now` against `nextChargeAt + 48h`, while preserving the existing constructor, transaction wrapper, exception propagation, `chargedAt` source, and return values.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Do not infer whether charging exactly at the new boundary is intentional; preserve the current inclusive comparator (`<=`) as the minimal-risk default, but require explicit product confirmation.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Do not infer local-time semantics from the current code. Require a product decision on whether grace is based on absolute elapsed hours or account-local calendar days/timezones.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Before changing behavior, add characterization tests around the current transaction and failure behavior so the change does not accidentally alter caller-visible semantics.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Prefer isolated unit tests with a fake database and fixed clock over exploratory staging writes, because the staging environment is slow and shared.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "If rollout risk matters, add temporary observability for accounts deferred by the new grace rule rather than broadening the functional change.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:06:10.801907Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-4a49-7b60-9f3c-f100349ebee1.1783807560265794000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:07:02.506965Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-727d-70f1-8b2e-17e2802c50f1.1783807570558137000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

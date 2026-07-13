@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/outbound-provider.md",
+  "case_sha256": "420500ae5fd787a2e9919b3b0bbbb67e620f27ac56b3631d066e7d74b79028c2",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55bf-699c-7ab2-87fb-0132f7a9e30b",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Findings**\n1. `authorizePayment` can hold request workers indefinitely and amplify retries. `Semaphore.acquire()` waits forever (line 14), the provider call has no deadline because `PAYMENT_CONNECT_TIMEOUT_MS=0`, `PAYMENT_RESPONSE_TIMEOUT_MS=0`, and `requestSignal` is never passed (line 20, env), and the code adds its own 4-attempt loop on top of SDK retries (`PAYMENT_SDK_RETRIES=2`). In the worst case one checkout can sit on a worker through up to 12 outbound attempts plus sleeps, which matches the load-test collapse. Before shifting 100% traffic on July 13, 2026, this needs one bounded deadline, one retry layer, and a bounded wait for the semaphore.\n2. A database transaction is opened before the remote call and held across all retries (lines 15-36). When the provider stalls, checkout also burns DB connections, which increases blast radius beyond the payment integration. The transaction must start only after a validated provider result is ready to persist, or when persisting a deferred outcome.\n3. The degradation path is unbounded and process-local. `pendingAuthorizations` is an in-memory array (line 8), `PENDING_AUTHORIZATION_CAPACITY=0` means unbounded, and the code always pushes to it after retry exhaustion (line 35). Under provider trouble this turns slow dependency failure into memory growth and hidden backlog. Deferred authorization must have a finite capacity and explicit full behavior; if the buffer is full, checkout must fail fast with a retryable unavailable result instead of accepting more work.\n4. The integration does not validate the provider response before using it. A `200` HTML error page will throw at `response.json()` and get retried as if it were an ordinary transient failure; malformed JSON or missing fields can also flow toward persistence (lines 20-28). The code must require a successful HTTP status, JSON content type, and expected fields before inserting an authorization row. A malformed `200` is a provider contract failure, not a success.\n5. The current instrumentation is not enough to prove safe rollout. The code emits one success counter and warn logs. At minimum this path needs metrics for dependency latency, timeout count, retry count, `429`/`5xx`, semaphore saturation/rejects, pending-queue depth/full, malformed-response count, and final outcome kind.\n\n**Smallest Production-Ready Change Set**\n- Pass an abort signal into `provider.post(...)` and enforce a real outbound deadline. The provider budget must be smaller than `CHECKOUT_REQUEST_TIMEOUT_MS=2500` so checkout still has time to finish its own work. Non-zero connect and response timeouts are mandatory.\n- Remove the nested retry policy. The smallest safe change is to keep a single retry layer only. Given the SDK already retries transport errors and `429`/`5xx`, remove the outer `for` loop or set SDK retries to `0` and reimplement retries with explicit retryability, total-time budget, and backoff. Do not retry parse/schema failures.\n- Bound semaphore wait and reduce `PAYMENT_MAX_IN_FLIGHT` to a value backed by worker-capacity math. `400` is not production-ready without proof that it leaves headroom for the rest of checkout. If no slot is available quickly, fail fast or defer intentionally; do not queue request threads indefinitely.\n- Move `database.beginTransaction()` to the point where there is something ready to persist, and ensure non-commit exits roll back/close cleanly.\n- Replace the unbounded in-memory pending buffer with a finite queue, preferably durable. If that queue is full, return an explicit retryable unavailable outcome rather than `pending`.\n- Validate the provider response boundary before state changes: status, content type, JSON parse, and required fields such as `authorization_id` and `state`.\n\n**Required Behavior By Failure Mode**\n- Slow provider: stop waiting when the semaphore wait budget or outbound call budget expires, release the slot immediately, hold no DB transaction during the wait, and return `pending` only if a bounded deferred path accepted the work; otherwise return a retryable unavailable result.\n- Overloaded provider (`429`/`5xx`): use one bounded retry policy only, with small backoff and `Retry-After` support if available. When the retry budget is exhausted, degrade exactly as above; do not keep workers occupied.\n- Unavailable provider (connect/transport failure): treat the same as overload. No infinite waits, no infinite queueing, no extra local spin loop.\n- Malformed `200` / HTML / invalid JSON / missing fields: treat as dependency-contract failure. Do not mark the payment authorized. If the provider may have applied the authorization and `order.id` is the idempotency key, send it to bounded reconciliation/pending handling; otherwise surface a retryable unavailable result and alert on the contract breach.\n\nI would not enable 100% checkout traffic until those changes are in place. The minimum bar is: bounded time, bounded concurrency, bounded backlog, no DB transaction during remote waits, and strict response validation.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T09:55:33.772854Z  WARN codex_analytics::client: failed to send events request: error sending request for url (https://chatgpt.com/backend-api/codex/analytics-events/events)"
+}

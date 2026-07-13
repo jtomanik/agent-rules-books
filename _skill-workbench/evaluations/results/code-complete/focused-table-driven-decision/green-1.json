@@ -1,0 +1,42 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/focused-table-driven-decision.md",
+  "case_sha256": "d38e6595f090da1a24c56128db5647bd37c837cdabb2e412530cee872e0be641",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5871-2c61-7731-88a3-499bec69d643",
+  "exit_code": 0,
+  "result": {
+    "answer": "A table is clearer here.\n\nUnder Code Complete's decision order, this mapping favors a table because it lowers defect probability and control-flow cost without introducing an opaque encoding. The current function is just a stable 2-dimensional lookup: `zone x service -> cents`. A branch chain works, but it repeats the decision structure six times and makes completeness harder to inspect than a single explicit matrix.\n\nThe smallest acceptable representation is a nested typed table, not a flattened string-key map. The nested shape keeps both dimensions visible and avoids hiding meaning in encoded keys:\n\n```ts\ntype Zone = \"local\" | \"regional\" | \"international\";\ntype Service = \"standard\" | \"express\";\n\nconst SHIPPING_CENTS: Record<Zone, Record<Service, number>> = {\n  local: { standard: 400, express: 900 },\n  regional: { standard: 700, express: 1300 },\n  international: { standard: 1800, express: 3200 },\n};\n\nexport function shippingCents(zone: Zone, service: Service): number {\n  return SHIPPING_CENTS[zone][service];\n}\n```\n\nWhy this is the right boundary for table-driven logic:\n- The mapping is stable and explicit.\n- The table is more inspectable than six conditionals.\n- The structure is obvious; it does not compress logic into clever keys or positional arrays.\n- TypeScript can validate completeness at compile time for the declared `Zone` and `Service` unions.\n\nValidation guidance:\n- Validate the table shape at compile time with `Record<Zone, Record<Service, number>>` so every zone and service must be present.\n- Add a runtime defensive check only if `zone` or `service` can arrive from an untyped boundary such as JSON, HTTP params, or casts. If inputs are trusted internal unions, the extra runtime branch is not required by this routine's contract.\n- If runtime validation is needed, reject `undefined` lookup results with the current error semantics.\n\nEdge-case and contract tests:\n- One test for each supported combination, asserting the exact cents.\n- A completeness-oriented test pattern that makes missing table entries obvious if unions expand.\n- Invalid-input tests only if runtime boundary validation is part of the contract, for example unsupported `zone`, unsupported `service`, or both malformed.\n- A defensive test that unsupported inputs throw the expected error, again only if runtime validation exists.\n\nSo the resolution is: convert this specific routine to a small nested table. It is a better fit for Code Complete's statement/conditional and table-driven guidance, and the testing burden stays straightforward and explicit.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "code-complete",
+        "sections": [
+          "Primary Directive",
+          "Statement, Conditional, and Loop Rules",
+          "Table-Driven and Data-Driven Rules",
+          "Testing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:28:04.069121Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5871-2c61-7731-88a3-499bec69d643.1783895239777349000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

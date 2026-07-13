@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5855-45ac-7ba2-aac4-11bc41d28099",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a 3-part split: an application use case that owns the behavior, small app-owned models/ports, and thin Next.js/Prisma adapters.\n\nA minimal shape:\n\n```ts\n// application/create-invoice.ts\nexport type CreateInvoiceCommand = {\n  orderId: string;\n};\n\nexport type CreateInvoiceResult = {\n  invoiceId: string;\n  totalCents: number;\n};\n\nexport type OrderForInvoicing = {\n  id: string;\n  status: \"APPROVED\" | \"PENDING\" | \"CANCELLED\";\n  lines: Array<{ amountCents: number }>;\n};\n\nexport type LoadOrderForInvoicing = (\n  orderId: string,\n) => Promise<OrderForInvoicing>;\n\nexport type SaveInvoice = (draft: {\n  orderId: string;\n  totalCents: number;\n}) => Promise<{ id: string }>;\n\nexport async function createInvoice(\n  command: CreateInvoiceCommand,\n  deps: {\n    loadOrderForInvoicing: LoadOrderForInvoicing;\n    saveInvoice: SaveInvoice;\n  },\n): Promise<CreateInvoiceResult> {\n  const order = await deps.loadOrderForInvoicing(command.orderId);\n\n  if (order.status !== \"APPROVED\") {\n    throw new Error(\"ORDER_NOT_APPROVED\");\n  }\n\n  const totalCents = order.lines.reduce((sum, line) => sum + line.amountCents, 0);\n  const invoice = await deps.saveInvoice({ orderId: order.id, totalCents });\n\n  return { invoiceId: invoice.id, totalCents };\n}\n```\n\nOwnership is the key point:\n\n- The application layer owns `CreateInvoiceCommand`, `CreateInvoiceResult`, `OrderForInvoicing`, and the two interfaces.\n- Next.js owns HTTP request/response parsing and status-code mapping.\n- Prisma owns persistence schemas and query details.\n\nTranslation points:\n\n- In the Next.js route: `NextRequest` -> `CreateInvoiceCommand`, and `CreateInvoiceResult`/application error -> `NextResponse`.\n- In Prisma adapters: Prisma records -> `OrderForInvoicing`, and invoice draft -> Prisma `invoice.create(...)`.\n\nConcrete wiring belongs at the edge, for example in the route module or a small composition module it imports:\n\n```ts\n// route/create-invoice.ts\nimport { createInvoice } from \"@/application/create-invoice\";\nimport { prisma } from \"@/infrastructure/prisma\";\n\nconst loadOrderForInvoicing = async (orderId: string) => {\n  const order = await prisma.order.findUniqueOrThrow({\n    where: { id: orderId },\n    include: { lines: true },\n  });\n\n  return {\n    id: order.id,\n    status: order.status,\n    lines: order.lines.map((line) => ({ amountCents: line.amountCents })),\n  };\n};\n\nconst saveInvoice = async (draft: { orderId: string; totalCents: number }) => {\n  const invoice = await prisma.invoice.create({ data: draft });\n  return { id: invoice.id };\n};\n```\n\nThat is the smallest production design that keeps the approval rule and invoice action independent from both Next.js and Prisma, without broadening the scope beyond this use case.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T21:57:30.638511Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5855-45ac-7ba2-aac4-11bc41d28099.1783893411245546000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

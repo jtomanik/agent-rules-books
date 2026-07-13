@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58a9-42bc-7f01-8576-2753ba8a162b",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommendation**\nShip this as a small local change in the discount calculation, not as \u201cjust another branch\u201d embedded deeper into the side-effect flow. The safe move under a 45-minute release window is to isolate the pricing rule and leave `save`, `send`, `record`, `preview`, mutation order, and return shape unchanged.\n\n**Exact Scope Boundary**\nChange only the discount determination for this slice:\n- `partner` accounts with `invoice.total >= 500` get exactly `0.15` discount.\n\nDo not change:\n- Method signature.\n- Preview behavior.\n- `accounts.save`, `mailer.send`, `audit.record` call conditions or order.\n- Balance mutation semantics.\n- Existing `vip` discount behavior.\n- Existing `> 1000` extra 5% behavior for non-`partner >= 500` cases.\n- Returned object shape and `changed` semantics.\n\nThat means `partner` is a special case that overrides the old large-invoice path for that segment. For example, `partner` at `1500` should now be `15%`, not `5%` and not `20%`.\n\n**Concrete Patch Plan**\n1. Extract discount computation into a small helper inside `InvoiceService`, e.g. `private discountFor(a: Account, i: Invoice): number`.\n2. Encode the new rule first as the most specific case: `partner && total >= 500 -> 0.15`.\n3. Preserve the current logic for everything else: `vip -> 0.1`, then `> 1000 -> +0.05`.\n4. Keep `finalize()` side effects and return handling structurally the same, only replacing inline discount logic with the helper.\n5. Remove the stale comment `Figure out the discount and then do everything else.` if the extracted helper makes it unnecessary.\n\n**Revised Sketch**\n```ts\ntype FinalizeResult = {\n  amount: number;\n  discount: number;\n  changed: boolean;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(a: Account, i: Invoice): number {\n    if (a.segment === \"partner\" && i.total >= 500) {\n      return 0.15;\n    }\n\n    let discount = a.segment === \"vip\" ? 0.1 : 0;\n\n    if (i.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean): FinalizeResult {\n    const discount = this.discountFor(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\n**Tests Required Before Shipping**\nI would require these tests, no less:\n1. `partner` with `total = 500` gets `discount: 0.15` and correct `amount`.\n2. `partner` with `total > 1000` gets `discount: 0.15` exactly, proving the new rule overrides the old large-invoice rule.\n3. `partner` with `total = 499.99` gets `discount: 0`.\n4. An unchanged regression case for `vip` above `1000` still gets `0.15`.\n5. One non-preview side-effect test for a qualifying `partner` case asserting return value plus existing calls to `accounts.save`, `mailer.send`, and `audit.record` still happen with the discounted amount.\n6. One preview test for a qualifying `partner` case asserting `changed: false` and no side effects.\n\nIf the suite already has strong coverage for side effects across existing segments, I would add only the new `partner` cases plus one preview and one non-preview guard to prove behavior stayed intact.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:29:24.199437Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58a9-42bc-7f01-8576-2753ba8a162b.1783898915516892000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

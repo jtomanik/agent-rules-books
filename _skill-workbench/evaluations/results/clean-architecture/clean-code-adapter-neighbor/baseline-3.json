@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/clean-code-adapter-neighbor.md",
+  "case_sha256": "4266be276a1e743926aecda816a6e2fe0a6fa15dca1de25318d1b0769a375fde",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5858-5846-7b32-acc2-518c77115a0a",
+  "exit_code": 0,
+  "result": {
+    "answer": "The helper is behaviorally fine; the main issues are local readability and the opaque boolean mode.\n\nA tighter version, keeping the mapper in the adapter and preserving signature and behavior, is:\n\n```ts\ntype UserRow = {\n  user_id: string;\n  display_name: string | null;\n  deleted_at: Date | null;\n};\n\ntype UserRecord = {\n  id: string;\n  label: string;\n  active: boolean;\n};\n\nfunction m(x: UserRow, b: boolean): UserRecord {\n  const row = x;\n  const useUserIdWhenLabelBlank = b;\n\n  const trimmedDisplayName = row.display_name === null ? \"\" : row.display_name.trim();\n  const label = useUserIdWhenLabelBlank && trimmedDisplayName === \"\"\n    ? row.user_id\n    : trimmedDisplayName;\n\n  return {\n    id: row.user_id,\n    label,\n    active: row.deleted_at === null,\n  };\n}\n```\n\nWhy this is better:\n- `x`, `y`, and `b` are the real readability problem. If the function signature cannot change, local aliases are the least invasive fix.\n- `useUserIdWhenLabelBlank` makes the boolean mode legible at the decision point instead of forcing the reader to infer semantics.\n- Splitting `trimmedDisplayName` from final `label` removes mutation and makes the fallback rule obvious.\n- The existing comment is low value because it restates the code. If a comment is kept at all, it should explain the mode, not the mechanics.\n\nComment guidance:\n- Best option: remove the comment entirely.\n- Acceptable option if the boolean is still hard to understand from call sites:\n\n```ts\n// When enabled, blank display names fall back to the database user id.\n```\n\nI would not introduce any domain terminology, ports, or layers here. This is a private adapter mapper, so the improvement should stay purely local and mechanical.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:00:13.048683Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5858-4e58-72c0-b184-188d14f86742.1783893610073862000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:00:49.754939Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5858-5846-7b32-acc2-518c77115a0a.1783893612614428000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

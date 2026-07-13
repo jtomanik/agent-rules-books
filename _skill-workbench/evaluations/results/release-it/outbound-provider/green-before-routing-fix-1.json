@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/outbound-provider.md",
+  "case_sha256": "420500ae5fd787a2e9919b3b0bbbb67e620f27ac56b3631d066e7d74b79028c2",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5346-3797-7361-bcfa-b98b90750999",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n\n1. Critical: outbound payment calls can wait forever and ignore the checkout deadline. In code line 20, `provider.post(...)` does not receive `requestSignal`, and config lines 4-5 set both payment timeouts to `0` which means no deadline. Line 14 also waits on `Semaphore.acquire()` indefinitely. This is enough to reproduce the load-test collapse: slow/hung provider calls occupy request workers and slots until nothing else can run.\n\n2. Critical: a database transaction is opened before the remote call and held across retries and sleeps. Line 15 starts `beginTransaction()` before the provider request, then lines 18-38 keep that transaction open while the dependency is slow or failing. That amplifies the outage into DB pool pressure and longer checkout latency.\n\n3. High: retries are duplicated and effectively unbounded relative to the 2.5s checkout budget. Config line 1 enables SDK retries for transport/`429`/`5xx`, and lines 18-38 add four more application-level attempts with fixed 100ms sleeps. That can produce retry storms against an already overloaded provider, while also keeping local workers busy too long.\n\n4. High: malformed `200` responses are not validated before state is committed. Line 26 assumes JSON, but the provider can return HTML with status `200`. Today that is treated like a generic exception and retried repeatedly; if the body is JSON-shaped but wrong, lines 28-33 can still persist bad data because `authorization_id` and `state` are never validated.\n\n5. High: fallback buffering is unbounded. Line 42 pushes into `pendingAuthorizations`, while config line 6 declares capacity `0` meaning unbounded. During a prolonged provider incident this turns dependency failure into unbounded memory/backlog growth.\n\n6. Medium: `PAYMENT_MAX_IN_FLIGHT=400` is not safe unless it is explicitly below worker and DB-pool capacity. Combined with indefinite waits, it allows the integration to monopolize process capacity instead of failing fast.\n\nSmallest production-ready changes before 100% traffic:\n\n1. Put a real end-to-end deadline on the integration.\nSet explicit connect/response timeouts, pass `requestSignal` into `provider.post`, and bound semaphore acquisition by the same request deadline. If no slot is available quickly, stop waiting.\n\n2. Do not hold a DB transaction open during the provider call.\nBegin the transaction only after a validated authorization response is ready to persist, or when writing the pending fallback record.\n\n3. Use one retry layer only, with a strict budget.\nThe smallest safe fix is to disable SDK retries or remove the outer retry loop. Keep at most a small number of retries for clearly transient failures (`429`, transport, `5xx`), add backoff with jitter, and stop retrying once the request budget is nearly exhausted.\n\n4. Validate the provider response before commit.\nRequire success status, expected content type, parseable JSON, and required fields with sane values. Treat HTML `200`, parse failures, and schema mismatches as provider failure, not success.\n\n5. Bound pending work.\nSet a finite `PENDING_AUTHORIZATION_CAPACITY` and enforce it before enqueueing. When the queue is full, return an explicit retryable checkout failure instead of accepting more work.\n\n6. Lower and justify the in-flight cap.\n`PAYMENT_MAX_IN_FLIGHT` must be a deliberate bulkhead tied to worker/connection capacity and provider tolerance, not a large guess. Start conservatively and increase only from measurements.\n\nRequired behavior by failure mode:\n\n- Slow provider: wait only within the checkout budget; if the slot cannot be acquired or the call times out, stop retrying, release local resources, and either enqueue bounded pending work or fail the checkout as retryable.\n- Overloaded provider (`429`/`5xx`): retry only briefly with jitter and low attempt count; do not let retries exceed the caller budget; if overload persists, degrade to bounded pending or fast failure.\n- Unavailable provider / transport failure: same as overload, but with immediate timeout discipline; never wait indefinitely and never hold DB resources open while waiting.\n- Malformed response (`200` + HTML or bad JSON/schema): treat as dependency failure, record diagnostics/metrics, do not persist authorization state from that response, and do not retry aggressively unless you have evidence it is transient.\n\nMinimum observability to add with these changes: separate metrics/logging for `slot_acquire_timeout`, provider timeout, retry count, `429`, malformed response, pending queued, and pending queue full. Without that, rollout risk remains hard to manage.\n\nResidual open question: the exact numeric values for timeouts, retry budget, queue capacity, and in-flight cap need to be set from worker-pool size, DB-pool size, and the provider\u2019s demonstrated latency distribution. The current values are not production-safe.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:23:22.544901Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5346-3797-7361-bcfa-b98b90750999.1783808538520294000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

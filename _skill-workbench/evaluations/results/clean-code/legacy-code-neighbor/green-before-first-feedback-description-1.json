@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/legacy-code-neighbor.md",
+  "case_sha256": "f188119e75f1f1994886544057a92077f18eb9e7dee00e828f17634283bcbf6e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5366-7f72-7200-8f51-6ce397f33f6b",
+  "exit_code": 0,
+  "result": {
+    "answer": "Treat this as a legacy-code change, not a rule tweak. The current behavior is not controlled: no tests, real DB construction in the constructor, hidden time dependency, and unknown external callers. The safe order is to gain control first, then change semantics.\n\nFirst, learn and pin down the behavior that must not move:\n- What `process(accountId)` means to callers today: does `true` mean \"account was suspended just now\" or something broader?\n- Exact current outcomes for: missing account, already suspended account, overdue account, not-yet-overdue account, SQL failure, and any `null`/unexpected `due_at` data.\n- Time semantics: exact boundary rule, timezone/source of `due_at`, and whether \"7 days\" means 7x24 hours from `due_at` or calendar-day business policy.\n- Whether any callers outside the repo rely on immediate suspension once `due_at < now`.\n\nThe smallest dependency intervention I would make first is additive constructor parameterization for the database connection, while keeping the existing public constructor for production callers. That breaks the first real barrier without changing public behavior. After that, add focused characterization tests around `process` as it behaves today. If faking raw JDBC objects is too brittle, use the cheapest reliable harness that still gives fast feedback; the point is to observe current behavior before changing it.\n\nOnce current behavior is protected, make one small structural move to separate policy from JDBC mechanics: extract the suspension decision into a tiny pure method or helper that takes `dueAt`, `suspended`, and \"now\" as inputs. Then introduce the time seam needed for deterministic tests, preferably by passing a `Clock`/`Instant` into that extracted decision path rather than redesigning the class. This structural step stays behavior-preserving: first prove it still suspends immediately when `due_at < now`.\n\nOnly after that should the new rule be added. Add new tests for the grace-period policy separately from the characterization tests: not overdue, overdue by less than 7 days, overdue by exactly the boundary you choose, overdue by more than 7 days, and already suspended. Then change only the extracted policy from \"due_at before now\" to \"now is beyond due_at plus 7 days\".\n\nKeep the work split by intent:\n1. Control step: add the minimal DB seam and characterize current behavior.\n2. Structural step: extract the suspension decision and introduce deterministic time input, with no semantic change.\n3. Behavior step: change the rule to apply the seven-day grace period.\n\nThat sequence is safest because it reduces constructor/DB/time risk first, preserves compatibility for external callers, and keeps structural work separate from the actual business-rule change.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

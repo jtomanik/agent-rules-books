@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55ae-8b12-7781-860d-85ad1bf3530b",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n\n1. `fetchCarrierQuote` has no finite wait before it gets a carrier slot, so checkout can block past its 2500 ms budget before the HTTP call even starts. `Semaphore.acquire()` waits indefinitely, and the function does not tie that wait to `requestSignal` or any derived deadline. For an optional quote, this violates the required degraded behavior and can turn carrier saturation into checkout latency propagation.\n\n2. The outbound call is not bounded by the checkout request lifetime. `carrierClient.post()` is not given `requestSignal`, and `timeoutMs=2000` does not cover connection establishment. A connect stall or a request that outlives the caller can keep running after checkout should already have fallen back to `{ kind: \"unavailable\" }`, holding one of the 32 in-flight slots and reducing capacity for later requests.\n\n3. The integration does not enforce the provider contract on responses. It accepts any JSON body as `kind: \"available\"` without checking HTTP 200, content type, or `{ amount, currency, expires_at }` validity. That means a 4xx/5xx response, HTML error page, or malformed JSON payload can be misclassified or can escape as a bogus quote instead of being treated as either a contract problem or an unavailable quote.\n\nSmallest changes before merge:\n\n1. Put one end-to-end deadline around the whole integration, not just the response body wait. Use the checkout budget or remaining request time for both semaphore acquisition and the HTTP call. If the slot cannot be acquired before that deadline, return `{ kind: \"unavailable\" }` immediately.\n\n2. Pass cancellation through explicitly. Give `Semaphore.acquire()` a signal or deadline if supported; otherwise wrap it in a deadline-aware race. Pass `requestSignal` (or a child signal with the carrier deadline) into `carrierClient.post()` so queue wait, connect, and response wait all stop when checkout no longer cares.\n\n3. Validate and classify the response explicitly before returning `available`:\n- Require `response.status === 200`.\n- Require JSON content.\n- Parse and validate `amount` as finite and non-negative, `currency` as a three-letter string, and `expires_at` as a valid ISO-8601 timestamp.\n- Treat `429`, `5xx`, timeout, abort, and transport failure as `{ kind: \"unavailable\" }`.\n- Treat provider `4xx` and malformed `200` payloads as contract/request failures in logs/metrics, but still degrade checkout to `{ kind: \"unavailable\" }` unless product explicitly wants hard failure.\n\nThat is the minimum pre-merge hardening I would require. Retries are already correctly disabled; the main gap is that the integration is not currently fail-fast, deadline-bounded, or contract-validating.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

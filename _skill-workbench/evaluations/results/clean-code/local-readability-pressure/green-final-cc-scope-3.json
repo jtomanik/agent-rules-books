@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58ce-6e75-7070-a275-5e8bb9a8f90e",
+  "exit_code": 0,
+  "result": {
+    "answer": "Preserve `finalize()`\u2019s side-effect flow and change only discount selection. Under a 45-minute release window, the safest patch is to isolate discount computation into a small helper or local block, then add tests around the new rule and the two thresholds.\n\nPatch plan:\n1. Add a focused discount helper inside `InvoiceService` or as a private method so the behavioral edit is localized.\n2. Introduce the new rule: `partner` accounts get a base discount of `0.15` when `invoice.total >= 500`.\n3. Keep the existing large-invoice increment unchanged: totals `> 1000` still add `0.05` on top of whatever base discount applies.\n4. Leave `preview`, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, and `lastInvoiceId` behavior unchanged.\n5. Do not broaden this into a structural rewrite of `finalize(preview, sendEmail)` despite the flag-argument smell; that is outside the safe release scope.\n\nRevised sketch:\n```ts\ntype DiscountRate = number;\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(account: Account, invoice: Invoice): DiscountRate {\n    let discount = 0;\n\n    if (account.segment === \"vip\") {\n      discount = 0.1;\n    }\n\n    if (account.segment === \"partner\" && invoice.total >= 500) {\n      discount = 0.15;\n    }\n\n    if (invoice.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.discountFor(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount calculation for `partner` only, specifically when `invoice.total >= 500`.\n- In scope: preserving the existing `> 1000` additive rule unless product explicitly says the new partner discount replaces it.\n- Out of scope: method signature changes, boolean-flag redesign, rounding changes, audit payload changes, email content/dispatch changes, persistence behavior changes, or any rewrite of `lastInvoiceId` handling.\n\nTests required before shipping:\n- `partner` + total `499.99`: no new partner discount.\n- `partner` + total `500`: returns `discount = 0.15` and correct `amount`.\n- `partner` + total `1000`: still `0.15`, not `0.20`.\n- `partner` + total `1000.01` or `1001`: `discount = 0.20` if additive behavior is intended.\n- Existing `vip` cases still return `0.10`, and `vip` + `>1000` still returns `0.15`.\n- Existing `standard` cases still return `0` or `0.05`.\n- One non-preview partner test proving unchanged side effects: `accounts.save`, optional `mailer.send`, and `audit.record` still receive the discounted `amount`.\n- One preview partner test proving no side effects and `changed: false` remain intact.\n\nOne requirement ambiguity should be resolved immediately: whether partner accounts above `1000` should receive `20%` total discount (`15% + 5%`) or have the new rule cap them at `15%`. My default recommendation is additive, because that preserves all prior behavior outside the newly introduced partner condition.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:09:52.111560Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58ce-6e75-7070-a275-5e8bb9a8f90e.1783901351541254000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

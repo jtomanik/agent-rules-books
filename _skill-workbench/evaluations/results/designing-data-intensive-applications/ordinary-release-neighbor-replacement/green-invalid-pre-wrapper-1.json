@@ -1,0 +1,40 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/ordinary-outbound-deadline.md",
+  "case_sha256": "e36fb927113591edb2d1482aec5933927fdcc8ebccd3e522427dc1656910d32b",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5876-9eb9-75e3-af6d-1f73341b3863",
+  "exit_code": 0,
+  "result": {
+    "answer": "It does not meet the contract.\n\nThe function degrades to `{ kind: \"unavailable\" }` on error, and the client already satisfies the `no retry` requirement. The gap is the deadline: `recommendationClient.get()` has no default timeout, so this call can wait longer than 150 ms or indefinitely instead of allowing checkout to continue after 150 ms.\n\nSmallest correction before merge: put an explicit 150 ms timeout on this outbound call and keep the existing fallback.\n\nExample shape:\n\n```ts\nexport async function fetchRecommendation(\n  cartId: string,\n): Promise<RecommendationResult> {\n  try {\n    const response = await recommendationClient.get(`/carts/${cartId}`, {\n      signal: AbortSignal.timeout(150),\n    });\n    return { kind: \"available\", recommendation: await response.json() };\n  } catch {\n    return { kind: \"unavailable\" };\n  }\n}\n```\n\nIf this client uses a different timeout mechanism, use that instead; the required behavior is an explicit per-call 150 ms deadline with no retry.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "release-it",
+        "sections": [
+          "[]"
+        ]
+      }
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [
+    "consulted_reference_sections must exactly match skills whose full.md was read: sections=['release-it'], full=[]",
+    "reference_mode ordinary requires SKILL.md files and no references"
+  ],
+  "stderr": ""
+}

@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5371-38e6-7fe1-99b4-87ed82d34988",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest safe change is not \u201cadd another branch\u201d inline inside `finalize`; it is to extract the pricing decision into one local helper and change only that helper\u2019s logic. That keeps the behavior change isolated from the existing persistence, email, audit, preview, and `lastInvoiceId` flow.\n\nAssumption to lock before merge: the new `partner` rule composes with the existing `i.total > 1_000` rule. Under that reading, a `partner` account gets `0.15` discount at totals `>= 500`, and still gets the extra `0.05` when total is `> 1_000`, for `0.20` total. That is the most literal way to \u201cpreserve all behavior outside that rule.\u201d If product intended a flat capped 15%, that must be clarified explicitly because it changes the existing high-total behavior for partner invoices.\n\nConcrete patch plan:\n1. Extract discount/amount computation out of `finalize` into a private helper such as `priceInvoice(account, invoice)` or `calculateDiscount(account, invoice)`.\n2. Implement the new rule only in that helper: `vip` stays `0.10`; `partner` gets `0.15` only when `invoice.total >= 500`; all other cases stay as today; then preserve the existing `if (i.total > 1_000) d += 0.05` behavior.\n3. Keep `finalize` side effects unchanged: preview return shape, balance mutation, `accounts.save`, `lastInvoiceId`, optional `mailer.send`, `audit.record`, and final return payload.\n4. Do not widen scope into removing boolean flags, redesigning the service, or changing repository/mailer/audit interfaces in this release window.\n\nA revised sketch:\n\n```ts\ntype FinalizeResult = {\n  amount: number;\n  discount: number;\n  changed: boolean;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean): FinalizeResult {\n    const { amount, discount } = this.priceInvoice(a, i);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n\n  private priceInvoice(a: Account, i: Invoice): Pick<FinalizeResult, \"amount\" | \"discount\"> {\n    let discount = 0;\n\n    if (a.segment === \"vip\") {\n      discount = 0.10;\n    } else if (a.segment === \"partner\" && i.total >= 500) {\n      discount = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return {\n      discount,\n      amount: i.total * (1 - discount),\n    };\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount calculation for `partner` accounts at `invoice.total >= 500`, plus the smallest extraction needed to make that rule readable and testable.\n- Out of scope: changing `preview`/`sendEmail` flags, changing return types beyond an optional named alias, altering audit payloads, changing persistence/email timing, touching `lastInvoiceId` semantics, or broader cleanup motivated by the upcoming rewrite.\n\nTests required before shipping:\n1. Existing tests for return value and calls to `accounts.save`, `mailer.send`, and `audit.record` must stay green unchanged.\n2. Add a preview test for `partner` with total `500` asserting `{ discount: 0.15, amount: 425, changed: false }` and no save/send/audit calls.\n3. Add a non-preview test for `partner` with total `500` asserting balance decrement by `425`, `accounts.save` called with mutated account, `audit.record` amount `425`, and `mailer.send` amount `425` when enabled.\n4. Add a boundary test for `partner` with total `499.99` asserting no 15% discount.\n5. Add a composition test for `partner` with total `1_200` asserting `discount === 0.20` and `amount === 960`, assuming the additive interpretation above.\n6. Keep or add a regression test showing `vip` behavior is unchanged: `0.10` below `1_000`, `0.15` above `1_000`.\n7. Keep or add a regression test showing `standard` behavior is unchanged: `0` below `1_000`, `0.05` above `1_000`.\n8. Keep or add a regression test that non-preview paths still drive side effects exactly once and preview still drives none.\n\nUnder the 45-minute constraint, this is the right trade: one tiny extraction, one local behavior change, and a focused boundary-oriented test set. Anything larger is rewrite energy disguised as delivery.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

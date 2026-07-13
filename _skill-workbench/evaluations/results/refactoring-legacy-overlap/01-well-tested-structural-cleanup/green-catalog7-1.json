@@ -1,0 +1,46 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5872-eddc-7b70-b402-cc279d84ebf3",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small-step refactoring sequence, with the current focused tests run after every step.\n\n1. Keep `OrderPricer.price(order)` as the entrypoint and preserve the returned `Price` shape exactly.\n2. Extract subtotal calculation into a private helper such as `calculateSubtotalCents(items)`. This is the safest first move because it has one clear responsibility and no policy branching.\n3. Extract discount calculation into `calculateDiscountCents(order, subtotalCents)`. Keep the gold-tier threshold logic exactly as-is, including `Math.floor` and the `10_000` cutoff.\n4. Introduce an explicit intermediate value in `price`: `discountedSubtotalCents = subtotalCents - discountCents`. Do this before touching shipping so the sequencing stays obvious in review.\n5. Extract shipping calculation into `calculateShippingCents(order, discountedSubtotalCents)`. Preserve the current precedence exactly: international shipping wins first; free domestic shipping applies only otherwise.\n6. Keep tax assembly in the main method or extract a very small helper if it reads better, but preserve `taxableCents = discountedSubtotalCents + shippingCents` and `Math.floor(taxableCents * 0.2)` exactly.\n7. Return the final object from `price` with the same fields, same values, and same derivation order.\n\nA reviewable end state is a thin orchestration method that reads top-down: subtotal, discount, discounted subtotal, shipping, taxable amount, tax, total. The helpers should stay private and computation-only.\n\nWhere this cleanup should stop:\n- Stop once `price` is easy to read and each calculation step has one obvious home.\n- Do not change the public API, output type, rounding behavior, thresholds, or the order in which rules depend on earlier results.\n- Do not introduce strategy objects, policy classes, rule engines, configuration tables, or separate modules yet. There is not enough variation here to justify that abstraction.\n- Do not collapse everything into a generic `calculateCharge(...)` pipeline; that would make review harder and risks smuggling behavior changes into \u201ccleanup\u201d.\n\nThe main invariants to protect during refactoring are:\n- discount is based on raw subtotal\n- free domestic shipping is based on subtotal after discount\n- international shipping overrides free domestic shipping\n- tax is computed after discount and shipping\n- all monetary rounding remains `Math.floor` in the same places\n\nThat is the right boundary for a structural cleanup before new pricing behavior: extract coherent calculations, make dependencies explicit, and stop before inventing a broader design.",
+    "selected_project_skills": [
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "refactoring",
+        "sections": [
+          "Primary Directive",
+          "Safety Rules",
+          "Preferred Refactoring Moves",
+          "Function-Level Rules",
+          "Class and Module Rules",
+          "Rules for Working with Conditionals",
+          "Data and Mutation Rules",
+          "Stopping Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:29:15.056048Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-cb1f-7f62-9145-e14e123fa87e.1783895345951829000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:30:00.503525Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-eddc-7b70-b402-cc279d84ebf3.1783895354845396000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

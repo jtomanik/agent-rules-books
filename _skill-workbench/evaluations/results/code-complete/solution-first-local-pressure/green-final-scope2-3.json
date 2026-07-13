@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/solution-first-local-pressure.md",
+  "case_sha256": "ee5c773939df1918985c87ff93cdd22a4766d30bc2dc0125f36cb99008949587",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58da-cf54-7360-9400-465a45306b49",
+  "exit_code": 0,
+  "result": {
+    "answer": "Accept only a two-phase bulk handler, not a loop wrapped around the single-item path.\n\nConstruction decision: introduce one bulk-specific request routine that does all trust-boundary validation up front and returns a typed `BulkActivateRequest { accountIds: DistinctAccountId[] }`. Only if that succeeds should control flow enter a per-account execution loop that records one closed outcome per valid ID: `activated | already-active | not-found | unauthorized`. Do not use catch-all error handling for expected outcomes, and do not collapse results to \"attempted\"; that destroys required behavior and hides defects.\n\nSmallest implementation slice I would accept:\n\n```ts\n// Trust boundary output: impossible to reach execution with malformed input.\ntype BulkActivateRequest = {\n  accountIds: AccountId[]; // 1..100, distinct, already validated\n};\n\ntype ItemResult =\n  | { accountId: AccountId; status: 'activated' }\n  | { accountId: AccountId; status: 'already-active' }\n  | { accountId: AccountId; status: 'not-found' }\n  | { accountId: AccountId; status: 'unauthorized' };\n\ntype BulkActivateResponse = {\n  results: ItemResult[];\n  summary: {\n    activated: number;\n    alreadyActive: number;\n    notFound: number;\n    unauthorized: number;\n    total: number;\n  };\n};\n\nfunction parseBulkActivateRequest(body: unknown): BulkActivateRequest | ValidationError {\n  if (!isPlainObject(body)) return invalid('body must be an object');\n  if (!Array.isArray(body.accountIds)) return invalid('accountIds must be an array');\n  if (body.accountIds.length < 1 || body.accountIds.length > 100) {\n    return invalid('accountIds must contain 1 to 100 items');\n  }\n\n  const validated: AccountId[] = [];\n  const seen = new Set<string>();\n\n  for (const raw of body.accountIds) {\n    const id = parseAccountId(raw);\n    if (!id) return invalid('every accountId must be valid');\n    if (seen.has(id.value)) return invalid('accountIds must be distinct');\n    seen.add(id.value);\n    validated.push(id);\n  }\n\n  return { accountIds: validated };\n}\n\nasync function bulkActivate(body: unknown, actor: Actor): Promise<BulkActivateResponse | ValidationError> {\n  const request = parseBulkActivateRequest(body);\n  if (isValidationError(request)) return request;\n\n  const results: ItemResult[] = [];\n\n  for (const accountId of request.accountIds) {\n    if (!(await authz.canActivate(actor, accountId))) {\n      results.push({ accountId, status: 'unauthorized' });\n      continue;\n    }\n\n    const outcome = await accounts.activate(accountId); // typed collaborator outcome\n    switch (outcome.kind) {\n      case 'activated':\n        results.push({ accountId, status: 'activated' });\n        break;\n      case 'already-active':\n        results.push({ accountId, status: 'already-active' });\n        break;\n      case 'not-found':\n        results.push({ accountId, status: 'not-found' });\n        break;\n      default:\n        assertNever(outcome);\n    }\n  }\n\n  return {\n    results,\n    summary: summarize(results),\n  };\n}\n```\n\nWhy this is the minimum acceptable slice:\n\n- Validation is isolated at the trust boundary, so malformed shape, bad count, duplicate IDs, or invalid IDs fail before any authorization, persistence, or audit side effects.\n- Per-account authorization stays explicit and local to each valid ID.\n- Expected business outcomes are modeled as data, not exceptions.\n- Summary is derived from item results, so it cannot drift from the detailed response.\n- The normal path is inspectable; there is no \"catch everything and keep going\" branch that would mask unexpected faults.\n\nFocused tests I would require before accepting it:\n\n- Rejects non-object body with no collaborator calls.\n- Rejects missing/non-array `accountIds` with no collaborator calls.\n- Rejects count `0` and `101` with no collaborator calls.\n- Rejects one invalid ID with no collaborator calls.\n- Rejects duplicate IDs with no collaborator calls.\n- For valid input, returns one result per input ID in input order.\n- Marks unauthorized IDs as `unauthorized` and does not call activation for them.\n- Maps typed activation outcomes to `activated`, `already-active`, and `not-found` exactly.\n- Derives summary counts from results, including `total`.\n- Propagates unexpected collaborator failures instead of converting them into fake business results.\n\nI would reject the manager\u2019s shortcut because it mixes trust-boundary validation with side effects, relies on broad exception handling for normal control flow, and throws away required per-item outcomes. The two-account demo working is not evidence that the construction is correct.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

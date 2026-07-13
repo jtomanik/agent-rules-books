@@ -1,0 +1,56 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5338-588e-7ad2-9533-82e6ef7a2c6b",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded change: keep the constructor, database calls, transaction boundary, return values, and exception propagation exactly as they are, and only move the due check from `nextChargeAt` to `nextChargeAt + 48h`.\n\nA minimal implementation shape is:\n\n```ts\nconst GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;\n\nchargeIfDue(): \"charged\" | \"not-due\" {\n  const account: AccountRow = this.database.accounts.find(this.accountId);\n  const now = new Date();\n  const nextChargeAt = new Date(account.nextChargeAt);\n  const graceDeadline = new Date(nextChargeAt.getTime() + GRACE_PERIOD_MS);\n\n  if (graceDeadline <= now) {\n    this.database.transaction(() => {\n      this.database.charges.insert({\n        accountId: account.id,\n        amountCents: account.balanceCents,\n        chargedAt: now.toISOString(),\n      });\n      this.database.accounts.markCharged(account.id, now.toISOString());\n    });\n    return \"charged\";\n  }\n\n  return \"not-due\";\n}\n```\n\nWhy this is the safest version:\n- It preserves the current inclusive comparator behavior at the boundary by still using `<=`, just against the grace deadline instead of `nextChargeAt`.\n- It uses an absolute 48-hour duration in milliseconds, so it does not reinterpret timestamps in local calendar time.\n- It preserves the current single `now` capture, current transaction wrapping, and current exception behavior.\n- It likely preserves current invalid-date behavior too: an unparsable `nextChargeAt` still evaluates as not due rather than introducing a new throw path.\n\nProduct decisions that must be resolved instead of inferred:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h`, or only strictly after that moment? The current code is inclusive at `nextChargeAt`, but that may be accidental.\n- Meaning of \u201c48-hour grace period\u201d: is it a literal 48 elapsed hours, or \u201c2 local calendar days\u201d in some billing timezone? Those are not equivalent across DST and offset differences.\n- Timestamp contract: are stored `nextChargeAt` values guaranteed to be UTC/offset-qualified ISO timestamps, or are some legacy/local-time strings present? If legacy local strings exist, the current runtime may parse them differently by host timezone.\n- Invalid timestamp policy: if `nextChargeAt` is malformed, should billing skip, alert, or fail? Current behavior appears to skip charging.\n- Existing caller contract: do callers rely on exceptions from `find`, `transaction`, `insert`, or `markCharged` propagating unchanged? Safest plan is to preserve that until explicitly changed.\n\nSafest verification plan:\n- Add characterization tests before changing behavior, using a fake/stub `BillingDatabase` and a controllable clock. Do not start with staging.\n- Characterize today\u2019s behavior for:\n  - before `nextChargeAt` -> `\"not-due\"`, no writes\n  - exactly at `nextChargeAt` -> currently `\"charged\"`\n  - transaction and exception propagation -> errors still surface, and no extra rescue logic is added\n  - invalid `nextChargeAt` -> confirm whether it currently returns `\"not-due\"`\n- Add grace-period tests for:\n  - 1 ms before `nextChargeAt + 48h` -> `\"not-due\"`\n  - exactly at `nextChargeAt + 48h` -> expected result depends on the unresolved boundary decision\n  - after `nextChargeAt + 48h` -> `\"charged\"`\n  - explicit offset cases like `2026-07-10T12:00:00Z` and `2026-07-10T12:00:00-05:00` -> verify the deadline is 48 elapsed hours later, not local-midnight based\n- If possible, inject the clock or stub `Date` in tests so the assertions are deterministic.\n- Use staging only for one narrow smoke test after unit tests pass: create or identify one isolated overdue account whose charge timing is safely beyond the grace window, run once, and verify one charge row plus `markCharged` effect. Avoid broad fixture exploration or cleanup-sensitive scenarios in the shared staging database.\n\nRecommendation summary: implement only the due-threshold shift, preserve all other behavior, and block release on an explicit product answer for the exact 48-hour boundary and the definition of \u201c48-hour\u201d versus \u201c2 local days.\u201d",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Implement the grace period by shifting only the due threshold to `nextChargeAt + 48h` and preserve transaction, return-value, and exception behavior unchanged.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Use an absolute millisecond duration for 48 hours rather than local calendar-day arithmetic, because local-time interpretation is explicitly uncertain.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Add characterization tests first for current boundary, invalid-date, and exception behavior before changing the logic, since the team does not know whether current behavior is relied upon.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Require a product decision on whether charging exactly at the grace deadline is allowed, instead of inferring it from the current `<= nextChargeAt` comparison.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Defer broad staging validation and use at most one isolated smoke test after deterministic tests, because the shared staging database is slow and cleanup-sensitive.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:08:15.135786Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5338-588e-7ad2-9533-82e6ef7a2c6b.1783807629455228000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

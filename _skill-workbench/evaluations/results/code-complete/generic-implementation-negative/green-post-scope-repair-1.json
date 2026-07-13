@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/generic-implementation-negative.md",
+  "case_sha256": "e5e0789d2b0abfc834e073cfaae1b867464493069729eb267096489b388d15fc",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58c1-fcb2-7cd1-b19b-2c0f66aab70a",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use the direct two-branch implementation below:\n\n```ts\nexport function clamp(value: number, minimum: number, maximum: number): number {\n  if (value < minimum) {\n    return minimum;\n  }\n\n  if (value > maximum) {\n    return maximum;\n  }\n\n  return value;\n}\n```\n\nRepresentative tests:\n\n```ts\nimport { clamp } from \"./clamp\";\n\ndescribe(\"clamp\", () => {\n  it(\"returns the minimum when value is below range\", () => {\n    expect(clamp(2, 5, 10)).toBe(5);\n  });\n\n  it(\"returns the maximum when value is above range\", () => {\n    expect(clamp(12, 5, 10)).toBe(10);\n  });\n\n  it(\"returns the original value when already in range\", () => {\n    expect(clamp(7, 5, 10)).toBe(7);\n  });\n});\n```\n\nReview: for the stated contract, this implementation is complete and correct. It preserves `value` unchanged inside the inclusive range and clamps only the two out-of-range cases.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

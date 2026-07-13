@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55d1-cd04-7761-9d3c-e4db7a4c5693",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest order:\n\n1. Clarify the rule edges first.\n2. Add deterministic test control and characterization around the current eligibility behavior.\n3. Consolidate the duplicated eligibility check into one owner with no semantic change.\n4. Add the new 60-day introductory rule in that single owner.\n\nWhy this order is safest:\n\nThis code is legacy by the evidence given: no focused tests, hard-wired database construction, direct clock reads, and only one slow happy-path end-to-end test. Changing semantics or extracting shared logic before gaining control would be edit-and-pray.\n\nThe first real barriers are the hidden clock and internally constructed database. Break those first with the smallest seam that preserves production behavior, for example defaulted constructor injection of a database collaborator and a `now()` function. Then add focused tests that characterize the current outcomes of both `previewCredit()` and `applyCredit()` for the existing gate:\n- `state === \"active\"`\n- `balanceCents >= 0`\n- `!manualHold`\n- current paid and introductory behavior\n\nOnce those tests exist, do the consolidation as a behavior-preserving refactor. That is safer before the 60-day rule because it reduces two change points to one while the old behavior is still protected. Reviewers can verify that patch as pure ownership cleanup: both methods now delegate to one eligibility decision, but outcomes stay the same.\n\nAfter that, add the 60-day rule in the new owner. That makes the semantic patch small, local, and easy to review: one intentional behavior change, one place.\n\nWhy the alternatives are worse:\n\n- Add the 60-day rule first: unsafe because there is no focused feedback and the rule depends on time.\n- Extract first without tests: unsafe structural surgery in unprotected code.\n- Add the 60-day rule in both duplicated sites and extract later: safer than edit-and-pray, but still inferior because it duplicates a new rule temporarily, creates two semantic change points, and makes divergence between `previewCredit()` and `applyCredit()` more likely.\n- Big redesign of repositories/services first: too much motion for a narrow requirement.\n\nDecisions to clarify before implementation:\n\n- Threshold semantics: is \u201colder than 60 days\u201d strictly `> 60 days`, or should `>= 60 days` be ineligible?\n- Time calculation: exact elapsed time from `startedAt` to `now`, or calendar-day comparison?\n- `startedAt: null` for introductory subscriptions: should that be ineligible, eligible, or treated as invalid data that should fail loudly?\n- Time zone/parsing contract for `startedAt`: is it always a valid ISO instant?\n- Ownership target: is one clear owner acceptable as a private pure predicate/helper near `PromotionWorker`, or is there an existing domain policy type where eligibility should live?\n- Scope check: are `previewCredit()` and `applyCredit()` the only automatic-credit entry points that must share this rule?\n\nReviewable patch boundaries:\n\nPatch 1: deterministic control only\n- Introduce the minimal seam for database and clock.\n- Keep public production construction behavior unchanged by default.\n- Add focused characterization tests for current preview/apply eligibility outcomes.\n- No business-rule change.\n\nPatch 2: shared ownership only\n- Extract a single eligibility owner, ideally a pure predicate over `subscription` and `now`.\n- Make both methods delegate to it.\n- No behavior change; tests from patch 1 stay green unchanged.\n\nPatch 3: semantic change only\n- Add the introductory-subscription 60-day ineligibility rule in the single owner.\n- Add threshold tests, paid-subscription non-regression tests, and `startedAt` edge-case tests based on the clarified decision.\n\nThat sequence gives control first, then a behavior-preserving simplification, then the requested rule change. It minimizes mixed intent, keeps each patch reviewable, and lowers the chance of silently changing outcomes outside the new requirement.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

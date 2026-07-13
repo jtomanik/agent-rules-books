@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585a-5d59-7ab1-a96c-e880d4981f8f",
+  "exit_code": 0,
+  "result": {
+    "answer": "The shortcut is not safe. Broker transactions and producer idempotence do not give exactly-once correctness across the database, broker offset, and email side effect here.\n\nFindings:\n- Duplicate/replay defect: the process can crash after the database commit and before `message.ack()`. On restart, the same message is redelivered. `orders.markConfirmed(...)` might be harmless if it is a monotonic state transition, but `ledger.insert(...)` is a second durable write with no shown idempotency key or uniqueness guard, so replay can create duplicate ledger entries.\n- Replay defect: topic replay is an intentional rebuild mechanism. This consumer is not replay-safe because replay would reapply ledger writes and resend receipts. A rebuild path cannot share the same uncontrolled external side effects.\n- Ordering defect: ordering is only per partition key, but the topic is keyed by `customer_id`, and the facts say events for the same order may land on different partitions. That means there is no per-order total order. With `max_concurrency: 48`, duplicates or retries for the same order can run concurrently and race unless the database enforces a per-event or per-order idempotency invariant.\n- Side-effect defect: `email.sendReceipt(...)` is outside the database transaction and the provider does not support idempotency keys. If send succeeds but the process crashes before `ack`, the retry sends a second receipt. If send times out with unknown outcome, the consumer cannot distinguish \"not sent\" from \"sent but response lost\", so automatic retry can also produce a duplicate receipt.\n- Exactly-once claim is misapplied: broker transactions can usually atomically coordinate broker-side effects such as produced records and committed offsets. They do not make the database write and the email send part of one exactly-once unit.\n\nWhat must change before launch:\n- Keep deduplication. Persist a stable processed-event record keyed by event/message ID inside the same database transaction as the order/ledger mutation, and make the ledger write idempotent with a unique constraint or equivalent invariant.\n- Do not send email inline from this consumer. Write a durable outbox/intention record in the same database transaction, then have a separate sender process it.\n- Because the email provider has `idempotency_key: unsupported` and `timeout_outcome: unknown`, you cannot guarantee \"never send the same receipt twice\" with blind retries. Before launch, either use a provider/API with idempotent send or add a reconciliation mechanism that can resolve unknown success before any retry. Without that, the stated correctness requirement is unattainable.\n- If per-order ordering matters, repartition by `order_id` or redesign the consumer so correctness does not depend on cross-partition order.\n- Provide a replay mode that rebuilds projections without re-triggering external side effects such as email.\n\nApproval decision: do not approve the consumer unchanged, and do not remove the idempotency table before launch.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:03:02.364101Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585a-5d59-7ab1-a96c-e880d4981f8f.1783893744986187000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

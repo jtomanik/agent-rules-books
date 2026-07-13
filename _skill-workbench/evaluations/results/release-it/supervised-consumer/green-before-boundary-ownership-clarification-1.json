@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f536c-9125-7422-89a2-c50de8cab5d3",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is neither \u201ccrash on every exception\u201d nor \u201ccatch everything and ack.\u201d In this setup, `throw` on every delivery is unsafe because `max_deliveries: 0`, no DLQ, `prefetch: 100`, six replicas, and `restart: always` turn a single poison message into a fleet-wide restart/redelivery storm. A broad catch plus `ack()` is also unsafe because it converts transient dependency failure and unknown bugs into silent data loss.\n\nUse three explicit classes of outcome.\n\n1. Quarantine and continue for non-retryable message defects.\nThese are failures where the delivery itself is bad: JSON parse failure, missing required fields, wrong types, impossible domain values. Do not crash the process and do not keep retrying the same delivery. Reject to a quarantine path and continue. In practical terms, add a dead-letter/quarantine queue and route these messages there with reason metadata; without that, `ack()` would hide bad input and `throw` would hot-loop forever.\n\n2. Retry with bounds, then pause intake, for dependency failure.\n`503`, timeout, and `200` with malformed JSON from `inventoryClient` are dependency failures, not bad queue messages. The message may succeed later, so it should not be quarantined and must not be acked. Handle them with an explicit timeout, bounded retry budget, and backoff/jitter for the outbound call. If that budget is exhausted, stop taking new work and leave the message for later redelivery through a delayed retry path or an operator-controlled pause. Do not crash the process for each such failure, because a crash redelivers up to 100 unacked messages per replica immediately and amplifies the outage.\n\n3. Crash only for compromised process state.\nCrash when the process can no longer be trusted to handle any message safely: invariant corruption, broken shared client state that cannot be reinitialized safely, unrecoverable config/startup mismatch, resource exhaustion, or truly unknown fatal errors that escape classification. That is the proper \u201clet it crash\u201d boundary. A per-delivery bad input or upstream outage does not meet that bar.\n\nMinimal changes needed to make this safe and testable:\n\n- Add explicit classification in the consumer: `MalformedMessage -> quarantine`, `RetryableDependencyFailure -> retry/pause`, `FatalProcessFailure -> crash`.\n- Validate the consumed message before any side effect. Parsing and shape/domain validation must be separate from dependency handling.\n- Configure a quarantine queue. Right now `dead_letter_exchange: null` makes poison handling impossible.\n- Replace infinite/immediate retry behavior with bounded retry semantics. `dependency_timeout_ms: 0` is unsafe; set a real timeout. Do not rely on unlimited broker redelivery for transient outages.\n- Add delayed retry or consumer pause behavior after retry exhaustion. Immediate redelivery of the same message under outage conditions is the failure amplifier here.\n- Make readiness reflect ability to make progress, not just broker connectivity. `broker_connection_is_open` is not enough if inventory is timing out or returning garbage. Readiness should go false when the consumer is intentionally paused or the dependency breaker is open.\n- Make supervisor crash behavior non-thrashing. Nonzero restart limits and materially larger backoff are needed so a true fatal bug does not cause synchronized rapid restarts across all six replicas.\n- Ensure duplicate delivery is safe. Because ack happens after commit, a crash after commit but before `ack()` will replay the message. Enforce idempotency on `eventId` and treat duplicate replays as success, or the retry/crash policy is not actually safe.\n\nA precise policy for this consumer:\n\n- `JSON.parse` fails or event validation fails: quarantine message, log structured reason, continue.\n- `inventoryClient` returns `503`, times out, or returns malformed JSON: bounded retry with timeout/backoff; if still failing, pause intake or send through delayed retry path; do not ack; do not crash.\n- Database deadlock/temporary connection issue: same class as transient dependency failure if the transaction is known safe to retry.\n- Duplicate `eventId` on replay after prior success: ack as already processed.\n- Invariant breach or unclassified fatal error suggesting the worker cannot trust its own state: crash the process.\n\nThat gives you a defensible boundary:\n\n- Bad message: quarantine.\n- Bad dependency day: retry, then pause.\n- Bad process state: crash.\n\nAnything broader loses data; anything harsher creates restart storms.",
+    "selected_project_skills": [
+      "release-it",
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md",
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T23:05:41.214419Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-9125-7422-89a2-c50de8cab5d3.1783811051813449000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

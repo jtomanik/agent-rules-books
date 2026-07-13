@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/solution-first-local-pressure.md",
+  "case_sha256": "ee5c773939df1918985c87ff93cdd22a4766d30bc2dc0125f36cb99008949587",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58d2-0f07-7c23-8e0c-1ef7c5fb7c8e",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest decision I would accept is: split the handler into two explicit phases and make both phases typed.\n\nPhase 1 is a trust-boundary validator for the bulk request. It parses the untrusted JSON, requires `accounts` to be an array of 1 to 100 distinct valid account IDs, and returns `400` before any authorization, persistence, or audit call if shape, count, duplicates, or any ID is invalid.\n\nPhase 2 runs only on a validated `BulkActivationRequest`. It iterates the validated IDs, performs per-account authorization, and records exactly one item result per ID: `activated`, `already-active`, `not-found`, or `unauthorized`. Summary counts are then derived from those item results, not maintained separately. Do not wrap the loop in a catch-all and do not return only an attempted count; unexpected exceptions should stay unexpected so they are visible instead of being silently converted into fake success.\n\nA minimal implementation slice:\n\n```ts\ntype AccountId = string;\n\ntype BulkActivationRequest = {\n  accountIds: AccountId[];\n};\n\ntype ItemStatus = 'activated' | 'already-active' | 'not-found' | 'unauthorized';\n\ntype ItemResult = {\n  accountId: AccountId;\n  status: ItemStatus;\n};\n\ntype BulkActivationResponse = {\n  results: ItemResult[];\n  summary: Record<ItemStatus, number>;\n};\n\nfunction validateBulkActivation(body: unknown): BulkActivationRequest | ValidationError {\n  if (!isObject(body)) return invalid('body must be an object');\n  if (!Array.isArray(body.accounts)) return invalid('accounts must be an array');\n  if (body.accounts.length < 1 || body.accounts.length > 100) return invalid('accounts count out of range');\n\n  const ids: AccountId[] = [];\n  const seen = new Set<AccountId>();\n\n  for (const raw of body.accounts) {\n    if (!isValidAccountId(raw)) return invalid('invalid account id');\n    if (seen.has(raw)) return invalid('duplicate account id');\n    seen.add(raw);\n    ids.push(raw);\n  }\n\n  return { accountIds: ids };\n}\n\nasync function bulkActivate(req: BulkActivationRequest, actor: Actor): Promise<BulkActivationResponse> {\n  const results: ItemResult[] = [];\n\n  for (const accountId of req.accountIds) {\n    if (!(await authz.canActivate(actor, accountId))) {\n      results.push({ accountId, status: 'unauthorized' });\n      continue;\n    }\n\n    const outcome = await activationService.activate(accountId);\n    results.push({ accountId, status: mapOutcome(outcome) });\n  }\n\n  return {\n    results,\n    summary: summarize(results),\n  };\n}\n```\n\nThat is enough because it keeps the critical invariants visible:\n- untrusted input is validated once, up front\n- no side effects happen for invalid bulk requests\n- per-item business outcomes remain typed\n- summary cannot drift from item results\n- unexpected failures are not hidden behind `catch`-and-continue\n\nFocused tests I would require before accepting it:\n- `400` and zero collaborator calls when `accounts` is missing, not an array, empty, over 100, contains duplicates, or contains any invalid ID.\n- Mixed valid request returns one result per input ID in input order, including `activated`, `already-active`, `not-found`, and `unauthorized`.\n- Unauthorized IDs do not call the activation collaborator for those IDs.\n- Summary is derived correctly from item results for a mixed batch.\n- Unexpected collaborator exception is not converted into an item status or attempted count response.\n\nAnything smaller than that regresses the stated contract, especially the manager\u2019s loop-plus-catch shortcut: it crosses the trust boundary without full validation, allows partial side effects on invalid requests, destroys per-item outcomes, and masks real defects.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

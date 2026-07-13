@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5347-49ba-7550-8960-ef289a9f403f",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommendation**\nShip this as a local seam, not as another inline branch in `finalize`. Under the current time pressure, the safest move is to extract discount calculation into a small pure method and change only that logic.\n\n**Exact Scope Boundary**\n- Change only discount determination for `partner` accounts.\n- Preserve all existing behavior for `standard` and `vip` accounts.\n- Preserve preview vs non-preview flow, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, and `lastInvoiceId` behavior.\n- Preserve the existing `i.total > 1_000` extra 5% rule for every segment, including `partner`, because that behavior is outside the new requirement.\n- Do not broaden this into pricing-policy redesign, repository/interface changes, or unrelated cleanup.\n\n**Concrete Patch Plan**\n1. Add a private pure helper such as `discountFor(account, invoice)`.\n2. Move the current VIP and `> 1000` logic into that helper unchanged first.\n3. Add the new partner rule there: base discount is `0.15` when `segment === \"partner\" && total >= 500`, otherwise `0` for partner.\n4. Keep the existing `> 1000` extra `0.05` additive rule after base discount selection.\n5. Leave the rest of `finalize` structurally unchanged except replacing the inline discount code with the helper call.\n\n**Revised Function Sketch**\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\ntype Invoice = {\n  id: string;\n  total: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(a: Account, i: Invoice): number {\n    let d = 0;\n\n    if (a.segment === \"vip\") {\n      d = 0.1;\n    } else if (a.segment === \"partner\" && i.total >= 500) {\n      d = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      d += 0.05;\n    }\n\n    return d;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.discountFor(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n}\n```\n\n**Tests Required Before Shipping**\n- `partner` with `total = 499.99` gets no partner discount.\n- `partner` with `total = 500` gets `0.15` discount exactly.\n- `partner` with `total = 1000` gets `0.15` discount, not `0.20`.\n- `partner` with `total = 1000.01` gets `0.20` discount because the old `> 1000` rule still applies.\n- Existing `vip` case still gets `0.10`, and `0.15` when `> 1000`.\n- Existing `standard` case still gets `0`, and `0.05` when `> 1000`.\n- One non-preview `partner` case asserts returned amount plus unchanged collaborator behavior: `accounts.save`, optional `mailer.send`, and `audit.record` still receive the discounted amount.\n- One preview `partner` case asserts `changed: false` and no persistence/side-effect calls.\n\n**Why This Is the Right Cut**\nThis follows the smallest-safe-change approach: isolate the calculation seam, add focused coverage at the new thresholds, and avoid mixing the behavioral change with broader cleanup in a method that already carries side effects.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:24:11.924090Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5347-49ba-7550-8960-ef289a9f403f.1783808608698718000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

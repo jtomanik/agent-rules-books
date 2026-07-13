@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/ordinary-derived-projection.md",
+  "case_sha256": "30b6a09a3b8e39fdbc3f5f2b22f4640691b695e28825d764bf858f2b5ae608dd",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5854-c26c-7fa0-8a50-dbedc51429ad",
+  "exit_code": 0,
+  "result": {
+    "answer": "The direct dual-write is not acceptable as the correctness mechanism under these facts.\n\n`products` is the authority, the rename API is successful once PostgreSQL commits, and search is explicitly an eventually consistent projection. In that model, the search update path cannot rely on a best-effort inline write that may fail silently and only self-heal on a later edit. That creates unbounded staleness, which violates the stated `up to ten minutes` tolerance because there is no guaranteed propagation, no durable replay position, and no rebuild path.\n\nThe smallest design correction is:\nUse PostgreSQL CDC as the authoritative propagation path for product-name changes, and make the search update an asynchronous derived projection with a durable consumer checkpoint and idempotent apply semantics. The inline `search.documents.update(...)` can be removed, or kept only as a latency optimization, but it must not be the only path and it must not own correctness.\n\nMinimum contract needed:\n\n- Propagation: every committed product rename must be emitted from PostgreSQL and eventually applied to search without requiring any later product edit. Search application must be idempotent.\n- Lag visibility: the system must expose projection freshness, at minimum enough to detect and alert when search is more than ten minutes behind the PostgreSQL source position or event timestamp.\n- Rebuild: there must be a supported way to recreate the search projection from the PostgreSQL authority, either by full backfill from `products` into a new index or by replay from a retained CDC position plus bootstrap snapshot. Without this, the projection is not recoverable.\n- Repair: failed search applies must retry automatically until success, or land in a durable retry/dead-letter flow with explicit replay. Repair cannot depend on another rename happening later.\n\nSo the ownership boundary should be:\nPostgreSQL owns truth; CDC owns propagation; the search index is a disposable projection. The current direct dual-write is acceptable only as a non-authoritative fast path layered on top of that.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T21:56:59.448827Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5854-c26c-7fa0-8a50-dbedc51429ad.1783893377736209000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

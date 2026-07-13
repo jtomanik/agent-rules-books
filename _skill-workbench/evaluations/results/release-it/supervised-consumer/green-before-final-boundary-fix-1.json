@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5354-5ea7-70d1-8b8e-a715b6213843",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Decision**\n\nNeither extreme is correct here. With this broker and supervisor setup, `throw` is not a controlled retry policy; it is an immediate fleet-wide redelivery loop. A broad catch that logs and `ack`s is also wrong because it turns transient failures and poison messages into silent data loss.\n\nThe safe boundary is:\n\n- `Quarantine + ack`: message-specific, deterministic bad input.\n  Examples: invalid JSON in `message.body`, missing/invalid `event.id` or `event.sku`, impossible domain values.\n  Rule: move the raw message plus failure reason to a quarantine queue, then `ack` the original only after quarantine succeeds.\n\n- `Retry, then pause`: dependency failures where the process is still healthy.\n  Examples: inventory `503`, timeout, network failure, and `200` with malformed JSON or invalid response shape.\n  Rule: use bounded in-process retries with explicit timeout and backoff/jitter. If retries are exhausted, do not `ack`. Under the current broker config, do not crash to \"retry\"; pause consumption / mark unready because crash just causes immediate redelivery across replicas.\n\n- `Crash`: only when the process state itself is no longer trustworthy.\n  Examples: invariant breach, unrecoverable client/library corruption, repeated fatal bug, OOM, or a state where the consumer can no longer safely decide whether to `ack`, quarantine, or retry.\n  Rule: let these escape and rely on the supervisor, but only for this narrow class.\n\n**Why**\n\n- `max_deliveries: 0` and no dead-letter queue mean per-message exceptions are retried forever.\n- Process exit makes all unacked deliveries immediately eligible again.\n- `restart: always` with 6 replicas and near-zero backoff amplifies one poison message into a restart storm.\n- Current readiness only checks broker connectivity, so the service can be \"ready\" while the dependency path is unusable.\n\n**Needed changes only**\n\n1. Classify failures explicitly instead of one catch-all rethrow.\n   Use three branches: `MalformedMessage`, `RetriableDependencyFailure`, `FatalProcessState`.\n\n2. Add a real quarantine path.\n   Configure a dead-letter/quarantine exchange or equivalent poison queue. For malformed input, publish diagnostic context there and `ack` the source message only after that publish succeeds.\n\n3. Make dependency retry bounded and intentional.\n   Set a nonzero `dependency_timeout_ms`. Keep retries bounded, add backoff/jitter, and treat `503`/timeouts as retryable. Treat invalid `200` payloads as dependency contract failures, not as good messages.\n\n4. Do not use process crash as the retry mechanism for dependency failure.\n   After retry exhaustion, pause consumption and surface unhealthy state. If readiness is used operationally, it must reflect \"can process with dependencies,\" not just \"broker socket open.\" If the runtime cannot stop pulling when unready, add an explicit consumer pause/cancel hook.\n\n5. Bound broker-level retry before using it.\n   With the current settings, broker redelivery is unsafe. To use broker retry at all, add finite `max_deliveries` and a dead-letter destination. Without delayed redelivery, immediate requeue is still a hot loop, so pause is the safer exhaustion behavior.\n\n6. Keep crash handling for truly fatal state, and make supervisor behavior less explosive.\n   Keep restart-on-crash, but add a restart-rate cap and larger backoff so a fatal bug does not thrash all 6 replicas indefinitely.\n\n7. Verify retry safety with idempotency.\n   Redelivery after \"DB committed, `ack` not sent\" is possible. Safe retry requires `eventId` to be enforced as a durable uniqueness/idempotency key, or an equivalent dedupe mechanism.\n\n**Testable policy**\n\n- Unit tests: invalid body/schema => quarantined and acked.\n- Unit tests: `503`/timeout => retried with bounded attempts, then paused/unready, not acked.\n- Unit tests: malformed dependency `200` => classified as dependency failure, not quarantined as consumer input.\n- Integration test: quarantine publish failure => original message not acked.\n- Integration test: post-commit/pre-ack redelivery => duplicate effect prevented by idempotency key.\n- Supervisor/ops test: fatal error class exits process; ordinary dependency failures do not.\n\n**Bottom line**\n\n- Malformed message: quarantine, then ack.\n- Transient dependency failure: bounded retry, then pause; do not ack, do not crash-for-retry.\n- Compromised process state: crash.\n\nGiven this configuration, \"let every exception crash\" is unsafe, and \"catch everything and ack\" is data loss. The correct boundary is typed failure handling with quarantine for poison input, bounded retry plus pause for dependency trouble, and crash only for truly compromised process state.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:39:14.110703Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5354-5ea7-70d1-8b8e-a715b6213843.1783809466024247000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

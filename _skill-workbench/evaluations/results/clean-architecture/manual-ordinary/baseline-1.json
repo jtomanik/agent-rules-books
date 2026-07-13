@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/manual-ordinary.md",
+  "case_sha256": "1b535838440eb629abeef9dfc149d7f0f0c9dc03d56d4ef5e008f8625696b472",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f587e-3b5d-70c0-9b50-189f08a2f314",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a single focused application use case: `ApproveOrder`.\n\nKeep the core rule in the application layer and make everything around it depend inward:\n\n- `ApproveOrderInput`: `{ orderId: string, approvedBy: string, approvedAt: Date }`\n- `ApproveOrderOutput`: `{ orderId: string, status: \"APPROVED\" }`\n- `ApproveOrder` use case:\n  1. Load the order through an application-owned `OrderRepository` port.\n  2. Reject when the current status is not `PENDING`.\n  3. Persist the state change through the same port.\n  4. Publish an `OrderApproved` integration event through an application-owned `OrderEventPublisher` port.\n  5. Return plain output data.\n\nSuggested application boundary:\n\n```ts\nexport type ApproveOrderInput = {\n  orderId: string;\n  approvedBy: string;\n  approvedAt: Date;\n};\n\nexport type ApproveOrderOutput = {\n  orderId: string;\n  status: \"APPROVED\";\n};\n\nexport interface OrderRepository {\n  findById(id: string): Promise<OrderRecord | null>;\n  markApproved(cmd: {\n    orderId: string;\n    approvedBy: string;\n    approvedAt: Date;\n  }): Promise<void>;\n}\n\nexport interface OrderEventPublisher {\n  publishOrderApproved(event: {\n    orderId: string;\n    approvedBy: string;\n    approvedAt: Date;\n  }): Promise<void>;\n}\n```\n\n`OrderRecord` should be an application type, not a Prisma row type. The use case can stay very small:\n\n```ts\nexport class ApproveOrder {\n  constructor(\n    private readonly orders: OrderRepository,\n    private readonly events: OrderEventPublisher,\n  ) {}\n\n  async execute(input: ApproveOrderInput): Promise<ApproveOrderOutput> {\n    const order = await this.orders.findById(input.orderId);\n    if (!order) throw new OrderNotFoundError(input.orderId);\n    if (order.status !== \"PENDING\") {\n      throw new OrderCannotBeApprovedError(order.id, order.status);\n    }\n\n    await this.orders.markApproved({\n      orderId: order.id,\n      approvedBy: input.approvedBy,\n      approvedAt: input.approvedAt,\n    });\n\n    await this.events.publishOrderApproved({\n      orderId: order.id,\n      approvedBy: input.approvedBy,\n      approvedAt: input.approvedAt,\n    });\n\n    return { orderId: order.id, status: \"APPROVED\" };\n  }\n}\n```\n\nOuter adapters should absorb the fixed infrastructure contracts:\n\n- Prisma adapter implements `OrderRepository`.\n  - It owns `PrismaClient` usage.\n  - It maps Prisma rows to `OrderRecord`.\n  - It performs the fixed PostgreSQL update shape required by the existing persistence contract.\n- Kafka adapter implements `OrderEventPublisher`.\n  - It owns topic names, producer details, and message serialization.\n  - The application never imports Kafka types.\n- HTTP controller stays thin.\n  - Map HTTP request to `ApproveOrderInput`.\n  - Invoke the use case.\n  - Map domain/application errors to the fixed HTTP response contract.\n\nComposition root wiring is where concrete dependencies belong:\n\n```ts\nconst prisma = new PrismaClient();\nconst kafkaProducer = makeKafkaProducer(...);\n\nconst orderRepository = new PrismaOrderRepository(prisma);\nconst eventPublisher = new KafkaOrderEventPublisher(kafkaProducer);\nconst approveOrder = new ApproveOrder(orderRepository, eventPublisher);\n```\n\nThis is the smallest ordinary design because it changes only the dependency direction and data ownership:\n\n- business rule in the use case\n- plain input/output at the boundary\n- application-defined ports\n- Prisma and Kafka pushed to adapters\n- object graph assembled once in the composition root\n\nI would not add extra layers, retries, outbox redesign, or broader resilience concerns here, since the task asks for one ordinary boundary and PostgreSQL remains the authoritative store.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

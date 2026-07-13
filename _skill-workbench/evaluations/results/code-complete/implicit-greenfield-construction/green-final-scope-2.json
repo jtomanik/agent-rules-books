@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/implicit-greenfield-construction.md",
+  "case_sha256": "d4b5c44ed1d1cf15a79c61af5ae7805bb640ce7bd8ee9538629982ef83dca4da",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58ca-fa6a-7fc1-932e-9fe409dc377c",
+  "exit_code": 0,
+  "result": {
+    "answer": "Recommend a two-level contract: batch-level fatal errors for cases where the module could not meaningfully run at all, and per-record outcomes for everything that is specific to one input record.\n\nUse this first production slice:\n\n1. Trust boundary and validation\n- Accept a top-level JSON array of objects, or one explicit envelope type if the caller already has one. Do not let raw maps cross inward past the import adapter.\n- Parse each raw JSON object into a dedicated input DTO, then validate into a typed `ImportRecord`/domain command object.\n- Validation should produce field-specific reasons, not a generic invalid flag. Keep these reasons at the import boundary; the repository should only see typed valid records.\n- Separate phases clearly: `parse JSON -> validate raw record -> build typed record -> import typed record`.\n\n2. Invalid-record policy\n- Do not fail the whole batch because one record is invalid.\n- Return one outcome per input record so the caller can see which records were imported, invalid, or duplicate.\n- Fail the whole batch only for fatal batch problems such as malformed top-level JSON, unsupported top-level shape, or inability to use the repository at all.\n\n3. Duplicate representation\n- Represent duplicates explicitly as outcomes, not exceptions.\n- Distinguish at least these cases:\n  - `duplicate_in_batch(id)` for a repeated ID later in the same import request.\n  - `duplicate_in_repository(id)` for a valid record whose ID already exists in the repository.\n- Keep the first valid occurrence as the one eligible for repository import; later repeated IDs in the same batch should be marked as duplicates without calling the repository again.\n\n4. Routine and control-flow shape\n- Use one orchestrating routine with a simple linear flow:\n  - validate batch shape\n  - initialize `seenIds`\n  - iterate records in input order\n  - validate record\n  - check `seenIds`\n  - call repository for valid non-duplicate record\n  - append outcome\n  - return batch summary plus ordered outcomes\n- Keep repository calls out of validation logic and keep validation out of the repository.\n- Preserve input order in results so callers can correlate outcomes without extra mapping.\n\n5. Error contract to the caller\n- Main return type should be something like `Result<ImportBatchResult, ImportBatchError>`.\n- `ImportBatchResult` should contain:\n  - ordered per-record outcomes\n  - summary counts such as `imported`, `invalid`, `duplicate_in_batch`, `duplicate_in_repository`\n- `ImportBatchError` should be reserved for fatal batch-level failures only, for example:\n  - invalid top-level JSON / envelope\n  - repository unavailable / unexpected repository failure\n- Do not use exceptions or fatal errors for ordinary invalid records or duplicates.\n\n6. Smallest integration boundary with the typed repository\n- The smallest useful boundary is a repository port that accepts only typed valid records and answers whether the insert succeeded or the ID already existed.\n- Prefer a single operation like `insertIfAbsent(typedRecord) -> Inserted | AlreadyExists`.\n- Avoid pushing duplicate policy, JSON parsing, or validation details into the repository.\n- Avoid a wider boundary such as raw JSON, bulk persistence, or upsert semantics in the first slice.\n\n7. Smallest reviewable implementation slice\n- One import use case for a batch of records.\n- One input validator/mapper from untrusted JSON object to typed record.\n- One typed repository port with `insertIfAbsent` semantics.\n- One result model with per-record outcomes and summary counts.\n- No persistence-policy expansion, no retries, no performance work, no streaming, no partial transaction semantics.\n\nTests required for the first merge:\n- Boundary tests:\n  - malformed top-level JSON returns `ImportBatchError`\n  - top-level JSON of wrong shape returns `ImportBatchError`\n  - repository receives only typed valid records\n- Invalid-input tests:\n  - missing required field produces `invalid` outcome with reason\n  - wrong field type produces `invalid` outcome with reason\n  - multiple invalid records still return a normal batch result with mixed outcomes\n- Duplicate tests:\n  - repeated ID inside one batch yields `duplicate_in_batch` for the later occurrence\n  - repository existing ID yields `duplicate_in_repository`\n  - invalid record with duplicate-looking data does not enter duplicate tracking unless ID validation succeeded\n- Mixed-result tests:\n  - one batch containing imported, invalid, and both duplicate kinds returns ordered per-record outcomes and correct summary counts\n  - processing continues after invalid and duplicate records\n- Control-flow tests:\n  - later in-batch duplicates do not call the repository\n  - valid unique records call the repository once each in input order\n\nThis gives the team a small, reviewable first slice with a clear trust boundary, explicit caller contract, and no premature persistence or operational design.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-architecture",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:06:16.349407Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58ca-fa6a-7fc1-932e-9fe409dc377c.1783901125226533000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

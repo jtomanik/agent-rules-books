@@ -1,0 +1,43 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/manual-focused.md",
+  "case_sha256": "5eedbaf2961c3140e16a4ada3001e1230a1cb557f6fee7f7fd08f19edc758ae4",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f587f-2455-71f0-b53f-470485080536",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a validated table, not the `if` chain.\n\nReasoning under the requested guidance:\n- `Statement, Conditional, and Loop Rules` says to use table-driven methods when repeated branching is stable and the table can be validated.\n- `Table-Driven and Data-Driven Rules` says to prefer data-driven logic over long repeated condition chains when the mapping is stable and explicit, and to keep the structure obvious and validated.\n- `Testing Rules` says to test normal, boundary, invalid-input, defensive-check, and complex data-driven cases.\n\nFor a fixed six-cell `(zone, service) -> shipping cents` mapping, the table is the smaller construction risk because it removes repeated control flow and makes completeness inspectable in one place. An `if` chain is only competitive when the rule is genuinely algorithmic or unstable; that is not the case stated here.\n\nSmallest representation:\n- Use closed-set types for `zone` and `service`.\n- Use one dense total table indexed by those types, for example a 2D array or nested constant table with exactly six literal cent values.\n- Keep lookup logic trivial: validate/assert indices or keys, then return the table cell.\n- Do not introduce a more abstract encoding, parser, or indirection layer.\n\nSmallest validation tests:\n1. One table-driven test that asserts all six expected `(zone, service)` pairs return the exact cents.\n2. One completeness/shape test that proves the table has exactly every legal combination and no missing cell.\n3. If `zone` or `service` can come from outside trusted code, one invalid-input test per dimension proving unknown values are rejected explicitly rather than defaulted silently.\n\nSo the decision is: replace the `if` chain with a small validated total table, backed by closed enums and minimal completeness tests.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "code-complete",
+        "sections": [
+          "Primary Directive",
+          "Statement, Conditional, and Loop Rules",
+          "Table-Driven and Data-Driven Rules",
+          "Testing Rules",
+          "Final Instruction"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:42:35.405546Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f587f-22f0-7ff0-a127-a7293572fb80.1783896154865587000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:43:07.632884Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f587f-2455-71f0-b53f-470485080536.1783896155221553000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

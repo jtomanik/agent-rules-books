@@ -1,0 +1,42 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/manual-focused-bounded.md",
+  "case_sha256": "fce5f59791b13bd907f0f953eaacfd0ec6de2d7bfaf59cfb10360d9644ca640d",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5895-e6ab-7b53-b289-da4693a17fa8",
+  "exit_code": 0,
+  "result": {
+    "answer": "Reviewer B is correct under the book\u2019s dependency rule.\n\nA plain interface is not enough by itself. The issue is not only whether the use case depends on an abstraction, but who owns that abstraction and which direction the source dependency points. If `CustomerStore` is declared in the infrastructure package beside `SqlCustomerStore`, then the use case must import an outer-layer package to name the interface. That is still an outward source dependency, so the dependency rule is violated.\n\nThe clean-architecture guidance is explicit on this point:\n- Inner layers own the interfaces they need; outer layers implement them.\n- Infrastructure must implement interfaces owned by inner layers.\n- A forbidden direction violation is a gateway interface defined in infrastructure and consumed by core policy.\n\nSo Reviewer A is only partially right: there is indirection, but not valid Clean Architecture ownership. This is reversed ownership, not proper dependency inversion.\n\nFinal arbitration: reject the current ownership interpretation. `CustomerStore` should be treated as application/domain-owned if a use case depends on it; infrastructure may implement it, but must not own the abstraction the use case imports. Against the book\u2019s final decision rule, the current arrangement fails because it does not keep dependencies pointing inward and does not keep infrastructure as a replaceable outer detail.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/clean-architecture/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/clean-architecture/references/index.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/clean-architecture/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "clean-architecture",
+        "sections": [
+          "Non-Negotiable Rules",
+          "Required Layer Responsibilities",
+          "Forbidden Patterns",
+          "Final Instruction"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:08:00.998216Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5895-e6ab-7b53-b289-da4693a17fa8.1783897646763348000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

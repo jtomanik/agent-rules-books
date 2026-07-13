@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/guess-driven-debugging-negative.md",
+  "case_sha256": "c7865c634aeaf84f4188190540d595af587074c4c2dd6a52804567e911750d63",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585f-1bd1-7193-b821-e47255fd081f",
+  "exit_code": 0,
+  "result": {
+    "answer": "Do not add the second retry yet. A retry is only justified after you can show that `write()` has completed, the subsequent `read()` is observing an older value for the same key, and the system contract actually allows delayed visibility.\n\nNext diagnostic steps:\n1. State the contract under test precisely: this test expects read-your-write behavior within the same session, immediately after `await store.write(...)` resolves.\n2. Reproduce with focused observation on this one path only. For the failing key, capture: write start/end, whether the cache entry is updated or invalidated during write, whether the post-write read is a cache hit or miss, the value/version seen in cache, the value/version in the backing store, and the session/connection/transaction identity used by both calls.\n3. Split the problem with the smallest possible probes or temporary instrumentation:\n- `write` then direct backing-store read\n- `write` then cache-bypassed read\n- `write` then normal cached read\nThis tells you whether the stale value lives in the cache, the underlying store visibility, or session scoping.\n4. Check whether `write()` resolves before the cache mutation or commit/flush actually completes. If so, the bug is likely in the write contract, not in the read path.\n5. Verify whether the failure is truly a race. Evidence for a race is not \u201ca retry makes it pass\u201d; it is a trace showing correct ordering intent but delayed propagation after `write()` resolves.\n\nEvidence needed before changing code:\n- One stable failing reproduction with timestamps or ordered events for a single key.\n- Proof of where the stale value came from: cache hit on old entry, backing store still old, or different session/transaction view.\n- Proof that the proposed fix targets that exact mechanism.\n\nMinimal evidence-supported corrections depend on what you find:\n- If backing store has `active` but cached read returns old data: update or invalidate that cache key synchronously in the write path.\n- If backing store is also stale after `write()` resolves: make `write()` await the commit/flush/propagation it claims to cover, or narrow the API contract if immediate visibility is not guaranteed.\n- If the test assumes a guarantee the system does not make: correct the test/spec, not production code.\n- Only if the contract is explicitly eventual and traces show bounded post-write propagation should a retry even be considered; even then, tightening the write/read boundary is usually a smaller and more correct fix than adding a blind second retry.\n\nThe immediate goal is characterization, not repair: establish the exact stale-read mechanism first, then choose the smallest fix that directly removes it.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:08:24.264761Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585f-1bd1-7193-b821-e47255fd081f.1783894055890133000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

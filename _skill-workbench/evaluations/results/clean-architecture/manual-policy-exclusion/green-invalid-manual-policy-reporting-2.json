@@ -1,0 +1,33 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f588b-a61d-7901-8709-b9d03772e116",
+  "exit_code": 0,
+  "result": {
+    "answer": "The proposed handler puts one application action across three layers at once: Next.js transport, Prisma persistence, and invoice policy. The smallest production design is one use case owned by the application layer, with plain models and two inward-owned ports.\n\n```ts\n// src/invoicing/application/create-invoice.ts\nexport type CreateInvoiceInput = {\n  orderId: string;\n};\n\nexport type CreateInvoiceOutput = {\n  invoiceId: string;\n  totalCents: number;\n};\n\nexport type OrderForInvoicing = {\n  id: string;\n  status: \"APPROVED\" | \"DRAFT\" | \"CANCELLED\";\n  lines: Array<{ amountCents: number }>;\n};\n\nexport interface LoadOrderForInvoice {\n  byId(orderId: string): Promise<OrderForInvoicing>;\n}\n\nexport interface SaveInvoice {\n  save(invoice: { orderId: string; totalCents: number }): Promise<{ id: string }>;\n}\n\nexport class CreateInvoice {\n  constructor(\n    private readonly loadOrder: LoadOrderForInvoice,\n    private readonly saveInvoice: SaveInvoice,\n  ) {}\n\n  async execute(input: CreateInvoiceInput): Promise<CreateInvoiceOutput> {\n    const order = await this.loadOrder.byId(input.orderId);\n\n    if (order.status !== \"APPROVED\") {\n      throw new OrderNotApprovedError(order.id);\n    }\n\n    const totalCents = order.lines.reduce((sum, line) => sum + line.amountCents, 0);\n    const invoice = await this.saveInvoice.save({ orderId: order.id, totalCents });\n\n    return { invoiceId: invoice.id, totalCents };\n  }\n}\n\nexport class OrderNotApprovedError extends Error {}\n```\n\nOwnership is then clear:\n\n- Application owns `CreateInvoiceInput` and `CreateInvoiceOutput`.\n- Application also owns the read model it needs, `OrderForInvoicing`, because that shape is driven by the use case, not by Prisma.\n- Application owns the interfaces `LoadOrderForInvoice` and `SaveInvoice`.\n- Prisma owns database records and query details.\n- Next.js owns HTTP parsing and HTTP responses.\n\nTranslation happens only in adapters:\n\n```ts\n// src/invoicing/adapters/http/create-invoice-route.ts\nimport type { NextRequest } from \"next/server\";\nimport { NextResponse } from \"next/server\";\nimport { makeCreateInvoice } from \"../wiring/make-create-invoice\";\nimport { OrderNotApprovedError } from \"../../application/create-invoice\";\n\nexport async function POST(request: NextRequest): Promise<NextResponse> {\n  const useCase = makeCreateInvoice();\n  const orderId = request.nextUrl.searchParams.get(\"orderId\");\n\n  if (!orderId) {\n    return NextResponse.json({ error: \"orderId required\" }, { status: 400 });\n  }\n\n  try {\n    const result = await useCase.execute({ orderId });\n    return NextResponse.json(\n      { id: result.invoiceId, totalCents: result.totalCents },\n      { status: 201 },\n    );\n  } catch (error) {\n    if (error instanceof OrderNotApprovedError) {\n      return NextResponse.json({ error: \"not approved\" }, { status: 409 });\n    }\n    throw error;\n  }\n}\n```\n\n```ts\n// src/invoicing/adapters/prisma/prisma-order-loader.ts\nimport { prisma } from \"@/infrastructure/prisma\";\nimport type { LoadOrderForInvoice, OrderForInvoicing } from \"../../application/create-invoice\";\n\nexport class PrismaOrderLoader implements LoadOrderForInvoice {\n  async byId(orderId: string): Promise<OrderForInvoicing> {\n    const row = await prisma.order.findUniqueOrThrow({\n      where: { id: orderId },\n      include: { lines: true },\n    });\n\n    return {\n      id: row.id,\n      status: row.status,\n      lines: row.lines.map((line) => ({ amountCents: line.amountCents })),\n    };\n  }\n}\n```\n\n```ts\n// src/invoicing/adapters/prisma/prisma-invoice-saver.ts\nimport { prisma } from \"@/infrastructure/prisma\";\nimport type { SaveInvoice } from \"../../application/create-invoice\";\n\nexport class PrismaInvoiceSaver implements SaveInvoice {\n  async save(invoice: { orderId: string; totalCents: number }): Promise<{ id: string }> {\n    const row = await prisma.invoice.create({ data: invoice });\n    return { id: row.id };\n  }\n}\n```\n\n```ts\n// src/invoicing/adapters/wiring/make-create-invoice.ts\nimport { CreateInvoice } from \"../../application/create-invoice\";\nimport { PrismaOrderLoader } from \"../prisma/prisma-order-loader\";\nimport { PrismaInvoiceSaver } from \"../prisma/prisma-invoice-saver\";\n\nexport function makeCreateInvoice(): CreateInvoice {\n  return new CreateInvoice(new PrismaOrderLoader(), new PrismaInvoiceSaver());\n}\n```\n\nThat is the smallest shape that keeps the approval rule and invoice creation action independent from Next.js and Prisma:\n\n- The use case contains the approval rule and total calculation.\n- The HTTP adapter only translates `NextRequest` to `CreateInvoiceInput` and `CreateInvoiceOutput` to JSON.\n- The Prisma adapters only translate between database rows and application-owned models.\n- Concrete wiring belongs in a composition root such as `makeCreateInvoice`, not inside the use case.\n\nI would not hide the approval rule inside a repository method like `loadApprovedOrderById()`, because that moves policy into persistence. The repository should load data; the use case should decide whether invoicing is allowed.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-architecture/references/index.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [
+    "reference_mode ordinary requires SKILL.md files and no references"
+  ],
+  "stderr": "2026-07-12T22:56:15.307159Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f588b-79b3-7d51-a9d4-087bfd345003.1783896963507890000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/clean-code-neighbor.md",
+  "case_sha256": "502d69767a6466a8d88d718582227c3dcafc6a558f491297c4179d8b7ac0e819",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5859-0eb0-76f0-a28c-a25ce655c906",
+  "exit_code": 0,
+  "result": {
+    "answer": "Smallest readability improvement: return directly from each branch, remove the flow-narrating comment, and name the boolean by intent at call sites if possible, but keep the exported signature unchanged.\n\nSuggested shape:\n```ts\nexport function displayTemperature(celsius: number, compact: boolean): string {\n  if (compact) {\n    return celsius.toFixed(1) + \"C\";\n  }\n\n  const fahrenheit = (celsius * 9) / 5 + 32;\n  return celsius.toFixed(1) + \" degrees Celsius / \" + fahrenheit.toFixed(1) + \" degrees Fahrenheit\";\n}\n```\n\nWhy this is the right scope:\n- Removes the temporary `result`, so the control flow is shorter and more explicit.\n- Keeps the exact signature and output unchanged.\n- Preserves the existing `compact` mode instead of introducing a broader API change.\n- Drops the comment because the code is already self-describing after the simplification.\n\nConcise tests:\n```ts\nit(\"formats compact Celsius output\", () => {\n  expect(displayTemperature(21, true)).toBe(\"21.0C\");\n});\n\nit(\"formats full Celsius and Fahrenheit output\", () => {\n  expect(displayTemperature(21, false)).toBe(\n    \"21.0 degrees Celsius / 69.8 degrees Fahrenheit\"\n  );\n});\n\nit(\"rounds negative values consistently in both modes\", () => {\n  expect(displayTemperature(-5.55, true)).toBe(\"-5.5C\");\n  expect(displayTemperature(-5.55, false)).toBe(\n    \"-5.5 degrees Celsius / 22.0 degrees Fahrenheit\"\n  );\n});\n```\n\nThis is a read-only analysis; no files were modified.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:01:17.652790Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-0eb0-76f0-a28c-a25ce655c906.1783893659312973000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

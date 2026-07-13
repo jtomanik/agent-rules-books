@@ -1,0 +1,50 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5875-8a54-7693-8334-6f1dc3ca20d4",
+  "exit_code": 0,
+  "result": {
+    "answer": "The shortcut is not safe. The consumer must not be approved unchanged, and the deduplication store must not be removed before launch.\n\nWhy it is unsafe:\n1. Broker exactly-once does not extend to `database.transaction(...)` or `email.sendReceipt(...)`. A crash after the DB commit and before the offset commit will replay the message. On replay, this handler can apply the same confirmation twice, insert duplicate ledger rows, and send the receipt again.\n2. Replay is an explicit supported operation for rebuilding projections. This consumer performs a user-visible side effect during replay. That makes replay itself unsafe unless receipt sending is separated from projection rebuild or explicitly suppressed.\n3. `email_provider.timeout_outcome: unknown` plus no provider idempotency key means timeout does not tell you whether the receipt was sent. Retrying can create a duplicate receipt, and not retrying can miss one. The current code has no durable recovery contract for that ambiguity.\n4. Ordering is not protected at the business key that matters. The topic is partitioned by `customer_id`, and you state events for the same order can land on different partitions. Broker ordering therefore does not give per-order ordering. With `max_concurrency: 48`, concurrent workers can race on the same order, and this handler has no per-order sequence/version check.\n5. The code is an uncoordinated multi-write: database state, external email side effect, and broker acknowledgment are treated as if one transaction covers them. It does not.\n\nWhat must change before launch:\n1. Keep a durable idempotency mechanism. The current idempotency table can stay, or it can be replaced by an equivalent processed-event table keyed by a stable event/message id in the same DB transaction as `markConfirmed` and `ledger.insert`.\n2. Make the DB effects idempotent. `orders.markConfirmed(...)` must be a no-op if already applied, and `ledger.insert(...)` needs a uniqueness rule tied to the business/event identity so replay cannot create a second financial entry.\n3. Remove direct receipt sending from the replayable consumer path. Record a durable send intent in the DB transaction, then deliver receipts from an outbox/side-effect worker. Replays must not re-send already-recorded receipts.\n4. Add an explicit unknown-success recovery contract for email. Because the provider does not support idempotency keys, you need local receipt state such as `pending | sent | unknown`, plus reconciliation/manual review for timeout ambiguity instead of blind retry.\n5. Protect ordering where correctness depends on it. Either repartition by `order_id` or enforce per-order version/sequence checks in storage so out-of-order or concurrent deliveries cannot apply stale work.\n\nLaunch recommendation: do not take the shortcut. Broker transactions here are not proof of exactly-once end-to-end correctness, and removing dedup before launch would knowingly reintroduce duplicate ledger and duplicate receipt defects.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Purpose",
+          "Primary Directive",
+          "Reliability Rules",
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Partitioning and Locality Rules",
+          "Transaction Rules",
+          "Derived Data Rules",
+          "Distributed Fault, Clock, and Consensus Rules",
+          "Review Rules",
+          "Forbidden Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:33:08.655261Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5875-8a54-7693-8334-6f1dc3ca20d4.1783895525972635000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5363-1013-7332-b1fd-ea13d058d87b",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest order:\n\n1. Add deterministic test control first, with no behavior change.\n2. Consolidate the duplicated eligibility condition behind one owner, still with no behavior change.\n3. Add the new 60-day introductory-subscription rule in that single owner.\n\nWhy this order is safest:\n\nDeterministic control has to come first because the new rule is time-based and the worker currently hard-codes both `new SubscriptionDatabase(...)` and `new Date()`. Without a controllable clock and database seam, any focused test for the 60-day cutoff is either impossible or brittle, and a refactor would be protected only by one slow happy-path E2E.\n\nConsolidation should come before the semantic change because the product requirement explicitly wants one clear eligibility owner and \u201cno other current outcome\u201d changed. If you first add the 60-day rule in both `previewCredit()` and `applyCredit()`, you create two behavior edits that must stay perfectly aligned, then refactor afterward. That raises the chance of drift and makes review harder because behavior change and duplication removal are mixed across both methods. Extracting once under characterization tests gives a reviewable no-op refactor, then the business rule becomes a one-place semantic patch.\n\nAdding the rule before deterministic test control is the riskiest alternative: you would be changing time-sensitive legacy logic without focused, reliable tests. Extracting before test control is also weaker than necessary: a no-op refactor in untested code is still safer than a semantic change, but you would still lack a reliable way to prove the refactor preserved behavior.\n\nDecisions to clarify first:\n\n- Boundary semantics: does \u201colder than 60 days\u201d mean strictly `> 60 days`, so exactly 60 days old is still eligible?\n- Time calculation: is this elapsed time to the second, or calendar-day based?\n- Source of truth for age: should `startedAt` be parsed as an instant in UTC, and what formats are valid?\n- Missing date behavior: if an `introductory` subscription has `startedAt: null`, is it ineligible, eligible, or a data error?\n- Scope: should the new rule affect both `previewCredit()` and `applyCredit()` identically? The requirement implies yes, but that should be confirmed explicitly.\n- Ownership shape: is a private worker method sufficient, or does the team want a separate pure eligibility function/service so it can be tested without the worker?\n\nReviewable patch boundaries:\n\nPatch 1: Testability seam + characterization tests only.\n- Inject or parameterize clock and subscription data access with production defaults preserved.\n- Add focused tests for current behavior of `previewCredit()` and `applyCredit()` around `state`, `balanceCents`, and `manualHold`.\n- No eligibility logic changes.\n\nPatch 2: Single-owner refactor only.\n- Move the duplicated predicate into one shared owner, ideally a pure eligibility function or a private method if you want minimal surface area.\n- Prove no behavior change by keeping Patch 1 tests green and not adding new semantics.\n\nPatch 3: 60-day rule only.\n- Extend the shared owner to reject `introductory` subscriptions older than 60 days.\n- Add boundary tests: under 60 days, exactly 60 days, over 60 days, and clarified `startedAt: null` behavior.\n- Confirm existing paid-subscription outcomes remain unchanged.\n\nIf the team wants the smallest possible first implementation, the shared owner can start as a private method on `PromotionWorker`. If they want the strongest long-term testability, make it a pure function that takes `subscription` and `now`; that keeps the business rule independent of database and transaction concerns.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "stderr": "2026-07-11T22:54:31.307181Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5363-1013-7332-b1fd-ea13d058d87b.1783810428948660000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

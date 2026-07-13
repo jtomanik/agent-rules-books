@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/focused-table-driven-decision.md",
+  "case_sha256": "d38e6595f090da1a24c56128db5647bd37c837cdabb2e412530cee872e0be641",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5858-2496-75c1-83ca-234fbcca26fc",
+  "exit_code": 0,
+  "result": {
+    "answer": "Code Complete would support either form, but for this specific function I would keep the current logic as a simple explicit decision unless this pricing matrix is expected to grow or be shared as data.\n\nWhy: the current code has only 6 stable combinations, each branch is direct, and there is no algorithmic noise. Table-driven methods are useful when they remove enough repetitive conditional structure to improve readability and maintainability. Here, a table is acceptable, but it is not clearly better on clarity alone; it mainly becomes better if you want exhaustiveness encoded as data and easier future extension.\n\nIf the team wants the smallest acceptable table-driven form, use a typed nested object, not a stringly keyed map or a 2D array:\n\n```ts\ntype Zone = \"local\" | \"regional\" | \"international\";\ntype Service = \"standard\" | \"express\";\n\nconst SHIPPING_CENTS = {\n  local: { standard: 400, express: 900 },\n  regional: { standard: 700, express: 1300 },\n  international: { standard: 1800, express: 3200 },\n} as const satisfies Record<Zone, Record<Service, number>>;\n\nexport function shippingCents(zone: Zone, service: Service): number {\n  return SHIPPING_CENTS[zone][service];\n}\n```\n\nThat is the minimal table representation that stays readable and preserves compile-time coverage. It also removes the now-unreachable `throw` for properly typed callers.\n\nValidation guidance:\n- If `zone` and `service` are truly trusted typed values, no extra runtime validation is needed.\n- If values can arrive from JSON, forms, URLs, or other untyped boundaries, validate before lookup and keep the error path there. Do not rely on TypeScript types alone for external input.\n\nTests to keep:\n- Exact-value tests for all 6 valid combinations.\n- A coverage-style test that asserts every `Zone x Service` combination is defined once.\n- If runtime inputs are possible: invalid zone, invalid service, both invalid, empty string, wrong casing, `null`/`undefined` via `as any`, and expected error behavior.\n\nResolution: a table is acceptable, but it is not clearly clearer here. For this small, stable matrix, the branch chain is defensible under Code Complete. Switch to the nested table only if the team values data-centric exhaustiveness or expects the matrix to expand.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:00:37.989644Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5858-2496-75c1-83ca-234fbcca26fc.1783893599426285000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55ad-1d0d-7311-9496-03c69f9c705f",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n1. High: the semaphore wait is unbounded, so saturation can exceed the checkout budget before the carrier call even starts. `Semaphore.acquire()` waits forever here, which violates the requirement to continue checkout with `{ kind: \"unavailable\" }` when the provider cannot answer within budget. Smallest fix: acquire with a deadline or abort signal tied to the checkout request budget, and treat acquisition timeout/abort as `unavailable`.\n2. High: the outbound call is not actually bounded by the request budget. `requestSignal` is ignored, and `timeoutMs` does not cover connection establishment, so DNS/TCP/TLS hangs can run past `CHECKOUT_REQUEST_TIMEOUT_MS=2500`. Smallest fix: pass an abort signal into `carrierClient.post()` and derive it from the checkout signal plus a quote-specific deadline; keep `CARRIER_RETRIES=0` as-is.\n3. Medium: response failure classes are collapsed incorrectly. The code treats provider `4xx`, `429`, `5xx`, invalid content type, bad JSON, and malformed `200` payloads all as generic `unavailable`. That hides contract bugs and allows invalid data through on success. Smallest fix: explicitly require `200`, JSON content, and a validated `{ amount, currency, expires_at }` shape before returning `available`; map only `429`, `5xx`, timeout, abort, and transport failure to `unavailable`; surface provider `4xx` and malformed `200` as integration/contract errors with error-level telemetry instead of the degraded-path warning.\n\nWhat is already acceptable:\n- No request-path retries are present, and the client has no implicit retries.\n- The semaphore release is in `finally`, so slots are not leaked after handled failures.\n\nRecommended pre-merge change set:\n1. Thread a single budgeted abort/deadline through both semaphore acquisition and the HTTP client call.\n2. Classify failures explicitly: `unavailable` only for `429`/`5xx`/timeout/abort/transport.\n3. Validate status, content type, JSON parse, and response fields before returning `available`.\n4. Log degraded availability separately from contract defects so rollout diagnostics are actionable.\n\nWithout those changes, this integration can hang past the checkout SLA and can silently mask carrier/request contract bugs as routine unavailability.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

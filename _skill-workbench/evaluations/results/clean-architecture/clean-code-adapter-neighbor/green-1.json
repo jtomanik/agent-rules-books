@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/clean-code-adapter-neighbor.md",
+  "case_sha256": "4266be276a1e743926aecda816a6e2fe0a6fa15dca1de25318d1b0769a375fde",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585d-5a34-7ec3-9a53-6037c3bdf6a1",
+  "exit_code": 0,
+  "result": {
+    "answer": "The main readability problems are local, not architectural:\n\n- `m`, `x`, `b`, and `y` hide intent. The reader has to reverse-engineer that this is a row-to-record mapper with a fallback-label mode.\n- `b: boolean` is a mode flag. You said the signature must stay, so the practical fix is to name that mode clearly inside the body rather than introducing new layers.\n- The comment is flow narration. It exists only because the names are weak.\n\nA cleaner version that keeps the mapper in the adapter and preserves exact behavior is:\n\n```ts\nfunction m(x: UserRow, b: boolean): UserRecord {\n  const row = x;\n  const useUserIdWhenDisplayNameMissing = b;\n\n  const trimmedDisplayName = row.display_name === null ? \"\" : row.display_name.trim();\n  const label =\n    useUserIdWhenDisplayNameMissing && trimmedDisplayName === \"\"\n      ? row.user_id\n      : trimmedDisplayName;\n\n  return {\n    id: row.user_id,\n    label,\n    active: row.deleted_at === null,\n  };\n}\n```\n\nWhy this is better:\n\n- The boolean mode is explicit at the point of use.\n- The label computation is expressed as a single decision instead of mutation through `let y`.\n- `active` remains obvious and inline because it is already trivial.\n- The comment can be removed; the code now says what it does.\n\nIf parameter renaming is allowed despite the fixed contract requirement, that is the next improvement:\n\n```ts\nfunction m(row: UserRow, useUserIdWhenDisplayNameMissing: boolean): UserRecord\n```\n\nIf parameter names must remain literally unchanged, the aliasing version above is the safest cleanup.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:05:40.876128Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-28c0-7703-91ff-e034ae7ca1c1.1783893928129138000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:05:41.025392Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-28bd-70e3-9f3a-e2b0504b81bb.1783893928125669000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:05:41.147482Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-2916-7fd2-849d-69694f413a34.1783893928215706000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:05:41.195094Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-28f8-7b30-b810-3e000b07908d.1783893928184908000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:08.184017Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-5a34-7ec3-9a53-6037c3bdf6a1.1783893940788536000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

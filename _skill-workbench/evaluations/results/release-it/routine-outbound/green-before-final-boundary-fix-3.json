@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5357-aef1-71e1-be2f-2bf0c74b9d0a",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Findings**\n1. High: the integration can wait past the checkout budget before it ever returns `{ kind: \"unavailable\" }`. `Semaphore.acquire()` is unbounded, `carrierClient.post()` ignores `requestSignal`, and `timeoutMs` does not cover connection establishment. Under carrier slowness, connection stalls, or local slot saturation, checkout can hang longer than `CHECKOUT_REQUEST_TIMEOUT_MS=2500`, and a stuck call can hold one of the 32 carrier slots indefinitely.\n2. High: the code accepts untrusted provider responses as success without checking status, content type, or payload shape. A `4xx`/`5xx` JSON error body, or a malformed `200`, can currently produce `{ kind: \"available\", amount: undefined, ... }` instead of degrading safely. That violates the quote contract and can poison checkout with bad quote data.\n3. Medium: provider `4xx` contract failures are operationally invisible. They should not be retried, but they also should not be logged the same way as routine unavailability (`429`, `5xx`, timeout, transport). If a bad request or provider contract drift ships, this code will quietly degrade every checkout to `unavailable` without a strong signal that the integration itself is wrong.\n\n**Smallest pre-merge changes**\n- Bound the whole carrier path to the remaining checkout budget. Pass `requestSignal` into both semaphore acquisition and the HTTP client, or derive a child deadline from the checkout timeout and use it for both. If acquire/connect/read exceeds that budget, return `{ kind: \"unavailable\" }`.\n- Validate success strictly before returning `available`: require HTTP `200`, JSON response, `amount` as finite non-negative number, `currency` as three uppercase letters, and `expires_at` as a valid ISO-8601 timestamp. Anything else should not produce an available quote.\n- Classify failures explicitly:\n  - `429`, `5xx`, timeout, transport, acquire/deadline expiration -> `unavailable`\n  - `4xx` -> return `unavailable` for checkout continuity, but log/metric it as a contract/request error at higher severity so it is actionable immediately after release.\n\n**What is already correct**\nThe no-retry requirement is already satisfied: the client has no implicit retries and `CARRIER_RETRIES=0` is aligned with the stated contract.\n\n**Review outcome**\nI would block merge until the first two changes are in. The third is smaller but still worth landing now because first-release diagnosis of persistent `4xx` failure will otherwise be weak.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:41:23.400329Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5357-a619-7591-97ee-8e8799e784b4.1783809680922116000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:42:06.607109Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5357-aef1-71e1-be2f-2bf0c74b9d0a.1783809683185401000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}
