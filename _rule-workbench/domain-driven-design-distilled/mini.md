@@ -2,55 +2,56 @@
 
 ## When to use
 
-Use when business software has enough domain complexity, language ambiguity, strategic differentiation, or integration risk that modeling changes implementation decisions, but the project still needs the smallest effective DDD practice rather than ceremony.
+Use when domain complexity, language ambiguity, business differentiation, or integration risk justify the modeling effort.
 
 ## Primary bias to correct
 
-Use DDD selectively, but seriously. Start from business capability, subdomain importance, bounded context, and local language before tactical patterns, frameworks, persistence, APIs, or class shapes.
+Use DDD where it clarifies complex business software; do not turn it into ritual. Use the smallest effective set of DDD practices to model business meaning clearly and deliver results quickly.
 
 ## Decision rules
 
-- Before designing code, identify the business capability, classify the subdomain as Core, Supporting, or Generic, define the Bounded Context, use its Ubiquitous Language, and choose only tactical patterns that earn their cost.
-- Put the most modeling effort into the Core Domain. Keep Supporting and Generic Subdomains simpler unless their own complexity proves otherwise.
-- Do not apply full tactical DDD to simple CRUD, generic subsystems, or mainly technical problems; strengthen the model only when invariants, lifecycle, language complexity, or integration risk justify it.
-- Give every meaningful model one explicit Bounded Context. The context owns its language, rules, semantics, code structure, tests, and integration contracts.
-- Treat the same word in different contexts as potentially different concepts. Translate at context boundaries instead of sharing domain classes or leaking foreign language into the local model.
-- Choose context relationships deliberately: Partnership, Shared Kernel, Customer/Supplier, Conformist, Anticorruption Layer, Open Host Service, Published Language, Separate Ways, or Big Ball of Mud containment all imply different ownership and translation duties.
-- Select integration style from business coupling and failure semantics: RPC requires acceptable request/response coupling; REST resources must not expose Aggregate internals; messaging must tolerate lag, duplicates, and ordering limits.
-- Keep integration contracts separate from internal models and test translations wherever meanings cross a boundary.
-- Use local domain terms in code, tests, Commands, Domain Events, APIs, and conversations. One concept gets one term, one term does not carry multiple meanings inside a context, and code is renamed when understanding improves.
-- Use Entities when identity and lifecycle matter; make identity explicit and protect meaningful state transitions rather than exposing unrestricted setters.
-- Use immutable, self-validating Value Objects when primitives hide domain meaning.
-- Use Aggregates only as invariant and transactional consistency boundaries. Keep them small, modify through the root, reference other Aggregates by identity, avoid large object graphs, and usually change one Aggregate per transaction.
-- Use Domain Events for meaningful past-tense business facts that clarify collaboration or integration; do not publish noisy field-change events.
-- Application Services coordinate use cases by loading Aggregates, invoking domain behavior, saving results, and triggering integration work. They must not become the real domain model.
-- Keep frameworks, persistence mechanics, transport formats, REST representations, and infrastructure types out of the domain model. Translate external data at the boundary and persist Aggregates without letting storage define the model.
-- Prefer code that teaches the model: make domain assumptions explicit in names, tests, and events; expose richer concepts instead of hiding meaning behind flags, status codes, booleans, enums, helpers, or utilities.
-- Use Event Storming, scenarios, acceptance tests, modeling spikes, and domain-expert walkthroughs when workflow, terminology, policies, or acceptance criteria are unclear. Timebox modeling and track modeling debt instead of drifting into detached analysis.
-- Estimate and plan DDD work from modeling uncertainty, integration risk, implementation cost, team skill, and access to domain experts, not only from feature count.
+- When uncertain, identify the business capability or subdomain, classify it as Core, Supporting, or Generic, define the Bounded Context, use its local Ubiquitous Language, and apply only tactical patterns that earn their cost.
+- Put the most design effort into the Core Domain. Keep Supporting and Generic Subdomains simpler unless complexity proves otherwise, and let business drivers decide where modeling effort goes.
+- Do not apply full tactical DDD to simple CRUD, Generic Subdomains, or mainly technical problems. Let simple domains use simple services and data structures; as invariants, lifecycle, and language complexity rise, strengthen the model incrementally rather than through a massive design overhaul.
+- Every meaningful model lives inside an explicit Bounded Context that owns its language, rules, and model semantics. Code structure must reflect context boundaries.
+- Treat the same term in different Bounded Contexts as potentially different concepts. Translate where meanings differ; do not share domain classes with subtly different meanings or import foreign language without translation.
+- Choose each context relationship for its actual condition: Partnership only when teams can coordinate closely and share planning burden; Shared Kernel only for a small stable overlap with joint ownership and tests; Customer/Supplier when the upstream team can plan for downstream needs; Conformist when adopting the upstream model is cheaper and safer than translation; Anticorruption Layer when a foreign model would corrupt the local language; Open Host Service when many clients need a stable protocol into one context; Published Language when multiple systems need a documented interchange model; Separate Ways when integration cost is higher than shared capability value; and Big Ball of Mud as a context to contain and translate around, not a model to spread.
+- Use RPC only when request/response coupling, latency, versioning, and failure semantics are acceptable. Use REST resources as application-facing representations, not leaked Aggregate internals. Use messaging when asynchronous coordination fits the business process and consumers can handle lag, duplicates, and ordering limits. Decide whether Domain Events carry enough information for consumers or require query-back.
+- Own integration contracts deliberately, keep them separate from internal models, and test translations at context boundaries.
+- Use terms from the current Bounded Context in code, tests, Commands, Domain Events, and conversations. One concept gets one term; one term must not carry multiple meanings inside one context; rename code when understanding improves. Domain tests must read in the Ubiquitous Language.
+- Use Entities when identity and lifecycle matter. They must have explicit identity and protect meaningful state transitions; do not expose unrestricted state changes by default. Test Entities for valid and invalid transitions.
+- Use Value Objects aggressively when a primitive hides meaning. They are immutable by default, validate themselves, and make code read in domain language. Test their validation and behavior.
+- Use Aggregates only where invariants require a consistency boundary. Keep them small, protect invariants through the Aggregate root, do not expose mutable children directly, reference other Aggregates by identity, and avoid large object graphs. Default to eventual consistency across Aggregates; one transaction should usually change one Aggregate. Test Aggregates for valid and invalid transitions.
+- Use Domain Events for meaningful past-tense facts when they clarify collaboration or integration; do not publish trivial noise for every field change.
+- Application Services coordinate use cases: they load Aggregates, call domain behavior, save results, and trigger integration work. They must not become the real domain model and should stay thin enough that the model carries meaning. Test Application Services for orchestration, not for all domain rules.
+- Keep frameworks, persistence mechanics, REST resources, transport formats, and other technology concerns out of the domain model. Persist Aggregates without letting persistence define the model, and translate transport and integration data at the boundary.
+- Prefer code that teaches the model: keep names close to real business terms, make domain assumptions explicit in names, tests, and events, and expose richer concepts instead of unexplained status codes, flags, enums, booleans, or generic helpers or utilities carrying domain decisions.
+- Use Event Storming or similar collaborative modeling when workflow, events, Commands, policies, or team language are unclear. Use scenarios and acceptance tests to validate that the model expresses real business behavior. Use modeling spikes to reduce uncertainty before committing to a model shape. Track modeling debt when code and language are known to be imperfect but intentionally deferred. Involve domain experts in scenario walkthroughs, terminology decisions, and acceptance criteria. Timebox modeling so it improves implementation instead of becoming detached analysis.
+- Estimate DDD work by modeling uncertainty, integration risk, and implementation cost, not only by feature count; treat team skill and access to domain experts as constraints on how much DDD ceremony the project can sustain.
+- When generating code, use this default order: identify the subdomain; identify the Bounded Context; write names in its local Ubiquitous Language; decide whether each concept is an Entity, Value Object, Aggregate, Service, Repository, or Domain Event; choose the smallest tactical pattern that fits; isolate infrastructure at boundaries; keep context translation explicit.
 
 ## Trigger rules
 
-- When language is fuzzy, generic, overloaded, or imported from another context, pause coding and sharpen the local Ubiquitous Language.
-- When the core concern drifts, terms stop matching code, or supporting complexity hides the core, reassess subdomains, boundaries, and modeling investment.
-- When one model spreads across billing, identity, catalog, fulfillment, support, permissions, or other separate concerns, split or translate instead of reusing shared domain classes.
-- When an upstream model, schema, UI, framework, API payload, transport object, or database shape starts defining the domain model, restore boundary translation.
-- When using Shared Kernel, require small stable overlap, joint ownership, and tests; without governance, choose another relationship.
-- When calling something an Anticorruption Layer, verify that real translation exists.
-- When a request wants to load and mutate a large graph or several Aggregate roots, revisit the invariant boundary and ask whether eventual consistency is acceptable.
-- When controllers, helpers, services, or transport-shaped application services contain business decisions, move behavior into the domain model or name the missing concept.
-- When a Domain Event is command-like, vague, trivial, or emitted for every field change, redesign it as a specific business fact or remove it.
-- When a concept is represented as a primitive, flag, status code, enum, or boolean but carries domain rules, promote it to a richer concept or Value Object.
-- When delivery pressure tempts the team to skip design, use a short modeling spike, scenario, or acceptance test and record known modeling debt.
+- When language is fuzzy, generic, overloaded, or imported from another context, sharpen the local Ubiquitous Language and translate foreign terms.
+- When the Core business concern drifts, terms stop matching code, or Supporting complexity hides the Core Domain, reassess the model. Revisit subdomain classification, Bounded Context boundaries, or modeling investment only when the affected scope calls them into question.
+- When one model spreads across billing, identity, catalog, fulfillment, and support, split or translate instead of reusing shared domain classes.
+- When a foreign model starts defining local language, translate it at the context boundary. When a screen or UI, framework, REST or transport representation, or persistence or database shape starts defining the domain model, isolate that technology concern instead.
+- When using Shared Kernel, require a small stable overlap with joint ownership and tests; without governance, choose another relationship.
+- When calling an integration an Anticorruption Layer, verify that translation exists.
+- When one transaction would change several Aggregate roots, revisit the consistency boundary; one transaction should usually change one Aggregate, with eventual consistency across Aggregates as the default. Separately, when one request would load and mutate a whole graph, reject navigation convenience as a boundary and restore smaller, identity-referenced Aggregates.
+- When controllers duplicate application orchestration, restore coordination through an Application Service. When helpers, services, or transport-shaped Application Services carry business decisions, move those decisions into the domain model or name the missing concept.
+- When a Domain Event is vague, command-like, trivial, or emitted for every field change, redesign it as a meaningful past-tense fact or remove it.
+- When a primitive, flag, status code, enum, or boolean carries domain rules, expose the richer concept or use a Value Object.
 
 ## Final checklist
 
 - Correct subdomain and Core Domain investment?
-- Explicit Bounded Context and relationship to neighboring contexts?
-- Ubiquitous Language visible in code, tests, Commands, Events, APIs, and conversations?
-- Translation tested where external or foreign meanings cross boundaries?
-- Tactical patterns used only where they clarify meaning or protect invariants?
-- Aggregates small, root-protected, identity-referenced, and not graph-shaped?
-- Application Services coordinating rather than owning business logic?
-- Infrastructure, persistence, REST, and transport details kept out of the domain model?
-- Modeling discoveries, acceptance tests, expert input, and modeling debt captured before shipping?
+- Explicit Bounded Context and neighboring relationship chosen under its actual conditions?
+- Ubiquitous Language visible in code, tests, Commands, Domain Events, and conversations?
+- Integration contracts owned deliberately and translation tested where meanings differ?
+- Tactical patterns used only when they earn their cost and genuinely help?
+- Entities protecting transitions and Value Objects preserving validated domain meaning, with their specified tests?
+- Aggregates small, root-protected, identity-referenced, and using eventual consistency across Aggregates by default?
+- Application Services coordinating and tested for orchestration rather than owning domain rules?
+- Framework, persistence, REST, transport, and other technology concerns kept out of the domain model?
+- Model validated against real business behavior, any modeling work timeboxed, and known imperfect code or language tracked when intentionally deferred?

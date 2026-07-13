@@ -73,6 +73,25 @@ def extract_thread_id(events: str) -> str | None:
     return None
 
 
+def extract_error_messages(events: str) -> list[str]:
+    messages: list[str] = []
+    for line in events.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        message: object = None
+        if event.get("type") == "error":
+            message = event.get("message")
+        elif event.get("type") == "turn.failed":
+            error = event.get("error")
+            if isinstance(error, dict):
+                message = error.get("message")
+        if isinstance(message, str) and message and message not in messages:
+            messages.append(message)
+    return messages
+
+
 def clean_stderr(stderr: str) -> str:
     ignored = (
         "Reading additional input from stdin...",
@@ -262,6 +281,7 @@ def run(args: argparse.Namespace) -> int:
             },
             "thread_id": extract_thread_id(completed.stdout),
             "exit_code": completed.returncode,
+            "codex_errors": extract_error_messages(completed.stdout),
             "result": final_result,
             "integrity_errors": integrity_errors,
             "required_project_skills": required_skills,

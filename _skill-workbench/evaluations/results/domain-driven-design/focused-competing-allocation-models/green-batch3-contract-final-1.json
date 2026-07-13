@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/focused-competing-allocation-models.md",
+  "case_sha256": "f7332e27aaaa6555b2d6eb8825b0497939dc7b38fb796884581ae4a6e6150e8f",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5ccf-7e21-7ad2-b87d-e89187ea59a1",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Candidate B is the stronger model.\n\nThe new scenario breaks the idea that \u201callocation\u201d is one lifecycle with one status. The customer-facing fact and the warehouse-facing fact can now diverge temporarily: the order line still has a promise, while one concrete reservation is released and another is being sought. Candidate A can simulate that with more statuses, but it still explains the world as if one thing were changing state. In this scenario, two different commitments are changing on different timelines.\n\nWhat Candidate B makes explicit is the implicit concept that is currently collapsed away: a customer-level commitment to supply versus an operations-level claim on specific capacity. In domain language, that is usually some form of `SupplyPromise` and `CapacityReservation`, with \u201callocation\u201d becoming the policy/process that reconciles them rather than the object that pretends to be both. That gives a cleaner explanation for \u201cpromise retained while reservation replaced\u201d without inventing awkward transitional statuses like \u201creallocating but still allocated.\u201d\n\nThe explanatory gain is high because it matches the observed business distinction directly, and it should reduce future branching around substitution, re-reservation, partial moves, and operational recovery. The migration cost is also real: one lifecycle object becomes at least two concepts plus a coordinating policy. But this is still the better trade if the newly observed scenario is not exceptional noise, because Candidate A\u2019s lower migration cost is buying a weaker model that will likely accumulate compensating statuses and procedural rules.\n\nTwo domain-language experiments could falsify Candidate B before migration:\n\n1. Ask domain experts to speak only in business terms about the scenario: \u201cHas the customer been promised supply?\u201d and separately \u201cIs there an active reservation in warehouse X?\u201d If they keep collapsing both answers into one notion of allocation, Candidate B may be over-modeling.\n2. Walk through adverse cases and require crisp statements for each: reservation released, warehouse changed, partial quantity moved, promise reduced, promise canceled. If experts cannot state which facts change independently, then the supposed distinction between promise and reservation is not stable enough to drive the model.\n\nIncremental migration should preserve current behavior:\n\n1. Keep the existing `Allocation` API as a compatibility facade and introduce internal language first: treat current `ALLOCATED` as \u201cpromise exists and at least one reservation currently satisfies it,\u201d and `RELEASED` as a derived legacy projection.\n2. Add explicit domain events/tests around the new scenario before changing structure: promise retained, reservation released, replacement reservation sought, order not treated as unallocated.\n3. Introduce `SupplyPromise` first as the protected customer commitment, then split warehouse-specific reservation behavior behind the application service or domain policy that today mutates `Allocation.status`.\n4. Only after the new behavior is proven, downgrade the old status field into a derived read model or translation layer for callers that still expect it.\n\nIf the team wants the model that best explains the observed reality rather than the one cheapest to rename into existence, choose Candidate B.",
+    "selected_project_skills": [
+      "domain-driven-design",
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

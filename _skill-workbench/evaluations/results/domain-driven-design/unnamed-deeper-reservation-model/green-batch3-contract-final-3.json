@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/unnamed-deeper-reservation-model.md",
+  "case_sha256": "cb5fdef5c6d55193e7e9eff10f45c9ac9e408cbe0579eab13558297a1a68ed29",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5caf-cc7a-7c41-90b8-f42c34cbbfad",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current model is carrying at least two different domain concepts behind one record and one status enum.\n\nThe missing concepts are:\n- `CapacityHold`: a temporary claim on capacity with expiry semantics. It can be active, expired, released, and extended.\n- `Commitment` or `ConfirmedReservation`: a customer commitment created from a still-valid hold. It does not expire the way a hold does.\n- Distinct business outcomes for returning capacity: `HoldReleased` is not the same concept as `CommitmentCancelled`.\n- The conversion itself: confirmation is not \u201cchanging a pending reservation to confirmed\u201d; it is consuming a valid hold and creating a commitment.\n\nThe language problem is that `Reservation` and `RELEASED` are overloaded. In expert language, \u201chold\u201d, \u201ccommitment\u201d, \u201crelease\u201d, \u201ccancel\u201d, and \u201cextend\u201d are not interchangeable. The current model forces them into one lifecycle, which is why the next feature is awkward: extending a hold should be natural, while extending a commitment should be nonsensical.\n\nA deeper implementation-driving model inside the Reservation context would look more like this:\n\n```ts\ntype HoldId = string;\ntype CommitmentId = string;\n\ntype CapacityHold = {\n  kind: \"HOLD\";\n  holdId: HoldId;\n  expiresAt: Date;\n  capacityHeld: true;\n  releasedAt?: Date;\n  releaseReason?: \"expired\" | \"manual\" | \"replaced\";\n};\n\ntype ReservationCommitment = {\n  kind: \"COMMITMENT\";\n  commitmentId: CommitmentId;\n  confirmedAt: Date;\n  sourceHoldId: HoldId;\n  cancelledAt?: Date;\n  cancellationReason?: string;\n};\n```\n\nBehavior then becomes concept-local:\n- `CapacityHold.confirm(now)` validates the hold is still active, then produces a `ReservationCommitment`.\n- `CapacityHold.extend(newExpiry)` exists only on holds.\n- `CapacityHold.release(reason)` is separate from `ReservationCommitment.cancel(reason)`.\n- Expiry belongs to the hold model, not the commitment model.\n\nIf the team wants one aggregate root name to stay, keep `Reservation` as the root but make its internal state explicit as a union of `Hold` and `Commitment`, not a generic status machine. The important change is conceptual, not cosmetic.\n\nExpert scenarios that should test the model:\n- `request creates hold, not commitment`\n- `active hold can be confirmed`\n- `expired hold cannot be confirmed`\n- `expired hold becomes released for expiry reason`\n- `hold can be released without creating commitment`\n- `confirmed commitment has no expiry semantics`\n- `cancelling commitment returns capacity for cancellation reason, not hold release reason`\n- `hold can be extended before expiry`\n- `commitment cannot be extended as a hold`\n- `confirmation consumes one specific hold and creates one commitment`\n\nThose scenarios explain the domain better because they name real business facts instead of forcing everything through `status` branching.\n\nIncremental refactoring direction that preserves current behavior:\n1. Keep the existing external `Reservation` shape and API, but introduce internal domain names: `PendingHold`, `ConfirmedCommitment`, and `ReleasedHold` wrappers or state objects.\n2. Move `confirm` logic behind the hold-specific type so the code expresses \u201cconfirm a hold\u201d rather than \u201cswitch reservation status\u201d.\n3. Make expiry behavior live only in the hold state object.\n4. Add `extendHold` only to the hold state object.\n5. Split the current generic `RELEASED` meaning internally into `hold released` vs future `commitment cancelled`, while still mapping both to legacy persistence/API fields until downstream changes are justified.\n\nExplanatory gain vs migration cost:\n- Gain is high: the model matches expert language, the next feature fits naturally, and invalid operations become harder to represent.\n- Migration cost is moderate if done internally first: the current record, enum, and service boundary can remain as a compatibility shell while the domain logic is split behind it.\n- A full persistence/API split into separate hold and commitment records would be a later option, not required for the immediate model improvement.\n\nIn short: the current code is hiding a `CapacityHold -> Commitment` transition inside a single status field. The deeper model should make hold, commitment, expiry, release, cancellation, and hold extension explicit because those are the actual domain concepts driving behavior.",
+    "selected_project_skills": [
+      "domain-driven-design",
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/domain-driven-design/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T18:15:06.896133Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5caf-cc7a-7c41-90b8-f42c34cbbfad.1783966452858892000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,51 @@
+{
+  "case": "_skill-workbench/evaluations/cases/implementing-domain-driven-design/direct-subscription-implementation.md",
+  "case_sha256": "764dfa6f65d2d27d613a86611892b42632439daa0ce126d79ad379f5059e61e7",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5cb1-8057-73e3-9f59-11767bceaaca",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Use one `Subscription` Aggregate Root inside the existing Subscription context and remove the ORM-shaped object graph.\n\nCorrected design\n\n- Aggregate: `Subscription`\n  - Identity: `SubscriptionId`\n  - References by identity only: `CustomerId`, `PlanId` (or a local `PlanTermsSnapshot` if the plan meaning must be frozen), and a Payments-side reference such as `BillingArrangementId` or `PaymentAuthorizationRef`\n  - Internal value objects/entities:\n    - `CurrentTerm`\n    - `NextTermPlanTerms` or `NextTermTermsSnapshot`\n    - `RenewalWindow`\n    - `RenewalDecision` for the upcoming term, keyed by `TermId`, if you need to retain acceptance state inside the Aggregate\n  - No public setters. Expose behaviors such as `cancel()`, `acceptRenewalFor(termId, nextTermTerms, authorizedPayment, decidedAt)`, and `rejectRenewal(...)` or `markRenewalNotPossible(...)`.\n\nWhy this boundary is the right correction\n\n- `Customer`, `Plan`, and `PaymentMethod` are not members of the Aggregate. They are either other contexts or external concepts and should be referenced by identity or translated snapshots.\n- `RenewalHistory` does not belong in the write Aggregate. The approved rule allows customer-facing history to lag by up to one minute, so history should be a projection.\n- The immediate invariants all center on one Subscription:\n  - a cancelled Subscription cannot renew\n  - renewal must use the captured next-term terms\n  - at most one accepted renewal exists for a Subscription and term\n\nIdentities and value objects\n\n- `SubscriptionId`, `CustomerId`, `PlanId`, `TermId` as explicit types, not raw strings.\n- `RenewalWindow` as an immutable value object with date-range validation.\n- `PlanTermsSnapshot` or `NextTermTermsSnapshot` as an immutable value object capturing the exact terms used for the renewed term.\n- If Payments returns a result, translate it through an ACL into a local value such as `PaymentAuthorizationOutcome`; do not import Payments enums/statuses into the domain model.\n\nRepository contract\n\nReplace `GenericRepository<SubscriptionRow>` with an Aggregate-oriented repository, for example:\n\n```text\ninterface SubscriptionRepository {\n  Subscription? byId(SubscriptionId id);\n  Subscription? forRenewalEvaluation(SubscriptionId id);\n  void save(Subscription subscription, ExpectedVersion version);\n}\n```\n\nRepository rules:\n\n- return/reconstitute `Subscription`, not persistence rows\n- shape methods around use cases, not table CRUD\n- do not enforce renewal business rules in the repository\n\nApplication coordination\n\nReplace the current multi-Aggregate transaction with a thin `RenewalApplicationService`.\n\nFlow:\n\n1. Load `Subscription`.\n2. Obtain payment authorization information from the Payments context through an ACL/integration port using identifiers and contract DTOs.\n3. Call Aggregate behavior on `Subscription`.\n4. Persist `Subscription`.\n5. Publish resulting domain events via outbox/in-transaction event recording.\n\nImportant correction: do not run one transaction that loads and updates `Subscription`, `Customer`, `Plan`, and `Payment`. The default should be one Aggregate per transaction. Cross-context coordination with Payments is integration work, not shared transactional domain state.\n\nDomain events\n\nReplace `RenewalRowInserted` with business facts in past tense, raised by the Aggregate during the decision:\n\n- `SubscriptionRenewalAccepted`\n- `SubscriptionRenewalRejected`\n- optionally `SubscriptionCancelled`\n\nEvent payload should carry local facts, for example:\n\n- `subscriptionId`\n- `termId`\n- `decidedAt`\n- `nextTermTermsSnapshot`\n- `paymentAuthorizationRef` or translated authorization outcome\n\nDo not emit the event after the HTTP response as an implementation afterthought. Record it as part of the use case outcome and publish from an outbox or equivalent reliable mechanism.\n\nModules\n\n```text\nsubscription/\n  domain/\n    Subscription\n    RenewalWindow\n    PlanTermsSnapshot\n    RenewalDecision\n    events/\n    SubscriptionRepository\n  application/\n    RenewalApplicationService\n    EvaluateRenewalCommand\n    ports/\n      PaymentsAuthorizationPort\n  infrastructure/\n    persistence/\n    messaging/\n    payments_acl/\n  interfaces/\n    http/\n    jobs/\n```\n\nRead model\n\nReplace `load_complete_Subscription_graph` with a projection dedicated to customer-facing history, for example `RenewalHistoryView`.\n\nProjection contents:\n\n- `subscriptionId`\n- `termId`\n- `decision`\n- `decidedAt`\n- `nextTermTermsSummary`\n- optional display-safe payment outcome summary\n\nBuild it asynchronously from `SubscriptionRenewalAccepted` and `SubscriptionRenewalRejected`. The approved one-minute lag makes this a good CQRS-style split: the Aggregate stays small and invariant-focused, while history queries read the projection.\n\nNet correction of the proposal\n\n- `Subscription.contains`: not `[Customer, Plan, PaymentMethod, RenewalHistory]`; instead local term state, renewal window, captured next-term terms, and maybe the next-term renewal decision\n- `setters: public`: no; use intention-revealing behavior on the root\n- `repository`: not `GenericRepository<SubscriptionRow>`; use `SubscriptionRepository` for Aggregate reconstitution/persistence\n- `RenewalService.transaction`: not a cross-model update; coordinate one `Subscription` Aggregate plus a Payments ACL\n- `events`: not `RenewalRowInserted`; use past-tense domain facts raised as part of the transaction outcome\n- `queries`: not full Aggregate graph loading; use a lag-tolerant renewal-history projection",
+    "selected_project_skills": [
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/implementing-domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/references/index.md",
+      ".agents/skills/implementing-domain-driven-design/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "implementing-domain-driven-design",
+        "sections": [
+          "Aggregate Rules of Thumb",
+          "Entity and Value Object Rules",
+          "Repository Rules",
+          "Domain Event Rules",
+          "Application Service Rules",
+          "Module and Package Rules",
+          "Context Integration Rules",
+          "Client Representation and Scope Discipline"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "implementing-domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

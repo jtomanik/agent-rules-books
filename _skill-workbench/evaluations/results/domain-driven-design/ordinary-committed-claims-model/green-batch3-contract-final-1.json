@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/ordinary-committed-claims-model.md",
+  "case_sha256": "71ac80a7feb40158a23fa82499e66e6e439caac6e08211d8d258537746eec2b4",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5caf-cc60-7452-836d-32ea1905bd02",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Use a two-step local model: keep `Claim` as the aggregate root for claim facts, but stop treating adjudication as one flattened predicate. Introduce explicit decision/value types for each specialist concept, then compose them into one adjudication-entry decision.\n\n```ts\ntype CoverageDecision =\n  | { kind: \"covered\"; benefit: string }\n  | { kind: \"not-covered\"; reason: string };\n\ntype EntitlementDecision =\n  | { kind: \"entitled\"; memberId: string; serviceDate: Date }\n  | { kind: \"not-entitled\"; reason: string };\n\ntype FilingTimeliness =\n  | { kind: \"timely\"; submittedAt: Date; deadline: Date }\n  | { kind: \"late\"; submittedAt: Date; deadline: Date };\n\ntype PriorAuthorizationStatus =\n  | { kind: \"not-required\" }\n  | { kind: \"satisfied\"; authorizationId: string }\n  | { kind: \"waived\"; reason: string }\n  | { kind: \"absent\"; reason: string };\n\ntype DuplicateStatus =\n  | { kind: \"unique\" }\n  | { kind: \"duplicate\"; originalClaimId: string };\n\ntype AdjudicationEntryDecision = {\n  coverage: CoverageDecision;\n  entitlement: EntitlementDecision;\n  timeliness: FilingTimeliness;\n  priorAuthorization: PriorAuthorizationStatus;\n  duplicate: DuplicateStatus;\n  mayEnterAdjudication(): boolean;\n  blockingReasons(): string[];\n};\n```\n\nThe important modeling move is that `Coverage`, `Entitlement`, `Timeliness`, `PriorAuthorization`, and `Duplicate` are not flags. They are separate domain decisions with their own language and outcomes. `Duplicate` remains an adjudication blocker only; it does not overwrite coverage or entitlement.\n\nA bounded implementation shape:\n\n- `Claim` exposes domain operations such as `coverageDecision()`, `entitlementDecision()`, `filingTimeliness()`, `priorAuthorizationStatus()`, `duplicateStatus()`.\n- `Claim#adjudicationEntryDecision()` composes those results and answers `mayEnterAdjudication()`.\n- The boolean becomes a derived result of explicit decisions, not the model itself.\n\nThat gives you language specialists can inspect directly:\n\n- \u201cThis service is covered, but the member is not entitled on the date of service.\u201d\n- \u201cThe claim is timely and covered, but blocked as a duplicate.\u201d\n- \u201cPrior authorization is waived for emergency care.\u201d\n- \u201cPrior authorization is absent with documented reason X.\u201d\n\nDomain-language examples/tests to confirm with claims specialists:\n\n```ts\nit(\"allows adjudication for a covered, entitled, timely claim with waived prior authorization\", () => {\n  const decision = claim.adjudicationEntryDecision();\n\n  expect(decision.coverage.kind).toBe(\"covered\");\n  expect(decision.entitlement.kind).toBe(\"entitled\");\n  expect(decision.timeliness.kind).toBe(\"timely\");\n  expect(decision.priorAuthorization.kind).toBe(\"waived\");\n  expect(decision.duplicate.kind).toBe(\"unique\");\n  expect(decision.mayEnterAdjudication()).toBe(true);\n});\n\nit(\"blocks a duplicate without changing coverage or entitlement\", () => {\n  const decision = duplicateClaim.adjudicationEntryDecision();\n\n  expect(decision.coverage.kind).toBe(\"covered\");\n  expect(decision.entitlement.kind).toBe(\"entitled\");\n  expect(decision.duplicate.kind).toBe(\"duplicate\");\n  expect(decision.mayEnterAdjudication()).toBe(false);\n  expect(decision.blockingReasons()).toContain(\"duplicate claim\");\n});\n\nit(\"distinguishes not covered from not entitled\", () => {\n  expect(nonCoveredClaim.coverageDecision().kind).toBe(\"not-covered\");\n  expect(nonCoveredClaim.entitlementDecision().kind).toBe(\"entitled\");\n\n  expect(outOfEligibilityClaim.coverageDecision().kind).toBe(\"covered\");\n  expect(outOfEligibilityClaim.entitlementDecision().kind).toBe(\"not-entitled\");\n});\n\nit(\"records prior authorization as absent with reason instead of a bare false\", () => {\n  const status = claim.priorAuthorizationStatus();\n\n  expect(status).toEqual({ kind: \"absent\", reason: \"no authorization on file\" });\n  expect(claim.adjudicationEntryDecision().mayEnterAdjudication()).toBe(false);\n});\n```\n\nQuestions to validate with specialists before locking the model:\n\n- Is `waived` always adjudication-permitting?\n- Does every `absent` prior-authorization case block, or do some reasons imply waiver?\n- Are coverage and entitlement each binary decisions, or do they need richer denial categories now?\n\nSmallest safe sequence:\n\n1. Add characterization tests around current `mayAdjudicate` behavior.\n2. Introduce the decision types and map existing flags into them without changing outcomes.\n3. Re-implement `mayAdjudicate` as `claim.adjudicationEntryDecision().mayEnterAdjudication()`.\n4. Add domain-language tests that assert the individual decisions, not just the final boolean.\n5. Rename or replace internal flag access with explicit domain methods one concept at a time.\n6. Remove obsolete booleans only after callers stop depending on them.\n\nThis stays bounded and local: no persistence redesign, no external contracts, no infrastructure choices. The gain is that the implementation starts speaking claims language directly, and future rule changes can land in the right concept instead of adding more coupled booleans.",
+    "selected_project_skills": [
+      "domain-driven-design",
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T18:15:08.743211Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5caf-cc60-7452-836d-32ea1905bd02.1783966452847126000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

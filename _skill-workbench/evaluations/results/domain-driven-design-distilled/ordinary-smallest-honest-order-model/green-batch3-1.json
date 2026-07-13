@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/ordinary-smallest-honest-order-model.md",
+  "case_sha256": "b8881eda78b71a4dd0b61067a4c9eeb3477a85f3c1d973765c076d223368f901",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c55-a5b5-7e01-8253-08ca5c79a11c",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The smallest honest model is:\n\n- `Order` as the only Aggregate.\n- `Money` as a Value Object on `Order.total` and anywhere payment amount/currency is compared.\n- `paymentId` and `inventoryReservationId` kept as foreign references, not embedded object graphs.\n\nI would not accept the proposed `Order` Aggregate containing full Payment and Inventory objects. Those are owned by separate systems, so putting them inside `Order` invents a consistency boundary you do not actually have.\n\nThe boundary correction is:\n\n- Keep `confirmOrder` as an application service/orchestrator.\n- Read payment/inventory state through ports or translated local records.\n- Let `Order` enforce only its local rule: it cannot move from `CANCELLED` to `CONFIRMED`.\n- Treat payment authorization and inventory hold as cross-system preconditions/policies, not `Order` internals.\n- Persist the `Order` change in one local transaction.\n- Trigger payment capture and inventory allocation as external follow-up commands/events, not by mutating foreign objects inside the same aggregate transaction.\n\nConcretely, the domain shape should be closer to:\n\n```ts\ntype Money = {\n  amount: number;\n  currency: string;\n};\n\nclass Order {\n  constructor(\n    readonly id: string,\n    private status: \"DRAFT\" | \"CONFIRMED\" | \"CANCELLED\",\n    readonly total: Money,\n    readonly paymentId: string,\n    readonly inventoryReservationId: string,\n  ) {}\n\n  confirm(paymentAuthorized: Money, inventoryHeld: boolean) {\n    if (this.status === \"CANCELLED\") throw new Error(\"cancelled order cannot be confirmed\");\n    if (this.status !== \"DRAFT\") throw new Error(\"bad status\");\n    if (!inventoryHeld) throw new Error(\"bad inventory\");\n    if (paymentAuthorized.currency !== this.total.currency) throw new Error(\"currency mismatch\");\n    if (paymentAuthorized.amount !== this.total.amount) throw new Error(\"amount mismatch\");\n\n    this.status = \"CONFIRMED\";\n    return { type: \"OrderConfirmed\", orderId: this.id };\n  }\n}\n```\n\nThat is the tactical minimum that genuinely helps:\n\n- `Money` earns its cost because amount/currency agreement is business-significant.\n- An `Order` Aggregate earns its cost because there is one real local invariant and a real lifecycle transition.\n- Full Payment/Inventory entities inside `Order` do not earn their cost because their lifecycle and consistency belong elsewhere.\n\nThe main issue in the current routine is not lack of an object graph. It is false boundary ownership: it updates `order`, `payment`, and `inventory` as if one transaction can honestly govern all three. It cannot, given your stated ownership model.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled",
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:36:25.638456Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c55-a5b5-7e01-8253-08ca5c79a11c.1783960544693494000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

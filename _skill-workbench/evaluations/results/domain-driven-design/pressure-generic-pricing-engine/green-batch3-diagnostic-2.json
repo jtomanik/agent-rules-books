@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/pressure-generic-pricing-engine.md",
+  "case_sha256": "1d40b8eaf3f8ef82f10abed636b4dcc42fdae770703029ee6875eabde5dbdb64",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5cb1-22b2-7573-8289-46b55a23b67a",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Do not add another `rule.type` branch as the main design direction. The pressure is exposing a modeling problem, not a dispatch problem.\n\nWhy:\n- `contract` already means different things in Sales and Billing, so one generic rule name is collapsing multiple concepts into ambiguous metadata.\n- Eligibility depends on agreement scope, product/quantity coverage, and renewal-date re-evaluation. That is domain behavior, not just another amount formula.\n- The engine\u2019s current shape, `Record<string, unknown> -> Money`, can only hide these distinctions behind more status/type checks. The recent addition of 14 such checks is evidence the abstraction is degrading.\n\nBounded action that can still meet Friday:\n- Keep the existing engine unchanged for generic arithmetic rules.\n- Add a narrow orchestration path for this feature, outside `applyRule`, with explicit concepts for the new scenario, for example `AcceptedCommercialAgreement`, `RenewalEligibility`, and `RequestedLineItems`.\n- In that path, first decide eligibility and coverage: is this agreement accepted, does it cover these products and quantities, and is the renewal still eligible on the renewal date.\n- Only after that, call existing pricing mechanics for the final amount calculation if reuse is still helpful.\n- Use Pricing\u2019s own term, not `contract`, in code for this path. Translate Sales and Billing terms at the boundary instead of sharing one overloaded concept.\n\nThis protects delivery because it limits Friday\u2019s change to one isolated use case instead of widening the generic engine again. It also preserves the nine-month investment where it still fits: arithmetic computation can be reused, but domain eligibility is no longer forced through metadata.\n\nTo protect the release, require 5 example-driven tests signed off by a domain expert:\n1. Accepted agreement covers exact product and quantity: negotiated price applies.\n2. Product or quantity outside agreement scope: negotiated price rejected.\n3. Renewal inherits allowed terms but fails eligibility on renewal date.\n4. Renewal inherits allowed terms and passes eligibility on renewal date.\n5. Sales \u201ccontract\u201d input and Billing \u201ccontract\u201d input translate to different internal concepts but produce the expected decision.\n\nTo test whether a deeper model is warranted, timebox one short modeling session after the feature is safe: 60-90 minutes with Sales, Billing, and Pricing to settle language and handoffs. If more rules continue to depend on agreement lifecycle, renewal semantics, or cross-context translation, that is the signal to promote this into a dedicated pricing-agreement model or bounded context instead of adding more engine branches.\n\nSo the recommendation is: do not add another branch to the generic dispatcher. Ship a thin, explicit contractual-pricing application path now, reuse the old engine only for amount calculation, and use example-based tests plus a timeboxed modeling follow-up to decide whether to deepen the model.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [
+    "required project skill not selected: domain-driven-design"
+  ],
+  "stderr": "2026-07-13T18:16:22.529096Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5cb1-22b2-7573-8289-46b55a23b67a.1783966540499838000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

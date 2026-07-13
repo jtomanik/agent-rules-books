@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/implementing-domain-driven-design/ordinary-anemic-billing-model.md",
+  "case_sha256": "d44e7c735e824b771d28c75d37b45172b6c9d634a14da3328fb6ba4508c340ae",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c59-7f38-7051-a599-6297de3aa67e",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current slice is an anemic CRUD update. The smallest correction is to move the issuance rule into the `Invoice` aggregate, replace primitive money/state handling with domain types, and make the application service only coordinate persistence and publication.\n\nA minimal shape would be:\n\n```ts\ntype InvoiceStatus = \"DRAFT\" | \"ISSUED\";\n\nclass Money {\n  private constructor(\n    readonly amountMinor: number,\n    readonly currency: string,\n  ) {}\n\n  static ofMinor(amountMinor: number, currency: string): Money {\n    if (!Number.isInteger(amountMinor)) throw new Error(\"invalid money\");\n    return new Money(amountMinor, currency);\n  }\n\n  isPositive(): boolean {\n    return this.amountMinor > 0;\n  }\n}\n\nclass InvoiceLine {\n  constructor(readonly total: Money) {\n    if (!total.isPositive()) throw new Error(\"invalid line\");\n  }\n}\n\nclass InvoiceIssued {\n  constructor(\n    readonly invoiceId: string,\n    readonly issuedAt: Date,\n  ) {}\n}\n\nclass Invoice {\n  constructor(\n    readonly id: string,\n    private status: InvoiceStatus,\n    private lines: InvoiceLine[],\n    private total: Money,\n    private dueDate: Date,\n    private issuedAt?: Date,\n  ) {}\n\n  issue(now: Date): InvoiceIssued {\n    if (this.status !== \"DRAFT\") throw new Error(\"only draft invoices can be issued\");\n    if (this.lines.length === 0) throw new Error(\"invoice must contain at least one valid line\");\n    if (!this.total.isPositive()) throw new Error(\"invoice total must be positive\");\n\n    this.status = \"ISSUED\";\n    this.issuedAt = now;\n    return new InvoiceIssued(this.id, now);\n  }\n}\n```\n\nRepository change: replace `genericRepository` usage with an aggregate-oriented `InvoiceRepository` such as `getById(id)` and `save(invoice)`. It should reconstitute `Invoice`, `InvoiceLine`, and `Money`; it should not return raw rows or enforce issuance rules.\n\nService change: keep `issueInvoice` as an application service, but make it only coordinate the use case:\n\n```ts\nexport async function issueInvoice(id: string): Promise<void> {\n  await tx.run(async () => {\n    const invoice = await invoiceRepository.getById(id);\n    if (!invoice) throw new Error(\"invoice not found\");\n\n    const event = invoice.issue(new Date());\n    await invoiceRepository.save(invoice);\n    await eventPublisher.publish(event);\n  });\n}\n```\n\nThat satisfies the rule split:\n- `Invoice` enforces `DRAFT` and line/total invariants.\n- `Money` owns currency-safe arithmetic instead of `number`.\n- issuing records `issuedAt` and produces `InvoiceIssued`.\n- the application layer owns transaction and publication coordination.\n\nI would not add a domain service here. Issuing is single-aggregate behavior and fits naturally on `Invoice` itself.",
+    "selected_project_skills": [
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "implementing-domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:40:36.456715Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c59-7f38-7051-a599-6297de3aa67e.1783960797024639000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,66 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/focused-vendor-taxonomy-integration.md",
+  "case_sha256": "661a838be12a8026dfd32e1110b5b3472cecbd0455de567cadbf7fdbd4f1c3b6",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c57-968e-7332-946f-fcaf6f53c6da",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Use an Anticorruption Layer against the vendor, not the vendor taxonomy as Product\u2019s domain language.\n\nThe vendor is an upstream external context that controls IDs and can change category structure unilaterally. Product has no leverage to make it a Customer/Supplier relationship, and Conformist would damage the local language because merchandisers explicitly reject the taxonomy for planning. Keep `Assortment`, `MerchandisingGroup`, and `Availability` as Product terms. Treat `CatalogTree`, `CategoryNode`, `ListingState`, and `MerchantOffer` as foreign integration terms only.\n\nTranslation belongs at the marketplace integration boundary: an adapter/ACL owned by Product\u2019s integration layer or application layer. That boundary should:\n- ingest vendor DTOs\n- translate them into Product concepts or explicit contract models\n- preserve vendor IDs only as external references/mapping data\n- prevent vendor DTOs, enums, and status names from entering Product domain objects or internal events\n\nReject the current proposal to import vendor DTOs into the Product model and republish them internally. That spreads a foreign model across the company and couples internal consumers to a taxonomy the vendor can split or merge without notice.\n\nFor internal consumers:\n- The consumer needing an immediate availability answer should use RPC/query against Product, because availability is a current source-of-truth question and synchronous semantics matter.\n- The two consumers that can tolerate lag should use messaging, because availability changes are facts and async consumers can process them independently.\n- Event payloads should be Product-owned facts such as `AvailabilityChanged`, with stable local sellable-item identifiers, the new availability state, timestamp/version, and correlation metadata.\n- Use query-back when a consumer needs richer or volatile details than should live in the event, or when duplicating that data into every event would create versioning/coupling pressure.\n- Do not make consumers query back for the basic fact that changed if they can reasonably act from the event itself.\n\nPractical split:\n- RPC: current availability lookup for the synchronous consumer.\n- Messaging: availability-change propagation to async consumers.\n- Rich event payload: when the async consumer can act from the fact plus a small stable set of fields.\n- Thin event plus query-back: when the consumer needs broader current state, frequently changing detail, or representation-specific data.\n\nNet decision: keep Product language local, put vendor translation in an ACL, publish internal Product events rather than vendor DTOs, use RPC for synchronous read needs, and use messaging for the lag-tolerant consumers.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled",
+      "implementing-domain-driven-design",
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/domain-driven-design-distilled/references/index.md",
+      ".agents/skills/domain-driven-design-distilled/references/full.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/references/index.md",
+      ".agents/skills/implementing-domain-driven-design/references/full.md",
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "domain-driven-design-distilled",
+        "sections": [
+          "Context Relationship Rules",
+          "Integration Style Rules"
+        ]
+      },
+      {
+        "skill": "implementing-domain-driven-design",
+        "sections": [
+          "Context Integration Rules"
+        ]
+      },
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Event, Log, and Stream Rules",
+          "API and Service Boundary Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:39:01.709303Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c57-968e-7332-946f-fcaf6f53c6da.1783960671914558000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

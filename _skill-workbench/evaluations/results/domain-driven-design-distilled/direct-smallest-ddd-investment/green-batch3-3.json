@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/direct-smallest-ddd-investment.md",
+  "case_sha256": "bd4f75e0bd0cde74ca27a16427130f1171ced430af1488d532c4bb1037137493",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c52-cf52-79f1-856b-b839679f3026",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The deepest modeling investment belongs in `adaptive_returns_policy`. It is the differentiating capability, it changes weekly, and its rules depend on several interacting business concepts (`customer history`, `product condition`, `channel`). That is the likely Core Domain. This is where strategic DDD is justified first: define a clear `Returns Policy` bounded context, establish its local language, and model the policy decisions explicitly enough that rule changes are easy and safe.\n\nThe smallest effective investment is:\n- `adaptive_returns_policy`: strategic DDD plus selective tactical DDD.\n- `carrier_label_purchase`: keep simple. It is a Generic/commodity subdomain. Use an application/service adapter around the carrier API, validate inputs, persist the purchased label, and isolate vendor terms behind translation. Do not build rich domain machinery unless local invariants appear.\n- `notification_preferences`: keep simpler still. It is Supporting and described as CRUD. A thin application service with straightforward data structures is enough unless preference rules become materially complex.\n\nThe proposal over-invests in tactics. Creating Aggregates, Repositories, Domain Services, and Domain Events for every capability is ceremony without return. In the Core Domain, those patterns must earn their cost:\n- Use Value Objects where the policy language needs precision, such as `ReturnChannel`, `ItemCondition`, `CustomerReturnHistory`, or `EligibilityDecision`.\n- Use Entities/Aggregates only where real invariants and lifecycle matter, for example a `ReturnRequest` if it must protect transitions like `requested -> approved -> received -> refunded`.\n- Use Domain Events only for meaningful facts such as `ReturnApproved` or `PolicyDecisionRecorded`, not for every field change.\n- Use Repositories only around true aggregate roots, not as a default wrapper around every table or API.\n\nThe first decision is context and language, not class design. Do not share `Customer`, `Return`, `Label`, and `Status` classes across all teams. Those terms are likely overloaded:\n- `Customer` in returns policy may mean behavior/risk/history.\n- `Customer` in customer-care may mean contact and communication context.\n- `Return` in fulfillment may mean physical logistics, while in returns it may mean policy case and financial outcome.\n- `Status` is especially dangerous because it hides different state machines behind one word.\n\nA better starting context split is:\n- `Returns Policy` context owned primarily by the returns team.\n- `Label Fulfillment` or `Carrier Labeling` context around carrier purchase/integration, likely near fulfillment.\n- `Notification Preferences` context, likely near customer-care or a broader customer communications area.\n\nThen choose relationships deliberately:\n- `Returns Policy` should consume translated facts from labeling and customer preferences, not their internal models.\n- `Carrier Labeling` is a good place for an anticorruption layer against carrier/vendor terminology.\n- Shared Kernel should be avoided unless there is a very small, stable overlap with explicit joint ownership; the current proposal suggests broad shared domain classes, which is the opposite of a safe Shared Kernel.\n\nThe transaction proposal is also wrong for DDD boundaries. One transaction for all operations suggests the boundaries are too large. Default to one transaction per aggregate or local consistency boundary, then coordinate across contexts with application orchestration and, where needed, asynchronous events. For example, policy approval, label purchase, and preference-driven notification should usually not be one ACID transaction.\n\nRecommendation: invest most in discovering the language and boundaries of `adaptive_returns_policy`, then add only the tactical patterns that protect its real invariants. Keep `carrier_label_purchase` and `notification_preferences` mostly procedural and integration-oriented. That is the smallest DDD investment likely to pay off.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:32:38.736821Z ERROR codex_models_manager::manager: failed to refresh available models: timeout waiting for child process to exit\n2026-07-13T16:32:38.738791Z ERROR codex_models_manager::manager: failed to refresh available models: timeout waiting for child process to exit\n2026-07-13T16:33:24.294448Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c52-cf52-79f1-856b-b839679f3026.1783960358763892000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

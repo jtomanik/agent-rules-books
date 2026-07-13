@@ -12,37 +12,37 @@ Keep domain behavior, code, tests, documents, and team language aligned inside e
 
 - Use a model only when it organizes domain knowledge, clarifies communication, and can be expressed in implementation; iterate through code, expert conversation, scenarios, and refactoring toward deeper insight.
 - Maintain one Ubiquitous Language per Bounded Context across names, tests, documents, diagrams, planning, and feature discussion; keep explanatory models separate from the implementation model.
-- Put business logic in the domain layer. Keep UI, application coordination, infrastructure, persistence, messaging, and framework constraints outside the model or behind adapters.
-- Use tactical patterns for model meaning: Entities for stable identity, Value Objects for immutable descriptive value, Services for important operations with no natural object home, and Modules for conceptual cohesion.
-- Manage lifecycle through Aggregates, Factories, and Repositories: expose only Aggregate roots, enforce invariants inside the boundary, hide complex creation and persistence, and prevent partially formed objects from escaping.
-- Design domain objects for the model first and persistence second; preserve identity, Aggregate boundaries, Value Object semantics, and domain query criteria instead of exposing database structure.
-- Refactor toward deeper domain insight, not only mechanical cleanliness. Make constraints, policies, processes, calculations, allocations, and generation rules explicit when they carry domain meaning.
-- Design for model users: name operations by domain purpose, separate side-effect-free functions from state-changing commands, make assertions explicit, and shape boundaries around conceptual contours.
-- Define every Bounded Context explicitly. Do not assume a term has the same meaning elsewhere; use context maps, tests, and active communication to protect model integrity.
-- Choose context relationships deliberately: Shared Kernel, Customer/Supplier, Conformist, Anticorruption Layer, Separate Ways, Open Host Service, Published Language, or incremental legacy replacement.
+- When the domain is complex enough to need model-driven design, put business rules in the domain layer and keep UI, application coordination, infrastructure, persistence, messaging, and framework constraints outside the model or behind adapters; use Smart UI only for simple applications where rich domain abstraction, reuse, integration, and deep business rules are unimportant.
+- Use tactical patterns only for model meaning: Entities when identity, lifecycle, or continuity matters; Value Objects for meaningful concepts defined by attributes, immutable by default, valid at construction, equal by value, whose concept validation should live inside the Value Object and whose validation and side-effect-free operations must stay near the value itself; Domain Services for domain-significant operations with no natural Entity or Value Object home; Modules for conceptual cohesion and Bounded Context ownership.
+- Use Aggregates as small immediate-consistency boundaries around invariants: route every invariant-affecting modification through the root, reference other Aggregates by identity unless stronger consistency is required, and align transactions with invariants. Use Factories for complex or domain-significant creation; use a direct constructor when creation is simple, intention-revealing, and exposes no complex invariants. Use Repositories only for Aggregate roots; do not let invalid or partially formed objects escape supported creation paths.
+- Before writing domain code, identify in order the Bounded Context, domain term, tactical type, and invariants. Then design the model first and persistence second; preserve identity, Aggregate boundaries, Value Object semantics, and domain query criteria instead of exposing database structure. Start from delivery, persistence, schema, or REST shape only for a purely infrastructural task.
+- Refactor toward deeper domain insight, not only mechanical cleanliness. Compare explanatory gain with migration cost; preserve behavior and move in safe incremental steps, never a big-bang rewrite when incremental migration is possible. Make constraints, policies, processes, calculations, and allocation rules explicit when they carry domain meaning.
+- Design for model users: name operations by domain purpose, prefer side-effect-free functions for calculations and queries, separate commands from queries when side effects would surprise readers, make assertions explicit, and shape boundaries around conceptual contours.
+- Identify a Bounded Context explicitly for every substantial domain area. Do not assume a term has the same meaning elsewhere; use context maps, tests, and active communication to protect model integrity.
+- Choose context relationships by their conditions: Shared Kernel only for a small jointly governed subset; Customer/Supplier when upstream commits to downstream needs; Conformist only when adopting upstream is cheaper than translating; Anticorruption Layer when real translation protects the local model from foreign or legacy models; Separate Ways when integration costs more than shared capability is worth; Open Host Service for a stable integration protocol; Published Language for a documented exchange language. Replace legacy responsibilities incrementally through translations.
 - Distill and protect the Core Domain by strategic value. Keep generic subdomains, infrastructure, reusable mechanisms, and supporting details from consuming core-domain attention.
-- Add large-scale structure only when individual objects no longer make a large model understandable; keep structures domain-specific, evolvable, and valid only inside compatible contexts.
+- Add large-scale structure only when it reduces cognitive load across contexts; keep it domain-specific, evolvable, minimally restrictive, and subordinate to each Bounded Context's model.
 - Use analysis patterns, design patterns, specifications, industry formalisms, and prior art only when they clarify the current model and preserve domain language.
 - Test the model in the Ubiquitous Language: prioritize domain tests for invariants, allowed and forbidden transitions, valid construction, specifications, application orchestration, and boundary translation before generic infrastructure checks.
 - Make major strategic moves with people who understand both the implementation and the domain; architecture and framework guidance must serve application teams and domain goals.
 
 ## Trigger rules
 
-- When terminology is awkward, ambiguous, inconsistent, or repeatedly translated, refine the Ubiquitous Language and rename code before adding more behavior.
-- When controllers, services, scripts, SQL, jobs, or serializers carry business decisions, move rules into domain objects, domain services, specifications, or explicit domain concepts.
-- When UI, persistence, messaging, APIs, or frameworks start shaping domain concepts, isolate them with layers, adapters, translation, or an Anticorruption Layer.
+- When terminology is awkward, ambiguous, or inconsistent inside one Bounded Context, refine the Ubiquitous Language and rename code; preserve legitimate differences between contexts through explicit translation rather than forcing one shared language.
+- When a domain is complex enough for model-driven design and controllers, services, scripts, SQL, jobs, or serializers carry business decisions, move rules into domain objects, Domain Services, Specifications, or explicit domain concepts.
+- When UI, persistence, messaging, APIs, or frameworks shape concepts in a model-driven domain, isolate technical representations behind appropriate layers, adapters, or explicit mappings; use an Anticorruption Layer only when real translation protects the local model from a foreign or legacy model.
 - When a change crosses unrelated modules, many objects, or multiple roots, reassess Module cohesion, Aggregate ownership, consistency timing, and context boundaries.
-- When clients know creation, lifecycle, persistence, identity generation, or internal mutation details, repair Factories, Repositories, roots, and encapsulation.
+- When clients perform complex creation, persistence mapping, reconstitution, or arbitrary internal mutation, repair Factories, Repositories, Aggregate roots, and encapsulation.
 - When new behavior is hard to explain, test, or extend, search for a deeper model, missing implicit concept, or breakthrough refactoring instead of adding procedural branches.
-- When integrating with another model, choose the relationship, translation strategy, published language or protocol, and boundary tests before writing boundary code.
+- When integrating models, choose an explicit context relationship and translation strategy; add a stable protocol or documented exchange language only when the chosen relationship calls for it. Test context boundaries, and where an Anticorruption Layer exists, test its translation.
 - When changing invariants, lifecycle transitions, specifications, orchestration, or context translation, add domain-language tests that prove valid behavior and block invalid states.
 - When generic mechanisms, reusable frameworks, or supporting subdomains obscure distinctive value, distill the Core Domain or separate the mechanism.
 
 ## Final checklist
 
-- Is domain behavior explicit in the model rather than hidden in delivery, persistence, or integration code?
+- Where complexity warrants model-driven design, is domain behavior explicit in the model rather than hidden in delivery, persistence, or integration code?
 - Do code, tests, documents, and conversations use one language inside each Bounded Context?
-- Do tactical patterns protect identity, value semantics, lifecycle, invariants, and responsibility instead of adding ceremony?
-- Does every cross-context integration have an explicit relationship, translation strategy, and boundary test?
+- Where tactical patterns are used, do they protect identity, value semantics, lifecycle, invariants, and responsibility instead of adding ceremony?
+- Does every cross-context integration have an explicit relationship and translation strategy, with boundary tests?
 - Do tests read like executable examples of the model and cover invalid transitions or construction?
 - Is the Core Domain visible and protected from supporting complexity, generic mechanisms, infrastructure, and frameworks?

@@ -1,16 +1,43 @@
 #!/usr/bin/env python3
-"""Validate required-skill contracts against the live project-skill catalog."""
+"""Validate required-skill and versioned evaluation contracts."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 from pathlib import Path
 
 
 CASE_HEADING = re.compile(r"^### ([A-Z]+\d+[a-z]*):\s+(.+)$")
-REQUIRED_LINE = re.compile(r"^- Required skills:\s+(.+)$")
+CONTRACT_VERSION = re.compile(r"^Evaluation contract version:\s*(\d+)\s*$")
+FIELD_LINE = re.compile(r"^- ([^:]+):\s*(.*)$")
 BRACED_SET = re.compile(r"\{([^}]*)\}")
+BACKTICK_VALUE = re.compile(r"`([^`]+)`")
+SHA256_VALUE = re.compile(r"\b([0-9a-fA-F]{64})\b")
+
+VERSION_2_CASE_FIELDS = (
+    "class",
+    "prompt or artifact",
+    "fixture sha-256",
+    "required skills",
+    "distinctive judgment",
+    "neighbor ownership",
+    "ownership review",
+    "reference expectation",
+    "runs",
+    "package fidelity trace",
+    "attribution review",
+    "behavioral result",
+    "diagnostics",
+)
+VERSION_2_FOCUSED_FIELDS = ("compact-body gap", "intended index destinations")
+VERSION_2_VERDICT_FIELDS = (
+    "source/package verdict",
+    "original behavioral observation",
+    "current-state gate",
+    "residual diagnostics",
+)
 
 
 def live_catalog(root: Path) -> set[str]:
@@ -34,10 +61,22 @@ def parse_skill_set(value: str) -> set[str] | None:
     return {item.strip().strip("`") for item in content.split(",") if item.strip()}
 
 
-def mapping_cases(path: Path) -> list[tuple[str, dict[str, set[str] | None]]]:
-    cases: list[tuple[str, dict[str, set[str] | None]]] = []
-    current: tuple[str, dict[str, set[str] | None]] | None = None
-    for line in path.read_text(encoding="utf-8").splitlines():
+def normalized_field_name(value: str) -> str:
+    return " ".join(value.lower().split())
+
+
+def contract_version(lines: list[str]) -> int | None:
+    for line in lines:
+        match = CONTRACT_VERSION.match(line)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def mapping_cases(lines: list[str]) -> list[tuple[str, dict[str, str]]]:
+    cases: list[tuple[str, dict[str, str]]] = []
+    current: tuple[str, dict[str, str]] | None = None
+    for line in lines:
         heading = CASE_HEADING.match(line)
         if heading:
             if current:
@@ -50,15 +89,64 @@ def mapping_cases(path: Path) -> list[tuple[str, dict[str, set[str] | None]]]:
             continue
         if not current:
             continue
-        required_line = REQUIRED_LINE.match(line)
-        if required_line:
-            current[1]["required"] = parse_skill_set(required_line.group(1))
+        field = FIELD_LINE.match(line)
+        if field:
+            current[1][normalized_field_name(field.group(1))] = field.group(2).strip()
     if current:
         cases.append(current)
     return cases
 
 
+def mapping_fields(lines: list[str]) -> dict[str, str]:
+    fields: dict[str, str] = {}
+    in_case = False
+    for line in lines:
+        if CASE_HEADING.match(line):
+            in_case = True
+            continue
+        if in_case and line.startswith("## "):
+            in_case = False
+        if in_case:
+            continue
+        field = FIELD_LINE.match(line)
+        if field:
+            fields[normalized_field_name(field.group(1))] = field.group(2).strip()
+    return fields
+
+
+def normalized_scalar(value: str) -> str:
+    return value.strip().rstrip(".").strip("`").strip().lower()
+
+
+def validate_fixture(root: Path, label: str, fields: dict[str, str]) -> list[str]:
+    errors: list[str] = []
+    path_match = BACKTICK_VALUE.search(fields["prompt or artifact"])
+    if not path_match:
+        return [f"{label}: prompt or artifact must contain one repository-relative path in backticks"]
+
+    relative = Path(path_match.group(1))
+    if relative.is_absolute():
+        return [f"{label}: prompt or artifact path must be repository-relative"]
+    fixture = (root / relative).resolve()
+    try:
+        fixture.relative_to(root)
+    except ValueError:
+        return [f"{label}: prompt or artifact path escapes repository root"]
+    if not fixture.is_file():
+        return [f"{label}: fixture file not found: {relative}"]
+
+    digest_match = SHA256_VALUE.search(fields["fixture sha-256"])
+    if not digest_match:
+        return [f"{label}: fixture SHA-256 must contain a 64-character hexadecimal digest"]
+    expected = digest_match.group(1).lower()
+    actual = hashlib.sha256(fixture.read_bytes()).hexdigest()
+    if expected != actual:
+        errors.append(f"{label}: fixture SHA-256 mismatch: expected {expected}, actual {actual}")
+    return errors
+
+
 def validate_repository(root: Path) -> list[str]:
+    root = root.resolve()
     catalog = live_catalog(root)
     errors: list[str] = []
     if not catalog:
@@ -66,18 +154,52 @@ def validate_repository(root: Path) -> list[str]:
 
     mappings = sorted((root / "_skill-workbench").glob("*/mapping.md"))
     for mapping in mappings:
-        for case_id, sets in mapping_cases(mapping):
+        lines = mapping.read_text(encoding="utf-8").splitlines()
+        version = contract_version(lines)
+        if version not in (None, 2):
+            errors.append(
+                f"{mapping.relative_to(root)}: unsupported evaluation contract version {version}"
+            )
+        cases = mapping_cases(lines)
+        for case_id, fields in cases:
             label = f"{mapping.relative_to(root)} {case_id}"
-            if "required" not in sets:
+            if "required skills" not in fields:
                 errors.append(f"{label}: missing required skills line")
                 continue
-            if sets["required"] is None:
+            required = parse_skill_set(fields["required skills"])
+            if required is None:
                 errors.append(f"{label}: required skills must contain an explicit {{...}} set")
                 continue
 
-            unknown = sorted((sets["required"] or set()) - catalog)
+            unknown = sorted(required - catalog)
             if unknown:
                 errors.append(f"{label}: unknown required skill {', '.join(unknown)}")
+
+            case_version = normalized_scalar(fields.get("contract version", ""))
+            if case_version and case_version != "2":
+                errors.append(f"{label}: unsupported contract version {case_version}")
+                continue
+            if version != 2 and case_version != "2":
+                continue
+            for field in VERSION_2_CASE_FIELDS:
+                if not fields.get(field):
+                    errors.append(f"{label}: missing {field}")
+            if any(not fields.get(field) for field in VERSION_2_CASE_FIELDS):
+                continue
+
+            expectation = normalized_scalar(fields["reference expectation"])
+            if expectation == "focused":
+                for field in VERSION_2_FOCUSED_FIELDS:
+                    if not fields.get(field):
+                        errors.append(f"{label}: missing {field}")
+            errors.extend(validate_fixture(root, label, fields))
+
+        if version == 2:
+            fields = mapping_fields(lines)
+            mapping_label = str(mapping.relative_to(root))
+            for field in VERSION_2_VERDICT_FIELDS:
+                if not fields.get(field):
+                    errors.append(f"{mapping_label}: missing {field}")
     return errors
 
 
@@ -90,7 +212,7 @@ def main() -> int:
         for error in errors:
             print(f"ERROR: {error}")
         return 1
-    print("PASS: every durable evaluation case names only live required skills")
+    print("PASS: durable required-skill and versioned evaluation contracts are valid")
     return 0
 
 

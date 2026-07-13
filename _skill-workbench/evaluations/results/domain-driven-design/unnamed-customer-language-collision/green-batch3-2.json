@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/unnamed-customer-language-collision.md",
+  "case_sha256": "b914d0a5d83b0da17369373165be596bc25188a006369490e5f0585205c45971",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c53-23fc-72b0-b69a-ff5cd1a5806e",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposed shared `Customer` class should not be adopted as written. It collapses at least three different concepts into one type and hides the disagreement behind generic names.\n\nThe language that must be clarified first is:\n- `Customer`: are the teams talking about the same real-world thing? Sales has a CRM account, Billing has a legal invoicing entity, Support has an entitled party. Those may overlap, but they are not the same concept by default.\n- `active`: this is three different business rules. Sales means recent opportunity activity, Billing means invoice eligibility, Support means support entitlement. A single boolean would be false precision.\n- `status`: this is undefined and will become a bucket for incompatible lifecycle states from different teams.\n- `id`: there is no shared identity yet. CRM account ID, tax registration plus billing account ID, and entitlement ID identify different records in different contexts.\n\nThe model boundary that should be clarified is that Sales, Billing, and Support are separate bounded contexts unless the business can name a smaller, truly shared concept. Each team currently owns different rules, required data, and identity. That means they should keep separate models such as `SalesAccount`, `BillingCustomer` or `BillingEntity`, and `SupportEntitlementHolder` rather than share one enterprise domain class.\n\nIf the company needs cross-team linkage, introduce a thin cross-context construct with a narrower meaning, for example a `Party` or `CustomerCorrelation` record that only carries stable identity links:\n- enterprise party ID\n- `crmAccountId`\n- `billingAccountId`\n- `taxRegistration`\n- `supportEntitlementIds`\n\nThat shared record should not carry context-specific booleans or statuses.\n\nInformation should cross boundaries through explicit contracts with translation, not by sharing the domain class:\n- Sales publishes or serves data like `AccountWithOpenOpportunityLast90Days { crmAccountId, ownerId, pipelineStage, territory, asOfDate }`.\n- Billing publishes or serves data like `InvoiceEligibleEntity { billingAccountId, taxRegistration, paymentTerms, creditHold, invoiceAddress }`.\n- Support publishes or serves data like `SupportEntitledParty { entitlementId, plan, coveredProducts, serviceWindow }`.\n\nConsumers should translate those contracts into their own local model. If one context must consume another heavily, put an anticorruption layer at that boundary so foreign terms do not leak into local code.\n\nThe key decision is not how to expand the proposed class. It is whether any real shared concept exists beyond identity correlation. If the only commonality is \u201cthese records refer to related parties,\u201d share an identity map and integration contracts, not one `Customer` model.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [
+    "required project skill not selected: domain-driven-design"
+  ],
+  "stderr": ""
+}

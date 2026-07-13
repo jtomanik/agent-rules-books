@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/unnamed-customer-language-collision.md",
+  "case_sha256": "b914d0a5d83b0da17369373165be596bc25188a006369490e5f0585205c45971",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c53-e1a4-7fa3-80fb-5c510a2b7071",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposal should be rejected as a shared domain class in its current form. It collapses three different meanings into one `Customer`, and the collisions are visible in every core field:\n\n- `id` is not one identity. Sales identifies a CRM account, Billing identifies a legal/billable entity with tax registration and billing account ID, and Support identifies an entitlement holder via entitlement ID.\n- `active` is not one business fact. It means recent pipeline activity in Sales, invoice eligibility in Billing, and support entitlement validity in Support.\n- `status` is undefined because each team\u2019s lifecycle is different.\n- Optional fields like `ownerId`, `taxNumber`, and `supportPlan` are not optional details on one model; they belong to different bounded contexts.\n\nBefore sharing code, the teams need to clarify language and boundaries:\n\n- Decide whether `Customer` is actually one concept at all. Based on the definitions given, it is not.\n- Rename each local model to its real meaning inside its context, for example `SalesAccount`, `BillableEntity` or `BillingAccount`, and `SupportEntitlementHolder` or `SupportedParty`.\n- Define whether there is any narrower cross-team concept underneath them, such as `Party`, `Organization`, or `AccountLink`. If that concept exists, it must have its own explicit meaning and minimal fields, not a merged union of sales, billing, and support concerns.\n- Treat `active` and `status` as context-local terms unless the business writes one enterprise definition for them. Right now there is no such shared definition.\n\nRecommended boundary design:\n\n- Keep separate domain models per team. Do not share one enterprise `Customer` class across Sales, Billing, and Support.\n- Cross the boundary with explicit integration contracts, not shared domain objects.\n- Exchange facts in a published language such as:\n  - Sales: `crmAccountId`, opportunity recency, territory, owner, pipeline stage.\n  - Billing: `billingAccountId`, `taxRegistration`, invoice eligibility, credit hold, payment terms, invoice address.\n  - Support: `entitlementId`, plan, covered products, service window, entitlement status.\n- Maintain identity mapping explicitly through a linking model such as `CustomerLink` or `PartyMapping` that relates `crmAccountId`, `billingAccountId`, `taxRegistration`, and `entitlementId` when the business knows they refer to the same real-world party.\n- If one team must consume another team\u2019s concept, translate at the boundary with an anti-corruption layer or dedicated mapper. Do not import foreign fields like `supportPlan` into Sales or `ownerId` into Billing just because they fit on a class.\n\nThe practical rule here is: share identifiers and published facts, not a single `Customer` model. If the teams cannot write one precise enterprise definition for `Customer`, `active`, `status`, and `id`, they do not have a shared model yet; they only have related contexts that need translation.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [
+    "required project skill not selected: domain-driven-design"
+  ],
+  "stderr": "2026-07-13T16:34:24.552704Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c53-e1a4-7fa3-80fb-5c510a2b7071.1783960428964734000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

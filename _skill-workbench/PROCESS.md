@@ -354,14 +354,16 @@ Use this file alone for ordinary matched work.
 
 For an explicit disputed interpretation or demonstrated hotspot, read [references/index.md](references/index.md), then read the sections it identifies in [references/full.md](references/full.md). Also use that focused route when, after applying this file, one bounded book-specific question remains unresolved.
 
-For a comprehensive audit, an explicit request for the complete book lens, or a decision that depends on interactions across several sections, read [references/full.md](references/full.md) end to end.
+For a comprehensive audit or an explicit request for the complete book lens, read [references/full.md](references/full.md) end to end.
 ```
 
 Tailor the conditions to the book. A pointer's wording determines whether the full guidance is actually reached.
 
 Do not use bare `ambiguity`, `detail`, `decision`, or `hotspot` as generic focused triggers. Agents can treat any nontrivial implementation detail as satisfying them. State the evidence threshold, require ordinary work to stop after `SKILL.md` when it resolves the task, and make the post-body unresolved condition explicit.
 
-Evaluation must name the concrete source question for focused cases and record the headings actually consulted. Do not require an exact section set. If a focused route would normally load one-third or more of the full sections, or spans several independent concern families, review it manually for material tier collapse and prefer an end-to-end read unless the bounded subset is demonstrably coherent.
+Do not use the number of implicated rules, sections, or concern families as a proxy for comprehensive loading. A multi-concern implementation decision can still need only a bounded coherent subset. Reserve end-to-end loading for an explicitly exhaustive objective.
+
+Evaluation must name the concrete source-detail question for focused cases, verify that `SKILL.md` does not already resolve it, identify the index destination before execution, and record the headings actually consulted. A narrow decision is not automatically a focused-reference case. Do not require an exact section set. If a focused route reads one-third or more of the full sections or spans several independent concern families, review it manually for material tier collapse; keep the bounded subset when it is coherent, and use an end-to-end read only when the task is explicitly exhaustive.
 
 ## references/index.md
 
@@ -428,10 +430,15 @@ Requirements:
 
 ## Mapping Document
 
-Create `_skill-workbench/<book>/mapping.md` with this structure:
+Create `_skill-workbench/<book>/mapping.md` with this structure. New mappings
+use evaluation contract version 2. Do not retrofit historical mappings merely
+for formatting; a new replacement inside one of them opts in at case level as
+specified by `EVALUATION.md`.
 
 ```markdown
 # <Book> Skill Mapping
+
+Evaluation contract version: 2
 
 ## Scope
 
@@ -482,16 +489,27 @@ Create `_skill-workbench/<book>/mapping.md` with this structure:
 ### E1: <short name>
 
 - Class:
-- Prompt or artifact:
+- Prompt or artifact: `<repository-relative fixture path>`
+- Fixture SHA-256:
 - Required skills:
-- Selection notes:
+- Distinctive judgment:
+- Neighbor ownership:
+- Ownership review:
 - Reference expectation:
-- Relevant sections:
+- Compact-body gap: <focused cases only>
+- Intended index destinations: <focused cases only>
 - Runs:
 - Package fidelity trace:
 - Attribution review:
-- Conversion result:
+- Behavioral result:
 - Diagnostics:
+
+## Verdicts
+
+- Source/package verdict:
+- Original behavioral observation:
+- Current-state gate:
+- Residual diagnostics:
 
 ## Independent Review
 
@@ -519,11 +537,15 @@ The mapping file is authoring evidence, not runtime context. Keep it outside the
 
 ### 1. Freeze fidelity and evaluation evidence
 
-Before authoring, inventory the canonical source, define representative positive discovery and disclosure cases, and freeze their raw fixtures. Follow `_skill-workbench/EVALUATION.md`.
+Before authoring, inventory the canonical source, define representative positive discovery and disclosure cases, and freeze their raw fixtures. Follow `_skill-workbench/EVALUATION.md`. Fixture content is frozen at this point, but required-skill ownership remains provisional until the complete sibling catalog is reconciled.
 
 Each positive case names the minimum required skill set. Do not classify every other live skill as allowed or forbidden. Define semantic ordinary, focused, or comprehensive expectations without requiring an exact selected-skill set or exact focused-section count. A skill-disabled baseline is optional diagnostic evidence; it is not needed to prove that the source conversion is faithful.
 
-Completion criterion: the conversion has a source-fidelity inventory, every positive case has an explicit required set, and the three progressive-disclosure tiers have representative probes.
+After all batch descriptions exist and before behavioral execution, require an independent fixture-ownership audit against the complete catalog. Each required skill must contribute a distinctive central judgment, not merely share topic vocabulary with the prompt. If the audit or later evidence proves a fixture was misclassified, preserve it as a diagnostic and freeze a separately named replacement before running it; never rewrite failed evidence or retroactively relax its required set.
+
+Record each new case's distinctive judgment, neighboring ownership boundary, independent ownership verdict, exact fixture hash, and intended disclosure mode using evaluation contract version 2. A focused probe also names the source-detail need absent from `SKILL.md` and its intended index destinations; a narrow implementation decision alone does not qualify.
+
+Completion criterion: the conversion has a source-fidelity inventory, every positive case has an explicit required set and completed ownership review, fixture hashes validate, and the three progressive-disclosure tiers have representative probes.
 
 ### 2. Establish the lens
 
@@ -588,11 +610,13 @@ python3 _skill-workbench/scripts/check_rule_wording.py \
   --skill .agents/skills/clean-code/SKILL.md
 ```
 
-Completion criterion: all structural, mapping, equality, anchor, range, link, placeholder, and required-skill contract checks pass, and every wording difference is removed or explicitly justified.
+Completion criterion: all structural, mapping, equality, anchor, range, link, placeholder, required-skill, versioned case-field, fixture-hash, and verdict-block checks pass, and every wording difference is removed or explicitly justified.
 
 ### 9. Run behavioral evaluation
 
 Use fresh agents with the same prompts, artifacts, model, and configuration. When a skill-disabled baseline is useful, keep its configuration matched. Evaluate required-skill discovery, application, disclosure, and package fidelity separately. Do not reveal the expected answer, required skills, suspected weakness, source trace, or conversion rationale. Restrict runtime guidance reads to `.agents/skills/**`; canonical rule or workbench reads invalidate the run. The blind solver reports observed selection and consulted files, while an independent reviewer performs source tracing afterward.
+
+Before parallel dispatch, require one live GREEN preflight through the current CLI, model, and result schema using a stable direct positive fixture as specified in `EVALUATION.md`. Preserve any failed harness record, repair the evaluator, and verify a uniquely named successful replacement before treating later runs as behavioral evidence. A valid required-skill miss is catalog evidence, not a harness failure; preserve it and stop parallel dispatch for diagnosis.
 
 Pass each positive target to the runner with a repeated `--required-skill <name>` option. The runner evaluates `required <= selected` after the blind result is recorded, so expected targets never appear in the solver prompt.
 
@@ -600,7 +624,7 @@ Completion criterion: every positive run includes all required skills, no disclo
 
 ### 10. Review independently and regress the catalog
 
-Have an agent other than the converter review semantic fidelity. Compare all descriptions and rerun affected positive cases after adding the skill. Run direct and unnamed distinctive cases three times. Broad, null, and ambiguous prompts may be retained as context-cost diagnostics.
+Have an agent other than the converter review semantic fidelity. Compare all descriptions and choose reruns from the change-impact matrix in `EVALUATION.md`; description, router, active-guidance, fixture, harness, and model changes invalidate different evidence. Run direct and unnamed distinctive cases three times. Broad, null, and ambiguous prompts may be retained as context-cost diagnostics.
 
 Completion criterion: the independent reviewer finds no unsupported strengthening, weakening, omission, or imported guidance; every repeated positive run includes its required skills; and progressive disclosure remains materially intact. Overlapping selection is not a failure by itself.
 
@@ -653,6 +677,7 @@ Completion criterion: the independent reviewer finds no unsupported strengthenin
 - Description branches do not merely repeat synonyms.
 - Description remains useful if truncated from the end.
 - Every positive case has an explicit required skill set.
+- Every version 2 case records distinctive judgment, neighbor ownership, completed ownership review, and a matching fixture hash.
 
 ### Guidance checks
 
@@ -662,6 +687,7 @@ Completion criterion: the independent reviewer finds no unsupported strengthenin
 - The final checklist catches missed applicable guidance.
 - A focused issue reaches relevant full sections without material tier collapse.
 - A comprehensive request loads the full reference end to end.
+- Focused fixtures identify information absent from `SKILL.md` and the intended index destinations before execution.
 
 ### Behavioral evaluation checks
 
@@ -671,7 +697,8 @@ Completion criterion: the independent reviewer finds no unsupported strengthenin
 - Direct and distinctive unnamed positive cases include every required skill in three independent runs.
 - The evaluator is not told expected skills, source IDs, or suspected weaknesses.
 - An agent other than the converter performs final semantic review.
-- Changing one description reruns every affected positive required-skill case.
+- Rerun scope follows the documented change-impact class; different models are never combined into one repetition count.
+- Source/package, original behavioral, current-state, and residual-diagnostic verdicts remain separate.
 
 ## Pilot Validation Shapes
 

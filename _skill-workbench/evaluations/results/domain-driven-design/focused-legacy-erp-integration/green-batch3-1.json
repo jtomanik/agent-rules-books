@@ -1,0 +1,39 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/focused-legacy-erp-integration.md",
+  "case_sha256": "5d99cd1a6554c338ef91d582a6d236f6de0e77c5e2ab78a94554eb851c86789f",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c55-aed2-7772-a53e-f3087bffd811",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Ordering should not be `Conformist` to the ERP. The ERP is vendor-controlled, changes quarterly, and its language has already damaged Ordering discussions, so the right relationship is: treat the ERP as a foreign legacy context and put an `Anticorruption Layer` between it and Ordering. In practice, the ERP side is the upstream source the team must live with, but Ordering must keep its own language: `Order`, `OrderLine`, and `FulfillmentPriority` stay local, while codes like `DOC_TYPE`, `PARTY_CLASS`, `MATNR`, `MENGE`, `PRIO`, and `STATUS` stop at the integration boundary.\n\nThe proposed documented internal protocol can fit, but only as a separate integration context. For that context, `Published Language` fits because multiple internal systems consume the protocol, and `Open Host Service` fits if the integration team exposes it as a stable API or message contract. That published protocol should not become Ordering\u2019s domain model. Translation should therefore live in two places: ERP payload <-> internal integration protocol inside the ERP integration context, and internal integration protocol <-> Ordering model at Ordering\u2019s boundary. Do not let Ordering import ERP field names or ERP-derived enums directly.\n\nBefore calling the integration stable, test the boundary, not just the happy path. Required coverage is: characterization/contract tests against real ERP samples for each supported quarterly protocol version; explicit mapping tests for every code/value translation such as `PRIO` to `FulfillmentPriority`, quantity/identifier formatting, and status interpretation; failure tests for unknown codes, added fields, removed fields, and invalid combinations; regression tests proving Ordering terms and rules remain unchanged when ERP protocol details change; and consumer contract tests for the published internal protocol so the two other internal systems are protected from accidental breaking changes.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled",
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [
+    "required project skill not selected: domain-driven-design"
+  ],
+  "stderr": ""
+}

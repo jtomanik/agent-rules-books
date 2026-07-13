@@ -16,7 +16,6 @@
     "selected_project_skills": {
       "description": "Observed repository book skills whose SKILL.md files were consulted. Acceptance requires the case's required skills to be a subset; additional selections are permitted.",
       "type": "array",
-      "uniqueItems": true,
       "items": {
         "type": "string"
       }

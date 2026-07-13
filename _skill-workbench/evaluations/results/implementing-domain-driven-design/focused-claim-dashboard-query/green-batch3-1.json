@@ -1,0 +1,55 @@
+{
+  "case": "_skill-workbench/evaluations/cases/implementing-domain-driven-design/focused-claim-dashboard-query.md",
+  "case_sha256": "f0e0e555ae7db0a61a75fb7f04879b6b205dbce2292e74de00e9a7d16668c532",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c89-1bd6-7223-8bfd-65955e6439f4",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "`ClaimRepository` should not expose `dashboard(...)`.\n\nA repository is for aggregate-root persistence and reconstitution. Here, `Claim` is the adjudication aggregate root, so `ClaimRepository` should stay focused on aggregate-oriented operations such as `byId(ClaimId)` and `save(Claim)`, plus any other aggregate access patterns genuinely needed by command/application logic. A dashboard query that joins claims, policies, parties, tasks, and a reporting projection is not aggregate reconstitution; it is a read-side query over multiple sources.\n\nThat query belongs in a separate query-side port/adapter, alongside the adapter that already owns SQL for the other screens. Name it for the use case, for example `ClaimDashboardQuery`, `ClaimDashboardView`, or `ClaimReadModelStore`. Its implementation should query the read/projection tables directly and page/filter there, without rebuilding full `Claim` graphs.\n\n`ClaimDashboardRow` should be treated as an application-facing read model/projection DTO, not as part of the domain model and not as a variant of `Claim`. Its shape should follow screen/query needs, may denormalize or join across bounded structures, and may be eventually consistent. The stated 20-second lag is a strong signal that this is a projection/query model, not repository work for the command aggregate.\n\nSo the focused decision is:\n1. `ClaimRepository` exposes aggregate persistence/retrieval for `Claim`, not dashboard listings.\n2. The dashboard query lives in a dedicated query/read adapter owned by the application/query side.\n3. The returned rows are a read representation optimized for the dashboard, intentionally separate from the domain aggregate model.",
+    "selected_project_skills": [
+      "implementing-domain-driven-design",
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/implementing-domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/references/index.md",
+      ".agents/skills/implementing-domain-driven-design/references/full.md",
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-architecture/references/index.md",
+      ".agents/skills/clean-architecture/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "implementing-domain-driven-design",
+        "sections": [
+          "Repository Rules",
+          "Client Representation and Scope Discipline"
+        ]
+      },
+      {
+        "skill": "clean-architecture",
+        "sections": [
+          "Required Layer Responsibilities"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "implementing-domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T17:32:44.061558Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c89-1bd6-7223-8bfd-65955e6439f4.1783963917270625000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

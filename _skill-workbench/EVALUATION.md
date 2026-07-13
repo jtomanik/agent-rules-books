@@ -113,6 +113,14 @@ exhaustive guidance?
 - `comprehensive`: an explicit exhaustive request reads the full reference end
   to end.
 
+A focused fixture must contain a concrete source-detail need that the compact
+body intentionally does not answer and that the index can route to a bounded,
+coherent section set. Calling the task focused, making the decision narrow, or
+mentioning several related concerns is not sufficient. If `SKILL.md` actually
+contains everything needed, record the run as ordinary and treat the mistaken
+fixture expectation as a design diagnostic rather than forcing a reference
+read.
+
 The solver record names the level-two headings it actually consulted. Use `*`
 only for an end-to-end comprehensive read. These fields are access evidence,
 not an instruction to open more files.
@@ -133,6 +141,10 @@ count is diagnostic. Do not require an exact section set. A focused read that
 approaches one-third of the source or spans several independent concern
 families should trigger manual review for tier collapse, not an automatic
 failure.
+
+Concern count alone never requires a comprehensive read. Reserve end-to-end
+loading for an explicitly exhaustive objective, not merely a decision that
+touches several related or independent parts of the source.
 
 ## 4. Application And Attribution
 
@@ -176,7 +188,35 @@ catalog diagnostics. Use raw code, configuration, incident evidence, schemas,
 or design artifacts for substantive application cases. A hypothetical prose
 prompt is acceptable for direct invocation and narrow routing tests.
 
+Freeze raw fixture content before package authoring, but treat its required-skill
+ownership as provisional until the complete sibling catalog exists. Before any
+behavioral run, have an independent reviewer verify that each positive fixture
+makes every required skill's distinctive judgment central; shared vocabulary or
+a topic covered somewhere in the book is insufficient. The audit must also
+confirm that unnamed and disclosure fixtures do not reveal a required skill or
+its book or lens name, including through a negated instruction. A neighboring
+skill's ordinary vocabulary may remain when it is part of the raw task; its
+selection is permitted and evaluated under the normal overlap policy.
+
+If post-run review proves a frozen positive fixture was assigned to the wrong
+catalog owner, preserve its fixture, required set, and results as historical
+diagnostics. Do not edit the old prompt, relax its required set, or credit it to
+a sibling after observing selection. Author a separately named replacement,
+record and independently audit its contract before execution, and keep the
+reclassification explicit in the mapping.
+
 ## Durable Case Record
+
+Mappings first authored after Batch 3 must declare
+`Evaluation contract version: 2` immediately after the title. This opts every
+case in that mapping into deterministic field and fixture-hash validation.
+Historical mappings remain unchanged. A separately named replacement added to
+a historical mapping opts in only that case with `Contract version: 2`.
+
+Version 2 cases use repository fixture files rather than prose summaries in the
+mapping. Record and validate the exact file hash before execution. The
+`validate_evaluation_contracts.py` check requires the fields below, confirms the
+fixture exists under the repository root, and compares its SHA-256 value.
 
 Record cases in `_skill-workbench/<book>/mapping.md` before execution:
 
@@ -184,17 +224,44 @@ Record cases in `_skill-workbench/<book>/mapping.md` before execution:
 ### E1: <short name>
 
 - Class: <recognition | application | pressure | retrieval | diagnostic>
-- Prompt or artifact: <verbatim prompt or repository-relative path>
+- Prompt or artifact: `<repository-relative fixture path>`
+- Fixture SHA-256: `<64-character digest>`
 - Required skills: <explicit set; empty only for a diagnostic>
-- Selection notes: <optional expected overlap or diagnostic question>
+- Distinctive judgment: <the central judgment each required skill uniquely contributes>
+- Neighbor ownership: <why plausible sibling skills are secondary, complementary, or outside the central decision>
+- Ownership review: <independent reviewer and pre-run verdict>
 - Reference expectation: <ordinary | focused | comprehensive | diagnostic>
-- Relevant sections: <semantic target or not applicable>
+- Compact-body gap: <focused only: exact source detail absent from SKILL.md>
+- Intended index destinations: <focused only: bounded full-reference headings>
 - Runs: <run IDs and observations>
 - Package fidelity trace: <M*, N*, or full heading>
-- Attribution review: <supported | unsupported | not applicable>
-- Conversion result: <pass | fail>
+- Attribution review: <source-backed guidance versus fixture facts, neighboring guidance, and solver choices>
+- Behavioral result: <pass | fail | pending>
 - Diagnostics: <non-blocking runtime observations>
 ```
+
+Before behavioral execution, `Ownership review` must be a completed independent
+`PASS`, not `pending`. For a focused case, the reviewer must confirm both that
+the compact body lacks the requested source detail and that the intended index
+destinations form the smallest coherent source set. Ordinary and comprehensive
+cases omit the two focused-only fields.
+
+Version 2 mappings end with a stable verdict block:
+
+```markdown
+## Verdicts
+
+- Source/package verdict: <PASS | FAIL | pending>
+- Original behavioral observation: <immutable first-run result or pending>
+- Current-state gate: <current PASS | FAIL | pending, with correction named>
+- Residual diagnostics: <preserved misses, over-reads, additions, or none>
+```
+
+The source/package verdict never derives from skill-selection variance. The
+original behavioral observation is immutable. A current-state gate differs
+from it only after a documented package, catalog, harness, or ownership-contract
+correction with separately named evidence. Residual diagnostics never silently
+disappear when the current-state gate passes.
 
 Existing mappings may retain historical `Allowed skills`, `Forbidden skills`,
 `Required order`, RED/GREEN, and exact-section fields. Preserve those records;
@@ -213,6 +280,10 @@ when policy changes; add a current-policy reclassification.
   acceptance; every run must include all required skills.
 - Run each disclosure tier at least once. Repeat a case when a possible material
   tier collapse needs classification.
+- Repetition may diagnose nondeterminism but does not erase a valid required-skill
+  miss or turn it into a majority-vote pass. Count a uniquely named replacement
+  as current-state evidence only after a documented package, catalog, harness, or
+  ownership-contract correction; retain every superseded record.
 - Use fresh solver contexts and the same model/configuration when comparing
   runs.
 - Do not reveal required skills, source IDs, suspected omissions, or conversion
@@ -242,7 +313,20 @@ The converter may run exploratory checks, but a different agent performs final
 semantic review. Record the live catalog descriptions and relevant runtime
 configuration with behavioral evidence.
 
-## Catalog Regression
+## Change-Impact Reruns
+
+Classify a change before scheduling reruns. Do not rerun the entire matrix by
+habit, and do not reuse an unaffected run to claim evidence for changed
+behavior.
+
+| Change | Evidence invalidated | Required reruns |
+| --- | --- | --- |
+| Description change or new catalog neighbor | Discovery and catalog routing for affected skills | Direct and unnamed cases for the changed skill; every positive case requiring it; high-overlap cases involving the new or changed boundary. |
+| `SKILL.md` or index router-loading prose only | Disclosure behavior reached after selection | Affected ordinary cases, focused source-detail probes, comprehensive controls, and any preserved over-read that motivated the change. Do not rerun discovery unless description metadata also changed. |
+| Active technical guidance, canonical mini/nano, or a prescriptive index predicate | Source/package fidelity and affected application behavior | Repeat reverse tracing, exact wording and semantic review, then rerun affected application, pressure, attribution, and disclosure cases. Rerun discovery only if the description changed. |
+| Fixture ownership or content correction | Only the corrected contract; old evidence stays historical | Preserve the old fixture and results, create a separately named versioned replacement, audit it, then execute its frozen runs. |
+| Harness, schema, or CLI defect that prevented valid evidence | Invalid process-boundary records only | Preserve failed artifacts, repair and unit-test the harness, pass one live preflight, then use uniquely named replacements for invalid runs. Existing valid records remain valid when prompt, model, configuration, and result semantics are unchanged. |
+| Intentional model or material runtime-configuration change | Behavioral comparability for the current gate | Start a new named behavioral snapshot and rerun every case required for current acceptance. Never combine different models into one repetition count. |
 
 After adding or changing a description:
 
@@ -274,10 +358,14 @@ A conversion passes only when:
   canonical source.
 - Reverse tracing finds no unsupported compressed-source detail.
 - Structural and mapping validation passes.
+- New mappings and opted-in replacement cases pass version 2 field and
+  fixture-hash validation.
 - An independent semantic reviewer finds no unsupported strengthening,
   weakening, omission, or imported guidance.
 - Direct and unnamed positive discovery runs include every required skill.
 - Progressive disclosure has no material tier collapse.
+- Source/package, original behavioral, current-state, and residual-diagnostic
+  verdicts remain separate.
 
 The following do not fail a faithful conversion by themselves:
 
@@ -294,6 +382,19 @@ temporary baseline workspace when requested, restricts GREEN guidance to
 packaged skills, records case hashes and thread IDs, and checks result integrity
 against `_skill-workbench/evaluations/result-v2.schema.json`. Preserved v1
 evidence continues to use `result.schema.json`.
+
+Before dispatching parallel behavioral runs, execute one live GREEN preflight
+through the current model, CLI, and result schema using a stable direct positive
+fixture. Require a structured result, clean integrity, and successful
+required-skill inclusion before starting the batch. A schema rejection,
+model/runtime error, missing result, or other harness failure is environment
+evidence, not a behavioral sample: preserve its JSON, repair the harness,
+verify the preflight, and use a uniquely named replacement record rather than
+overwriting the failed artifact. A structurally valid required-skill miss is
+behavioral evidence, not a harness failure; preserve it and diagnose the
+catalog contract before parallel dispatch. The runner must preserve Codex
+JSON-event error messages as `codex_errors` in addition to cleaned stderr so a
+process-boundary failure remains diagnosable.
 
 For a positive GREEN run, pass `--required-skill <name>` once per required
 target. The runner checks inclusion after the blind solver returns; the required

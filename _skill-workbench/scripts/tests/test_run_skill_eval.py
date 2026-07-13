@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import unittest
 from pathlib import Path
 
 
 SCRIPT = Path(__file__).parents[1] / "run_skill_eval.py"
+SCHEMA = Path(__file__).parents[2] / "evaluations" / "result-v2.schema.json"
 
 
 class EvaluationRunnerTests(unittest.TestCase):
@@ -49,10 +51,27 @@ class EvaluationRunnerTests(unittest.TestCase):
         self.assertIn("--json", command)
         self.assertIn("/tmp/eval", command)
 
+    def test_response_schema_avoids_unsupported_unique_items_keyword(self) -> None:
+        schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+
+        self.assertNotIn("uniqueItems", schema["properties"]["selected_project_skills"])
+
     def test_thread_id_is_extracted_from_json_events(self) -> None:
         events = '{"type":"thread.started","thread_id":"abc-123"}\n{"type":"turn.completed"}\n'
 
         self.assertEqual(self.runner.extract_thread_id(events), "abc-123")
+
+    def test_codex_error_messages_are_preserved_without_duplicates(self) -> None:
+        message = "Invalid schema: uniqueItems is not permitted"
+        events = "\n".join(
+            [
+                '{"type":"thread.started","thread_id":"abc-123"}',
+                json.dumps({"type": "error", "message": message}),
+                json.dumps({"type": "turn.failed", "error": {"message": message}}),
+            ]
+        )
+
+        self.assertEqual(self.runner.extract_error_messages(events), [message])
 
     def test_known_ephemeral_warnings_are_removed_from_stderr(self) -> None:
         stderr = "\n".join(

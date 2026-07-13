@@ -1,0 +1,64 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/ddia-compatible-overlap.md",
+  "case_sha256": "842d0253b075b141891d17b8ed9dcd2766f9d1f54916f5dce9dd3928fd974bba",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c89-b7ad-7a23-9ba9-2521a0bc7908",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Findings\n1. `billing.posted` and `ledger.posted` currently share one overloaded word for two different facts. In Billing it means \u201cissued to customer\u201d; in Ledger it means \u201cbalanced entries durable.\u201d That is a bounded-context leak. Ledger must not consume Billing\u2019s `status` as if it were Ledger state.\n2. The async path is not correct under the stated delivery model. `at_least_once` plus possible redelivery and reordering means `idempotency: none` is invalid; a duplicate `InvoicePosted` can create duplicate journal entries.\n3. The event contract is too weak for replayable consumers. It has no event identity, no event version, no producer sequence/version, and no compatibility story.\n4. `finance_dashboard` is unrecoverable. `checkpoint: in_memory` and `rebuild: none` fail both crash recovery and the required replay-after-7-days case. Broker retention cannot be the only recovery path.\n\nMinimum contracts\n\nContext and meaning boundary\n- Billing and Ledger must be separate bounded contexts with separate meanings for \u201cposted.\u201d\n- Billing publishes a Billing fact only: preferably rename the published event to something like `InvoiceIssued`; if the name stays `InvoicePosted`, its contract must explicitly mean Billing-issued, never Ledger-booked.\n- Ledger consumes the Billing fact through a translation boundary, not by reading `billing.status` directly. `consumes_billing_status_directly` should be `false`.\n- The translation should produce a Ledger-local command or decision such as `RecordInvoiceReceivable` / `PostInvoiceToLedger`, using Ledger\u2019s own rules and vocabulary.\n\nPublished language and payload\n- Publish a stable interchange contract, separate from Billing\u2019s internal model.\n- Minimum message envelope:\n  - `event_id`\n  - `event_type`\n  - `schema_version`\n  - `occurred_at`\n  - `producer` or `source_context`\n  - `invoice_id` as business key\n  - `invoice_version` or monotonically increasing per-invoice sequence\n  - correlation/causation id if available\n- Minimum business payload for this fact:\n  - `invoice_id`\n  - `customer_id`\n  - `amount`\n  - `currency`\n  - `issued_at`\n- Remove `status` from the published payload unless it is explicitly part of the published language with stable semantics. It is the easiest field to drift in meaning across contexts.\n\nOrdering and translation rules\n- Do not rely on broker order for correctness.\n- If Ledger only reacts to the first issuance fact, dedupe by `event_id` and/or by `(source_context, invoice_id, invoice_version)`.\n- If multiple invoice lifecycle events may arrive, require a per-invoice monotonic version/sequence and ignore stale or already-applied versions.\n- Keep ordering-sensitive logic scoped to `invoice_id` inside the Ledger consumer.\n\nIdempotency contract\n- Ledger needs consumer-side deduplication plus write-side uniqueness.\n- Minimum consumer contract:\n  - durable processed-message store keyed by `event_id` (or `(producer, event_id)`)\n  - record processing outcome atomically with the Ledger write, or make the Ledger write itself uniquely keyed to the source event\n- Minimum ledger-write contract:\n  - each journal posting carries `source_context` and `source_event_id` or another immutable origin key\n  - unique constraint preventing the same source event from creating a second posting\n- Result: duplicate delivery becomes a no-op, not a duplicate debit/credit set.\n\nDurability and replay/rebuild\n- The broker is transport, not the long-term replay source.\n- Keep a replayable authoritative event history beyond 7 days. Minimum options:\n  - retain the outbox as a durable replay log, or\n  - archive published events to durable storage/event log with longer retention\n- `finance_dashboard` needs:\n  - durable checkpoint, not in-memory\n  - explicit `schema_version`\n  - declared rebuild procedure from the authoritative history or from authoritative source tables plus backfill\n- If the dashboard is meant to show booked financial truth, it should project from a Ledger fact such as `LedgerEntriesPosted`, not infer that truth from Billing issuance.\n\nMinimal target shape\n- Billing: source of truth `billing-postgres`; publish stable Billing event through outbox.\n- Ledger: source of truth `ledger-postgres`; consume Billing event via translation layer; enforce idempotent posting by source event key.\n- Broker: at-least-once transport only; no correctness dependence on total order or retention.\n- Projections: durable checkpoints, versioned schemas, and documented replay source + rebuild runbook.\n\nOne concrete minimal redesign\n```yaml\nbilling:\n  issued: invoice has been issued to the customer\n  source_of_truth: billing-postgres\n  publish_path: transaction_outbox\n  event: InvoiceIssued\n  envelope:\n    - event_id\n    - schema_version\n    - occurred_at\n    - source_context\n    - invoice_id\n    - invoice_version\n  payload:\n    - customer_id\n    - amount\n    - currency\n    - issued_at\n\nledger:\n  posted: balanced debit and credit entries are durable\n  source_of_truth: ledger-postgres\n  consumes_billing_status_directly: false\n  translation: InvoiceIssued -> PostInvoiceToLedger\n  idempotency:\n    dedupe_key: source_event_id\n    unique_origin_constraint: true\n    stale_version_policy: ignore_older_invoice_version\n\nprojections:\n  finance_dashboard:\n    input: LedgerEntriesPosted\n    schema_version: 1\n    checkpoint: durable\n    rebuild: from_authoritative_event_history\n```\n\nThat is the minimum set of contracts that keeps Billing and Ledger meanings independent, prevents duplicate postings, survives redelivery/reordering, and makes projection repair possible after broker retention expires.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled",
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/domain-driven-design-distilled/references/index.md",
+      ".agents/skills/domain-driven-design-distilled/references/full.md",
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "domain-driven-design-distilled",
+        "sections": [
+          "Strategic Rules",
+          "Context Relationship Rules",
+          "Integration Style Rules"
+        ]
+      },
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Schema Evolution Rules",
+          "Encoding and Data Flow Rules",
+          "Derived Data Rules",
+          "Distributed Fault, Clock, and Consensus Rules",
+          "Batch and Stream Processing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "designing-data-intensive-applications",
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T17:33:57.549338Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c89-b7ad-7a23-9ba9-2521a0bc7908.1783963957166311000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

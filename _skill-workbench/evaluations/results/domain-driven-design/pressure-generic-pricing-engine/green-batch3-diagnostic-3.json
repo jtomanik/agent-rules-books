@@ -1,0 +1,39 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/pressure-generic-pricing-engine.md",
+  "case_sha256": "1d40b8eaf3f8ef82f10abed636b4dcc42fdae770703029ee6875eabde5dbdb64",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5cb1-21bf-75d1-b1f4-98285fd337ed",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Change direction, but only at the boundary needed for Friday.\n\nI would not add another top-level branch to `applyRule` that consumes more string-keyed metadata. The new rule is not just \u201cone more pricing formula.\u201d It introduces eligibility against an accepted commercial agreement, renewal-date revalidation, and a language split where Sales and Billing mean different things by `contract`. The existing signals you gave are already pointing to model failure: overloaded terminology, 14 new type/status checks, no expert examples, and an engine that can only return one amount after opaque metadata inspection.\n\nThe bounded action is:\n1. Keep the generic engine unchanged as the amount calculator of last resort.\n2. Add a small `CommercialAgreementPricing` slice in front of it for this feature only.\n3. In that slice, introduce the minimum explicit concepts needed to decide eligibility: `CommercialAgreement`, `ExecutedContract`, `AgreementLine`, `RenewalRequest`, and `RenewalEligibility`.\n4. Translate Sales/Billing inputs into those concepts, with one explicit naming decision: Sales \u201ccontract\u201d and Billing \u201ccontract\u201d are not the same object.\n5. Only if eligibility passes, call the existing engine to compute the amount.\n\nThat still meets the deadline because it avoids a rewrite. You are not replacing nine months of engine work; you are stopping one specific domain from leaking further into a generic metadata/rule switch. This is a thin anticorruption layer plus a focused use case, not a new platform.\n\nTo protect delivery:\n- Timebox a 60-90 minute session with Sales and Billing to produce 5-7 concrete examples before coding. Without those, the branch will encode guesses.\n- Write acceptance tests from those examples first, especially: accepted agreement with matching product/quantity, mismatch on product, mismatch on quantity, renewal inherits allowed terms, renewal rejected on renewal date, and Billing-contract without commercial eligibility.\n- Keep the old path untouched and gate the new slice behind a feature flag or targeted routing.\n- If data is incomplete or ambiguous in production, fail to manual review rather than silently pricing.\n\nHow to test whether a deeper model is warranted after Friday:\n- If this slice quickly grows more status/type checks, the engine is still owning domain meaning it should not own.\n- If eligibility and price need separate outcomes or explanations, \u201cone amount\u201d is the wrong result model.\n- If more agreement variants arrive, or Sales/Billing keep needing translation, this should become a real bounded context instead of another engine rule.\n\nSo the recommendation is: do not add another raw branch to the generic switch. Add one bounded contractual-pricing use case at the edge, reuse the engine only after explicit eligibility, and use expert-backed examples to ship safely by Friday while generating evidence for or against a deeper model.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled",
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [
+    "required project skill not selected: domain-driven-design"
+  ],
+  "stderr": "2026-07-13T18:16:21.223873Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5cb1-21bf-75d1-b1f4-98285fd337ed.1783966540273273000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

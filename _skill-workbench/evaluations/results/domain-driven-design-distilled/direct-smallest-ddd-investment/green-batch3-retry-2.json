@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/direct-smallest-ddd-investment.md",
+  "case_sha256": "bd4f75e0bd0cde74ca27a16427130f1171ced430af1488d532c4bb1037137493",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c51-e7b2-76d1-bd65-a91d6f5b4264",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The deepest DDD investment belongs in `adaptive_returns_policy`. It is the differentiating capability, it changes weekly, and its rules depend on several business concepts whose meaning will drift unless the model is explicit. That is the Core Domain. Start there with strategic DDD first: define a `Returns Policy` bounded context, sharpen its Ubiquitous Language, and model the real decision concepts instead of generic shared nouns. Terms like `Customer`, `Return`, and `Status` are too overloaded to share blindly; the returns team likely needs narrower concepts such as `Return Eligibility`, `Condition Assessment`, `Purchase Channel`, and a translated `Customer History Summary` rather than foreign objects from other teams.\n\n`carrier_label_purchase` is a Generic Subdomain. Keep it simple: an application service or workflow step that validates input, calls the carrier, and stores the label. Use an adapter or anticorruption layer around the carrier API, but do not pay for full tactical DDD unless real invariants or lifecycle complexity show up. `notification_preferences` is a Supporting Subdomain and mostly CRUD from the description. A simple service and data model is enough; at most, introduce small value objects if consent/channel rules need protection.\n\nThe proposal is too heavy. Do not create Aggregates, Repositories, Domain Services, and Domain Events for every capability by default. In the core returns-policy context, those patterns must earn their cost. Value Objects are likely worthwhile quickly because the rules depend on meaningful concepts. An Aggregate is justified only where a true consistency boundary exists, for example if a `Return Case` must protect a small set of invariants during policy determination or approval. Repositories are justified only if such Aggregates exist and need persistence. Domain Events should be reserved for meaningful facts like a policy decision being made, not every field change. For the commodity and CRUD areas, simpler services and records are the better choice.\n\nDo not share `Customer`, `Return`, `Label`, and `Status` classes across all teams. That would blur bounded contexts and import foreign meanings into local models. Prefer separate models with explicit translation at boundaries. Between `returns` and `fulfillment`, use a supplier-style API contract or published integration model for label requests/results. Between `returns` and `customer-care`, translate customer history and preference information into the returns context\u2019s own language. Use a Shared Kernel only if the overlap is very small, stable, and jointly governed with tests; this proposal does not show those conditions.\n\nDo not place all operations in one transaction. One transaction should usually change one Aggregate in one context. The policy decision, label purchase, and notification update should usually coordinate through application services and integration events or workflow steps, with eventual consistency by default. If the business truly requires a synchronous invariant across those operations, prove that explicitly first; the current description does not justify it.\n\nSmallest effective investment: do strategic DDD and the strongest tactical modeling only in `adaptive_returns_policy`; keep `carrier_label_purchase` as a thin integration-focused service; keep `notification_preferences` mostly CRUD. Decide context boundaries and language first, then add tactical machinery only where invariants, lifecycle, and business meaning make it pay for itself.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:32:27.923292Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c51-e7b2-76d1-bd65-a91d6f5b4264.1783960299442661000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

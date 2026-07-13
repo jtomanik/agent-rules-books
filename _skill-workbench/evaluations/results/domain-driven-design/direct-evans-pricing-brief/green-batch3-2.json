@@ -1,0 +1,47 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/direct-evans-pricing-brief.md",
+  "case_sha256": "5ec5dbf71bcf410bb48239216f6a5b7d65ae6e8c614df5e8874e4479da3141fb",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c50-32b4-7853-a8a4-d7b5d3b856df",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current plan is misaligned with the domain as described. `Customer` and `Quote` do not have one meaning across sales, pricing, and billing, so a shared model and direct database access would erase the very distinctions the business depends on.\n\nBefore implementation, settle these DDD decisions:\n\n- Bounded contexts: keep `Sales`, `Pricing`, and `Billing` as separate contexts. They already use different meanings for the same words.\n- Ubiquitous language per context: stop treating `Customer` and `Quote` as globally shared types. Each context needs its own names or explicit translated names.\n- Core domain: `Pricing` appears to be the differentiating core domain. `Sales` and `Billing` should integrate with it, not co-own its model.\n- Lifecycle boundaries: define the exact transitions between a negotiable proposal, a priced configuration, and an immutable billing commitment. This is the most important missing model decision.\n- Translation rules: define how a sales-side customer/account becomes the pricing party, and how that becomes the bill-to legal entity. The same applies to quote/proposal/commitment.\n- Context relationships: replace direct database access with explicit integration relationships and translations. At minimum, this should be a context map decision, not an implementation shortcut.\n\nThe open questions are not edge cases; they are model-shaping rules that belong mainly in `Pricing`:\n\n- Discount stacking determines whether you need an explicit pricing policy/concept for combining adjustments.\n- Validity after segment change determines whether price eligibility is checked only at issuance, continuously until acceptance, or snapshot-based.\n- Proposal-to-commitment determines the handoff point and the meaning of acceptance, reservation, or booking across contexts.\n\nRecommended context direction:\n\n- `Pricing` owns negotiated price rules, eligibility, expiry, and discount-combination policy.\n- `Sales` owns pursuit/proposal workflow and translates pricing results into a commercial offer.\n- `Billing` owns the committed chargeable obligation and should receive an explicit committed form, not inspect pricing internals.\n\nSmallest useful next modeling step:\n\nRun one short cross-team modeling session around a single scenario: a negotiated quote for an account whose segment changes before acceptance, including whether discounts stack and the exact moment it becomes billable. The output should be only two things:\n\n- a context map for `Sales`, `Pricing`, and `Billing`, with named translations\n- a lifecycle glossary that defines `proposal`, `priced quote`, `accepted quote`, and `billing commitment`\n\nThat is the minimum step likely to prevent the shared-library/shared-database design from hard-coding the wrong model.",
+    "selected_project_skills": [
+      "domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md",
+      ".agents/skills/domain-driven-design/references/index.md",
+      ".agents/skills/domain-driven-design/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "domain-driven-design",
+        "sections": [
+          "Making Implicit Concepts Explicit",
+          "Ubiquitous Language",
+          "Bounded Contexts",
+          "Model Integrity Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:30:33.005807Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c50-32b4-7853-a8a4-d7b5d3b856df.1783960187590761000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/direct-smallest-ddd-investment.md",
+  "case_sha256": "bd4f75e0bd0cde74ca27a16427130f1171ced430af1488d532c4bb1037137493",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c50-bbb1-78c1-9fa4-0bcf652941e7",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The deepest DDD investment belongs in `adaptive_returns_policy`. It is the Core Domain here: differentiating, changing weekly, and driven by nontrivial business rules across customer history, product condition, and channel. That is the only area that clearly warrants serious modeling effort.\n\nFor the other capabilities, simpler delivery is enough unless complexity proves otherwise:\n- `carrier_label_purchase` is a Generic Subdomain. Treat it as an integration/application-service problem: validate address, call carrier, persist label metadata. Do not force rich domain machinery around carrier APIs unless local invariants emerge.\n- `notification_preferences` is a Supporting Subdomain with CRUD characteristics and low change frequency. A thin service plus straightforward data structures is the honest default.\n\nThe proposal is too ceremonial for this program.\n- Creating Aggregates, Repositories, Domain Services, and Domain Events for every capability is unjustified. Tactical DDD should earn its cost per capability, not be applied uniformly.\n- Sharing `Customer`, `Return`, `Label`, and `Status` classes across all teams is the wrong move. Those names are likely to mean different things in returns, fulfillment, and customer-care. Shared classes would blur language and couple unrelated change.\n- Placing all operations in one transaction is also the wrong default. One transaction should usually change one Aggregate in one context. Cross-capability work should be coordinated with explicit application flows and, where needed, events or integration messages.\n\nRecommended smallest effective investment:\n\n1. Strategic DDD for `adaptive_returns_policy`.\nDefine a dedicated Returns Policy context owned by the returns team. Model the business language there first. Likely concepts worth naming are things like `ReturnEligibility`, `ConditionAssessment`, `ChannelPolicy`, `CustomerReturnHistory`, `PolicyDecision`, and `ExceptionReason`. Use Value Objects aggressively where primitives currently hide business meaning. Introduce an Aggregate only where you have real invariants that must hold together at decision time.\n\n2. Lightweight boundaries for the rest.\n- Put carrier label purchase in a separate fulfillment-owned context or service boundary. Keep its model thin and integration-focused.\n- Put notification preferences in a customer-care-owned context with simple CRUD semantics.\n\n3. Tactical patterns only where complexity demands them.\n- In Returns Policy, use Entities/Value Objects/Aggregates only for genuine rule protection.\n- In Carrier Label Purchase, an application service plus anti-corruption translation to carrier/vendor models is likely enough.\n- In Notification Preferences, simple records and validations are probably sufficient.\n\nContext and language decisions needed first:\n- Establish explicit Bounded Contexts at least around `Returns Policy`, `Label Fulfillment`, and `Notification Preferences`.\n- Stop assuming shared meanings for `Customer`, `Return`, `Label`, and especially `Status`.\n- Define local Ubiquitous Language per context, then translate between contexts instead of sharing domain classes.\n\nConcrete language examples:\n- In Returns Policy, `Customer` may really mean a return-risk or eligibility subject, not the enterprise-wide customer record.\n- In Label Fulfillment, `Label` is a purchased shipment artifact with carrier constraints.\n- In Notification Preferences, `Customer` may really be a notification subscriber/contact.\n- `Status` should almost certainly be replaced with context-specific concepts such as `PolicyDecision`, `LabelState`, or `PreferenceState`.\n\nRecommended context relationships:\n- `Returns Policy` to `Label Fulfillment`: favor `Customer/Supplier` if fulfillment can serve returns needs intentionally; otherwise protect returns language with an Anti-Corruption Layer.\n- `Notification Preferences` should remain separate and integrate through published contracts or simple service calls/events, not shared model classes.\n\nPractical implementation bias:\n- Model the policy engine deeply.\n- Keep label purchasing and notification preferences simple.\n- Use Domain Events only for meaningful business facts, such as a return being approved or rejected, not every field update.\n- Let eventual consistency handle cross-context coordination by default.\n\nIn short: apply strategic DDD to identify and protect the Core Domain around returns policy, use only the minimum tactical DDD needed there, and keep the commodity/supporting capabilities as simpler service-and-data implementations behind explicit context boundaries.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/domain-driven-design-distilled/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/domain-driven-design-distilled/references/index.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [
+    "reference_mode ordinary requires SKILL.md files and no references"
+  ],
+  "required_project_skills": [
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:31:11.577250Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c50-bbb1-78c1-9fa4-0bcf652941e7.1783960222641915000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

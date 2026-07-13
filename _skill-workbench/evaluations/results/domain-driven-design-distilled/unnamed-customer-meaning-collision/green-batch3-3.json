@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/unnamed-customer-meaning-collision.md",
+  "case_sha256": "05b23f1934f2473d70822bdfd1f2d56ec62bb9fe263a1be25403bd402fd22f8c",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c54-ca77-7a31-9238-d9643303a4d0",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposed shared `Customer` model should not be adopted as a canonical domain model. It already mixes three different meanings of `Customer`, and the `active` field is semantically incompatible across all three contexts.\n\nSmallest necessary decisions:\n1. Declare `Billing`, `Identity`, and `Fulfillment` as separate bounded contexts. Each owns its own meaning, rules, and lifecycle.\n2. Stop using `Customer` as a shared domain term. Keep local names explicit, for example `PayingParty` or `BillingCustomer`, `Subject`, and `Recipient`.\n3. Remove shared `active` and shared `status` from any cross-team canonical model. Those are local concepts and must stay local unless renamed to a single precisely defined enterprise meaning.\n4. If a company-wide join key is needed, make it a neutral integration artifact, not a domain `Customer`. Name it something like `CustomerCorrelation`, `PartyReference`, or `CustomerLink` and keep only cross-reference data in it.\n\nWhat should cross boundaries:\n- Stable identifiers: `billing_account_id`, `subject_id`, `recipient_id`, and optionally a neutral enterprise correlation id.\n- Explicit facts in published contracts: `invoice_eligibility`, `login_enabled`, `delivery_contact_usable`, or similarly precise names.\n- Translated events or API DTOs, not shared domain objects.\n\nRecommended shape of the shared artifact:\n```yaml\ncustomer_link:\n  id: uuid\n  billing_account_id: optional\n  subject_id: optional\n  recipient_id: optional\n```\n\nBoundary rule: when one context sends data to another, it publishes its own facts in its own language, and the receiving context translates them before use. No team should read another team\u2019s `active` or `status` field and infer local meaning from it.\n\nIn short, share correlations and explicit facts, not a single canonical `Customer` entity.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:35:38.646043Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c54-ca77-7a31-9238-d9643303a4d0.1783960488568261000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

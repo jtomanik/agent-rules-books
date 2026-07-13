@@ -1,0 +1,39 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/unnamed-deeper-reservation-model.md",
+  "case_sha256": "cb5fdef5c6d55193e7e9eff10f45c9ac9e408cbe0579eab13558297a1a68ed29",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5cae-cb21-75d3-927f-94d2bd3d0d72",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current model collapses at least two different domain concepts into one record: a temporary `Hold` on capacity and a customer `Commitment`. That is why `status`, `capacityHeld`, `expiresAt`, `confirmedAt`, and `releaseReason` have to encode meaning indirectly and allow awkward combinations such as \u201cconfirmed with an expiry\u201d or \u201creleased for the same reason whether it was only held or already committed.\u201d\n\nA deeper implementation-driving model inside the Reservation context is:\n\n- `CapacityHold`: temporary, expires, can be extended, can be released, and is not yet a customer commitment.\n- `Commitment` or `ConfirmedReservation`: created only by consuming a still-valid hold, does not expire, can be cancelled, and carries commitment-specific history.\n- Distinct outcomes for returned capacity: `HoldReleased` and `CommitmentCancelled` are different business facts, not one generic release.\n\nThat can still live under one Reservation aggregate if the team wants continuity of identity, but the aggregate should expose explicit variants instead of one status bag. For example:\n\n- `ActiveHold { expiresAt }`\n- `ReleasedHold { reason, releasedAt }`\n- `ExpiredHold { expiredAt }`\n- `CommittedReservation { confirmedAt }`\n- `CancelledCommitment { reason, cancelledAt }`\n\nThe main gain is that invariants become local to the concept that owns them:\n\n- only a hold has `expiresAt`\n- only a hold can be extended\n- confirmation requires an active, unexpired hold\n- confirmation consumes the hold and creates a commitment\n- only a commitment can be cancelled\n- hold release reasons and commitment cancellation reasons can diverge cleanly\n\nExpert scenarios that should read like executable domain examples:\n\n1. \u201cRequest creates a temporary hold, not a commitment.\u201d\n2. \u201cA hold expires and can no longer be confirmed.\u201d\n3. \u201cConfirming a still-valid hold creates a commitment.\u201d\n4. \u201cReleasing a hold returns capacity as an unconverted hold outcome.\u201d\n5. \u201cCancelling a commitment returns capacity as a post-confirmation outcome.\u201d\n6. \u201cExtending a hold changes its expiry without changing commitment semantics.\u201d\n7. \u201cA commitment cannot be extended because commitments do not expire.\u201d\n8. \u201cA released or expired hold cannot later be confirmed.\u201d\n\nAn incremental refactoring direction that preserves current behavior is:\n\n1. Rename toward the domain language first: `capacityHeld` -> `hasActiveHold`, `confirm` -> `confirmHold`, `RELEASED` -> a temporary name like `HOLD_RELEASED_OR_EXPIRED` if needed to expose current ambiguity.\n2. Replace the flat record with an internal discriminated union while keeping the same external persistence/API shape for now.\n3. Separate hold-only data from commitment-only data in code paths, even if they still serialize to one record.\n4. Split the current `RELEASED` path into explicit in-memory cases for `ExpiredHold` and `ReleasedHold`; keep mapping them back to the existing stored status until migration is justified.\n5. Introduce `extendHold` on the hold variant only.\n6. Only after the model proves useful in tests and feature work, decide whether stored statuses or schemas need to split.\n\nCompared with the current model, the explanatory gain is high: the next feature becomes natural, invalid states become harder to represent, and tests can follow expert language directly. Migration cost is moderate if done in-memory first, because current behavior can be preserved while the model becomes sharper before any persistence or API changes are considered.",
+    "selected_project_skills": [
+      "domain-driven-design",
+      "implementing-domain-driven-design",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}
