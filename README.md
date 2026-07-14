@@ -1,4 +1,5 @@
 [![Polish Repo badge](https://polish-open-source.pl/en/badges/repositories/github/ciembor/agent-rules-books.svg)](https://polish-open-source.pl/en/latest)
+[![skills.sh](https://skills.sh/b/jtomanik/agent-rules-books)](https://skills.sh/jtomanik/agent-rules-books)
 
 <div align="center">
   <img src="books-ai-rules.png" alt="AI agent rules from programming books" />
