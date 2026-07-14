@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/solution-first-local-pressure.md",
+  "case_sha256": "ee5c773939df1918985c87ff93cdd22a4766d30bc2dc0125f36cb99008949587",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58da-4713-7a52-9054-d26f78cdcc2e",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest decision I would accept is: do not adapt the single-account happy path by looping over raw JSON and catching everything. Add a thin bulk-specific request validator plus a bulk coordinator that only operates on validated `AccountId` values and typed collaborator outcomes.\n\nMinimal implementation slice:\n\n```text\nBulkActivateRequest {\n  accounts: AccountId[1..100]   // distinct, already validated\n}\n\nBulkItemResult =\n  | { id: AccountId, status: \"activated\" }\n  | { id: AccountId, status: \"already-active\" }\n  | { id: AccountId, status: \"not-found\" }\n  | { id: AccountId, status: \"unauthorized\" }\n\nBulkActivateResponse {\n  results: BulkItemResult[]\n  summary: {\n    activated: number\n    alreadyActive: number\n    notFound: number\n    unauthorized: number\n    total: number\n  }\n}\n```\n\nControl flow should stay in two phases:\n\n1. `validateBulkActivateRequest(json) -> BulkActivateRequest | ValidationError`\nReject before any side effects unless:\n- body is an object\n- `accounts` exists and is an array\n- count is `1..100`\n- every element is a syntactically valid account ID\n- IDs are distinct\n\n2. `bulkActivate(request, actor) -> BulkActivateResponse`\nFor each validated `AccountId`:\n- check authorization for that account\n- if unauthorized, emit `{status: \"unauthorized\"}`\n- otherwise call the existing typed collaborators\n- map collaborator outcomes directly to `activated | already-active | not-found`\n- append one item result per input ID\n- derive summary counts from `results`, not from the request length\n\nWhat I would explicitly reject:\n- iterating over untrusted `body.accounts` directly\n- using exceptions for expected result states\n- `catch`-all conversion to partial success or attempted count\n- returning only `attempted`\n\nA narrow pseudocode slice is enough:\n\n```text\nhandleBulkActivate(rawJson, actor):\n  request = validateBulkActivateRequest(rawJson)\n  if request is ValidationError:\n    return 400\n\n  results = []\n  for id in request.accounts:\n    if !authorizer.mayActivate(actor, id):\n      results.push({ id, status: \"unauthorized\" })\n      continue\n\n    outcome = activator.activate(id)   // typed outcome, not exception-driven flow\n    results.push(mapOutcome(id, outcome))\n\n  return 200 with {\n    results,\n    summary: summarize(results)\n  }\n```\n\nFocused tests I would require before calling this done:\n- malformed body rejects with no collaborator calls\n- empty array rejects with no collaborator calls\n- `101` IDs rejects with no collaborator calls\n- duplicate IDs reject with no collaborator calls\n- any invalid ID rejects with no collaborator calls\n- mixed valid batch returns one result per ID with statuses `activated`, `already-active`, `not-found`, and `unauthorized`\n- summary counts are derived from item results and add up to `total`\n- unexpected collaborator exception is not swallowed into business output\n\nThat is the smallest safe slice because the behavior is fully specified, expected outcomes are already typed, and the only real construction work is enforcing the trust boundary, keeping control flow inspectable, and proving it with boundary and mixed-result tests.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:22:45.189892Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58da-4713-7a52-9054-d26f78cdcc2e.1783902127891267000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

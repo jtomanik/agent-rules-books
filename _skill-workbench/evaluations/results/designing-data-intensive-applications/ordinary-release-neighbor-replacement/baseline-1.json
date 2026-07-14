@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/ordinary-outbound-deadline.md",
+  "case_sha256": "e36fb927113591edb2d1482aec5933927fdcc8ebccd3e522427dc1656910d32b",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5871-6eb9-7411-ad9a-2593f0153cd7",
+  "exit_code": 0,
+  "result": {
+    "answer": "This does not meet the contract.\n\n`fetchRecommendation()` converts failures into `{ kind: \"unavailable\" }`, and the client has no implicit retries, so the no-retry part is satisfied. The missing requirement is the 150 ms deadline: `recommendationClient.get()` has no default deadline, and this call does not set one, so checkout could block longer than allowed.\n\nSmallest correction before merge: add a per-call 150 ms timeout/deadline around `recommendationClient.get(`/carts/${cartId}`)` and keep the existing catch-to-unavailable behavior. No broader change is needed.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5369-45ec-7a01-bf33-f6ce75fe9f3d",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is:\n\n1. Gain deterministic test control around `PromotionWorker` without changing behavior.\n2. Consolidate the duplicated eligibility condition into one owner as a behavior-preserving refactor.\n3. Add the 60-day introductory-subscription rule in that single owner.\n\nWhy this order is safest:\n\n`PromotionWorker` is legacy for this task: no focused tests, internal database construction, direct clock reads, and only one slow happy-path test. That means the first risk is not duplication, it is lack of control. The blocking dependencies are the internally constructed `SubscriptionDatabase` and `new Date()`. Until those are exposed behind a narrow seam, neither the current behavior nor the new 60-day boundary can be tested deterministically.\n\nAfter that control exists, the duplicated condition is the next real source of change risk. If the new rule is implemented first, it must be edited in both `previewCredit()` and `applyCredit()`, which increases the chance of divergence and makes review of the semantic change noisier. Consolidating under focused characterization tests is a small behavior-preserving refactor that removes that duplication before the rule is introduced.\n\nOnly then should the semantic change land. With one owner, the 60-day rule is added once, tests can pin the exact boundary behavior, and review can isolate the intentional product change from the earlier seam work and extraction.\n\nWhy the alternatives are less safe:\n\n- Semantic change first: duplicates the rule change in two methods, mixes product behavior with legacy dependency work, and makes deterministic boundary testing harder.\n- Consolidation first without test control: behavior-preserving intent cannot be verified well because both time and persistence are still hard-wired.\n- Large rewrite of construction plus rule plus extraction together: mixes three intents in an unprotected area and makes review much less trustworthy.\n\nDecisions that must be clarified first:\n\n- Exact boundary: does \"older than 60 days\" mean `startedAt < now - 60 days`, with exactly 60 days still eligible?\n- Time basis: should age be computed by full timestamp, UTC date, local date, or business timezone?\n- `startedAt: null` for `kind === \"introductory\"`: is that invalid data, eligible, or ineligible?\n- Scope of ownership: should the shared owner answer only base eligibility, or also own the preview/apply distinction later?\n- Current outcome preservation: are there any known relied-on behaviors in `credits.preview(...)` for introductory subscriptions that must remain unchanged except for the new age rule?\n- Transaction timing: must `applyCredit()` keep using a single captured `now` for both insert and mark, and should eligibility also be evaluated against that same instant?\n\nReviewable patch boundaries:\n\n1. Deterministic control patch\n- Introduce the smallest seam for time and database construction, with production defaults unchanged.\n- Add focused characterization tests for current `previewCredit()` and `applyCredit()` eligibility behavior.\n- No semantic changes.\n\n2. Ownership consolidation patch\n- Extract one shared eligibility owner, likely a predicate or small policy function/class.\n- Move both methods to call it.\n- Keep tests proving no behavior change.\n- No 60-day logic yet.\n\n3. Product-rule patch\n- Add the introductory-subscription age rule in the shared owner.\n- Add focused tests for under-60, exactly-60, over-60, paid subscriptions, and clarified `startedAt` handling.\n- No unrelated cleanup.\n\nIf clarification on the boundary or `startedAt === null` is unavailable, stop after patch 1 or 2 and raise that ambiguity explicitly rather than guessing inside the behavior change.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

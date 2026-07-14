@@ -1,0 +1,40 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/release-it-compatible-provider.md",
+  "case_sha256": "d1da8b3808de35b35cf4af89b80270bf980451e51f199260a2215eed664ac0ea",
+  "mode": "green",
+  "run": "green-batch4-description-final-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5e02-b339-7b63-b114-e0b1a1d6f484",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current proposal is not production-ready. It has an unbounded recursive retry on any non-`2xx`, no timeout, no retry-safety contract, no response validation, and no survivable handling for the most dangerous case in payments: the provider may have captured funds even when your caller did not receive a usable success response.\n\n**Ownership and Reversible Boundary**\n\nDefine one internal owner for payment-capture knowledge: a `PaymentCaptureService` in your payments domain/application layer. Its contract should be internal and provider-neutral, for example `capture(paymentAttemptId, orderId, amount, currency): CaptureResult`.\n\nBehind that, create a narrow `PaymentProviderPort` with adapters like `VendorPayProvider` and `SecondProvider`. The adapter owns all provider-specific knowledge:\n- endpoint URLs\n- payload mapping\n- authentication\n- idempotency headers/keys\n- timeout values\n- retry classification\n- response parsing and validation\n- provider transaction identifiers\n\nThe domain owner must keep the authoritative internal model of:\n- `payment_attempt_id`\n- capture intent and amount\n- current state: `requested`, `submitted`, `succeeded`, `failed_permanent`, `unknown_pending_reconciliation`\n- which provider was chosen for that attempt\n- idempotency key / external request key\n\nThat is the reversible boundary: callers know only the internal capture contract and internal states; only the adapter knows vendor protocol details. Swapping providers then becomes configuration plus a new adapter, not source edits across the call path.\n\n**Remove Manual Failover Ritual**\n\n`operator_edits_source_and_redeploys` is an ownership failure and an operational hazard. Replace it with runtime routing:\n- provider selection comes from config or a provider-routing table, not code edits\n- a circuit breaker can stop sending new traffic to an unhealthy provider\n- new capture attempts can be routed to the secondary provider when the primary is unhealthy\n\nImportant constraint: do **not** fail over an in-flight or ambiguous capture to a second provider unless you have a business-level deduplication contract across providers. Otherwise you risk double capture. For an attempt whose outcome is unknown, keep ownership with the original provider and move it to reconciliation. Failover applies to new attempts, not blindly replaying uncertain ones elsewhere.\n\n**Production-Ready Decisions Required**\n\n1. Timeout\nSet explicit time bounds. A reasonable starting point is:\n- connect timeout: 1-2 seconds\n- total request timeout: 5-10 seconds\n- absolute deadline carried from caller if this sits in a larger workflow\n\nNever allow `timeout: none`.\n\n2. Retry safety\nDo not auto-retry `capture` until idempotency is proven.\n- If the provider supports idempotency keys for capture, require them and persist the key before the first send.\n- Retry only transport failures, timeouts, `429`, and `5xx` that the provider documents as retry-safe under that key.\n- Use bounded exponential backoff with jitter.\n- Do not retry `4xx` validation/business failures.\n- If idempotency remains unknown, set automatic retries to zero and move uncertain outcomes to reconciliation.\n\n3. Retry limits\nEven when safe, bound retries tightly, for example:\n- max 2 retries after the initial attempt\n- max retry window 15-30 seconds total\n\nNo recursion. Retries must be iterative, observable, and bounded.\n\n4. Demand limits\n`concurrency_limit: none` is unsafe. Add:\n- per-provider concurrency cap\n- bounded work queue\n- backpressure or fast failure when the queue is full\n- separate capacity budget for payment traffic if this shares workers with other outbound calls\n\nThis prevents one slow provider from consuming all worker threads or connections.\n\n5. Failure isolation\nIsolate provider failure with:\n- circuit breaker per provider\n- bulkhead isolation: separate connection pool / worker budget for provider calls\n- fast failure when breaker is open\n- no long-lived locks or DB transactions held across the remote call\n\nA provider outage must degrade payment capture, not the whole service.\n\n6. Recovery model\nBecause capture is side-effecting, define recovery before launch:\n- persist the attempt and idempotency key before sending\n- on timeout / transport ambiguity, mark `unknown_pending_reconciliation`\n- reconcile by provider status lookup, webhook, or settlement file\n- reconciliation must be restartable and idempotent\n- operators need an admin view and a safe re-drive action tied to attempt state, not ad hoc redeploys\n\n7. Diagnostics\n`response_body_discarded` is unacceptable. Keep enough evidence to explain outcomes without leaking secrets:\n- structured logs with `payment_attempt_id`, `order_id`, provider name, provider request id, idempotency key hash, status code, latency, retry count, breaker state\n- metrics for latency, success rate, timeout rate, retry rate, breaker-open rate, queue depth, saturation\n- capture and sanitize provider error body / error code\n- validate response content type and schema before using it\n\n8. Contract validation\nValidate both request and response:\n- send `Content-Type: application/json`\n- validate serialized payload before send\n- validate response schema before assigning `order.vendorTransaction`\n- never let malformed provider data become authoritative internal state\n\n**Recommended Behavioral Model**\n\nA production-safe capture flow should behave like this:\n- Create and persist a payment attempt with internal state and idempotency key.\n- Choose provider through runtime routing.\n- Send one bounded request with explicit timeout.\n- If success response validates, mark `succeeded` and store normalized provider transaction data.\n- If permanent failure, mark `failed_permanent`.\n- If retry-safe transient failure occurs, retry within bounds.\n- If outcome is ambiguous, stop automatic retries, mark `unknown_pending_reconciliation`, and let reconciliation determine final state.\n- If the provider is degraded, open the breaker and route only new attempts to the secondary provider.\n\nThat gives you clear engineering ownership, a reversible provider boundary, and survivable production behavior without the unsafe manual failover ritual.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer",
+      "release-it",
+      "a-philosophy-of-software-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "release-it",
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:24:28.310555Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}\n2026-07-14T00:25:20.158303Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5e02-b339-7b63-b114-e0b1a1d6f484.1783988663097861000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

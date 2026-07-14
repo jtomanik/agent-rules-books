@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/pressure-shared-model-transaction.md",
+  "case_sha256": "eb6ec0e19402968251a55629034ed358070d25671173a92ddf42b317cbf75ab6",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c88-c731-77c0-af49-ccae5678a2d4",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Decision: split `core_pricing` now, keep the rest intentionally simpler for release 1.\n\n`CommerceAccount` should not remain the real Aggregate boundary. The new pricing requirement changed the economics of the model: pricing is the Core Domain, changes weekly, and now must evolve independently. Keeping `PriceBook`, `Offer`, negotiated eligibility rules, `Order`, `Shipment`, and `Notification` under one Aggregate, one repository, one shared status enum, and one commit couples the fastest-changing model to two slower subdomains and guarantees release blocking.\n\nWhat to separate now:\n- Create a dedicated Pricing bounded context now.\n- Move `PriceBook`, `Offer`, and negotiated eligibility/agreement/adjustment logic into that context.\n- Give pricing its own Aggregate boundary or small set of Aggregates, its own repository interface, and its own lifecycle terms. Do not keep `shared_status` as the language for pricing.\n- Treat Fulfillment and Notifications as downstream consumers of pricing facts, not co-owners of pricing state.\n\nWhat may remain simple for the first release:\n- Keep one physical database if that avoids migration churn in the next ten days.\n- Fulfillment can stay a simpler supporting context around `Order` and `Shipment`, with modest modeling only where immediate shipment invariants actually exist.\n- Notifications should stay generic and thin: template/recipient/delivery-status logic, driven from published facts or an outbox, not part of the pricing model.\n- If needed for launch, an application service can orchestrate across these areas, but it should not reintroduce one giant domain transaction.\n\nTransaction decision:\n- Do not keep a single domain transaction across Pricing, Fulfillment, and Notifications.\n- Keep immediate consistency only inside a pricing Aggregate.\n- Use eventual consistency for pricing-to-fulfillment and pricing-to-notifications handoff.\n- If the team must preserve existing generated schema for launch, contain it as an implementation detail and translate at the boundaries rather than treating it as the domain model.\n\nTactical patterns that must justify their cost:\n- Bounded Contexts: justified now, because language and release cadence already diverged.\n- Small Aggregates: justified where immediate invariants exist; not one `CommerceAccount` graph.\n- Domain Events plus outbox: justified, because independent pricing release is now a hard requirement.\n- Anticorruption/translation layer: justified if generated shared entities or statuses already leaked across modules.\n\nTactical patterns not justified yet:\n- Shared Kernel across Pricing, Fulfillment, and Notifications.\n- Event Sourcing.\n- Saga/process manager unless there is a real multi-step compensation problem already known.\n- Rich DDD treatment for Notifications.\n\nIn short: preserve the deadline by not rebuilding the whole persistence design, but stop treating the shared model as the truth. Separate Pricing in code and transaction scope now, keep Fulfillment and Notifications simpler, and require every extra tactical pattern to pay for itself against the ten-day deadline.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled",
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T17:32:30.647250Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c88-c731-77c0-af49-ccae5678a2d4.1783963895669608000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

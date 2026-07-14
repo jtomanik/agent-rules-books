@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/manual-ordinary.md",
+  "case_sha256": "1b535838440eb629abeef9dfc149d7f0f0c9dc03d56d4ef5e008f8625696b472",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5892-7507-71a3-8a48-2162fd98346c",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a single focused application use case: `ApproveOrder` depends only on application-owned ports and plain data.\n\nRecommended ordinary shape:\n\n- `ApproveOrder` use case takes a plain request like `{ orderId, approvedBy }` and returns a plain result like `{ orderId, status }`.\n- The core rule is inside the use case or a small domain helper: load the order, reject unless status is `PENDING`, persist the new `APPROVED` state, then emit an approval event through a port.\n- Define ports in the application layer, for example:\n  - `LoadOrderForApprovalPort` or a single `OrderRepositoryPort` returning an application/domain order model, not Prisma types.\n  - `SaveApprovedOrderPort` or repository update method.\n  - `PublishOrderApprovedPort` for the outbound message.\n- Keep the order model plain and policy-owned, e.g. `{ id, status, ... }`. Do not leak Prisma row types across the boundary.\n- Prisma adapter lives outside: it maps Prisma rows to the plain order model and implements the repository port. `PrismaClient` is constructed once in the composition root, not inside the use case.\n- Kafka adapter lives outside: it implements the publish port and translates the application event/result into the fixed message contract.\n- HTTP controller stays humble: map request DTO to `ApproveOrder` input, call the use case, map success/failure to the fixed HTTP contract.\n- Composition root wires concrete adapters into `ApproveOrder`, for example `new ApproveOrder(orderRepository, eventPublisher)`.\n\nSmallest boundary-preserving flow:\n\n1. HTTP adapter parses request.\n2. `ApproveOrder.execute(input)` loads plain order data through a port.\n3. Use case enforces `PENDING -> APPROVED` only.\n4. Repository port persists via Prisma adapter.\n5. Publish port emits via Kafka adapter.\n6. HTTP adapter formats response.\n\nA minimal package shape would be:\n\n- `application/orders/ApproveOrder.ts`\n- `application/orders/ports/OrderRepositoryPort.ts`\n- `application/orders/ports/PublishOrderApprovedPort.ts`\n- `domain/orders/Order.ts` or a tiny domain function for the status rule\n- `infrastructure/persistence/prisma/PrismaOrderRepository.ts`\n- `infrastructure/messaging/kafka/KafkaOrderApprovedPublisher.ts`\n- `infrastructure/http/ApproveOrderController.ts`\n- `main/composeOrders.ts`\n\nWhat to remove from the proposed design:\n\n- No Prisma row type import in the use case.\n- No `new PrismaClient()` in the use case.\n- No direct Kafka client call in the use case.\n\nThat is the smallest ordinary Clean Architecture correction here: one use case, plain boundary models, inner-owned ports, outer adapters, and wiring at the edge.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:03:57.493827Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5892-7507-71a3-8a48-2162fd98346c.1783897421084617000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

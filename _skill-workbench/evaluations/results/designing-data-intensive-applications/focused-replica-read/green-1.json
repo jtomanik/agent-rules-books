@@ -1,0 +1,41 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/focused-replica-read.md",
+  "case_sha256": "e5c642e655a2e69acfcb89ca0045bf6c520c92d54a608af9a640320b87cd206b",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5874-fea0-7fc3-b9af-b2a47d7fb65a",
+  "exit_code": 0,
+  "result": {
+    "answer": "The redirect cannot use an ordinary asynchronous replica read. The required contract is: after `updateProfile` returns success, the redirected `showProfile` must satisfy session-scoped read-your-writes for that specific write, and because failover may happen before the read, that success must also be failover-safe. Under the current semantics, `primary`-local commit plus `nearestReplica` read is not enough.\n\nFocused decision:\n1. The redirected page needs a per-request `read-at-least-commit-position` guarantee.\n2. A write must not be reported as successful unless the acknowledged commit position can survive the allowed failover path. If success only means \"written on the old primary,\" a promoted lagging follower can permanently lose the acknowledged update, making the product contract impossible to satisfy.\n\nSmallest implementation strategy:\n- On `updateProfile`, return or encode the write's `commit_position` in the redirect context.\n- On the redirected read, require a replica or leader whose `applied_position >= commit_position` before serving the profile.\n- If the nearest replica is behind, wait briefly for catch-up; if it still has not reached the position, read from the current leader.\n- Tighten write acknowledgment semantics so \"success\" means the commit position is already present on a promotion-eligible follower, or otherwise fail the write instead of redirecting.\n\nIn effect, the redirect path becomes \"read your own write at or beyond position X,\" while other users may continue to use stale replica reads for up to 30 seconds.\n\nMinimal shape:\n```ts\nexport async function updateProfile(userId: string, patch: ProfilePatch): Promise<Response> {\n  const committed = await primary.profiles.update(userId, patch, {\n    // success only after failover-safe replication\n    requireFailoverSafeAck: true,\n  });\n\n  return redirect(`/profiles/${committed.id}?after=${committed.position}`);\n}\n\nexport async function showProfile(userId: string, after?: string): Promise<Profile> {\n  if (!after) return nearestReplica.profiles.get(userId);\n\n  const replica = await replicaRouter.findReadableAtOrAfter(after);\n  if (replica) return replica.profiles.get(userId);\n\n  return currentLeader.profiles.get(userId, { minPosition: after });\n}\n```\n\nIf the team refuses to strengthen write acknowledgment, then the honest answer is that the stated product contract is not satisfiable during failover with `follower_updates: asynchronous` and `promote_available_follower`.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Consistency Rules",
+          "Replication Rules",
+          "Derived Data Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:31:30.390303Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-3dae-7a41-b955-51b51478a05d.1783895440814869000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:32:22.415631Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-fea0-7fc3-b9af-b2a47d7fb65a.1783895490267912000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

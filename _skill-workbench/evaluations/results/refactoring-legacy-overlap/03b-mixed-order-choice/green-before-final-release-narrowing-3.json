@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5369-4614-7992-8436-165089f66ed5",
+  "exit_code": 0,
+  "result": {
+    "answer": "Choose this order:\n\n1. Gain deterministic control first.\n2. Extract one shared eligibility owner under that control.\n3. Add the new 60-day introductory rule in that owner.\n\nThat is the safest order because the real risk here is not the predicate itself, it is the lack of trustworthy feedback. `PromotionWorker` hides two test blockers: internal `SubscriptionDatabase` construction and direct `new Date()` calls. With only one slow happy-path end-to-end test, changing behavior first would leave the new rule and the duplication cleanup effectively unprotected. The first patch should therefore introduce the smallest seam needed for focused tests, such as injecting a database collaborator and a clock or `now()` provider, without changing outcomes. Then add characterization tests around both `previewCredit()` and `applyCredit()` for the current gate: active state, non-negative balance, manual hold, and the existing paid success path.\n\nOnce that control exists, extract the duplicated eligibility condition into one owner before changing semantics. In this code, a small local owner is safer than a bigger redesign: for example a private predicate or a small policy object that answers automatic-credit eligibility. Doing the extraction after tests but before the rule is safer than editing both methods semantically first, because it creates one change point and proves the refactor preserves current behavior. After that, add the introductory-subscription age rule in the shared owner and extend tests for the new boundary behavior. That keeps structural change and behavioral change reviewable as separate steps.\n\nWhy the alternatives are less safe:\n\n- Rule first: unsafe because time and database are hard-wired, so boundary cases around 60 days are not deterministic or cheaply testable.\n- Extract first, before seams/tests: unsafe because in this legacy area you cannot honestly claim the extraction preserved behavior.\n- Add the rule independently in both methods, then consolidate later: unsafe because it duplicates a semantic edit, increases mismatch risk between `previewCredit()` and `applyCredit()`, and makes review compare two changed sites instead of one.\n- Big redesign first: unsafe because the requested change is narrow and the code has weak protection.\n\nDecisions to clarify before coding:\n\n- What exactly counts as \u201colder than 60 days\u201d: strictly `> 60 * 24h`, calendar-day comparison, or something else.\n- Which timezone/instant semantics apply when comparing `startedAt` to \u201cnow\u201d.\n- What `startedAt: null` means for an `introductory` subscription: ineligible, invalid data, or preserve current effective behavior another way.\n- Whether the new ineligible case must map to the existing outcomes `null` in `previewCredit()` and `\"skipped\"` in `applyCredit()`.\n- Whether only `introductory` subscriptions are affected and all `paid` behavior must remain exactly as today.\n\nReviewable patch boundaries:\n\n1. Test-control patch: introduce the narrow seam for database and clock access, then add focused characterization tests. No logic change.\n2. Ownership patch: consolidate the duplicated eligibility check behind one owner. No behavior change.\n3. Feature patch: implement the 60-day introductory rule in that owner and add boundary tests for just-under, exactly-at, and just-over 60 days, plus the clarified `startedAt` null case.\n\nIf patch count must be minimized, patches 2 and 3 can land in one PR but should still be separate commits. Patch 1 should stay separate either way.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T23:00:36.286684Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5369-2b6f-78b1-a98e-bc4ffd3d3a00.1783810829168031000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

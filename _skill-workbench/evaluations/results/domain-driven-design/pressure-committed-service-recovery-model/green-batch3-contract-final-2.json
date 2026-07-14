@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/pressure-committed-service-recovery-model.md",
+  "case_sha256": "78e2d20e22daf05a1c210e784f73ee798cb540168b436cbded7b37a5c17aad3a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5cd0-4057-7691-af23-90a7e8f24847",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The deeper model should be centered on one `ServiceRecoveryCase` in the `Service Recovery` bounded context, not on a generic exception type.\n\nModel\n- `Disruption`: observed failure against a specific service commitment.\n- `AffectedCommitment`: the customer-specific commitment now at risk. This is the scope that `vip_override` was previously bypassing.\n- `RecoveryOption`: feasible operational response for that commitment. Examples: reroute, delayed fulfillment, assisted rebooking. It is only a candidate.\n- `RecoveryPromise`: the option that was accepted for one affected commitment. This is the thing that can satisfy recovery.\n- `GoodwillCredit`: compensates for harm; it may accompany a promise, but it never satisfies service recovery by itself.\n- `RecoveryDecisionPolicy`: domain policy that chooses which options are allowed or preferred for a given commitment and customer profile.\n\nKey invariants\n- A `Disruption` may produce zero or more `RecoveryOption`s.\n- A `RecoveryPromise` must come from one feasible `RecoveryOption` for the same `AffectedCommitment`.\n- A `GoodwillCredit` cannot create or satisfy a `RecoveryPromise`.\n- Rerouting may satisfy a promise; credit alone never does.\n- One affected commitment has at most one active recovery promise.\n- A VIP request is not an escape hatch; it is a commitment-aware option-selection decision.\n\nWhat `vip_override` becomes\n- Replace its meaning with something like `selectRecoveryForCommittedCustomer` or `choosePriorityRecoveryOption`.\n- Its job is: for a disrupted commitment, evaluate available `RecoveryOption`s under customer-specific commitments, then create a `RecoveryPromise` from one of them if one is accepted.\n- If no viable option exists, it may attach `GoodwillCredit`, but the case remains unrecovered.\n\nExpert scenarios that prove or disprove the model\n1. `Reroute satisfies promise`\nA disruption threatens one commitment, rerouting is feasible, the customer accepts it, and the case records a `RecoveryPromise` satisfied by reroute.\n\n2. `Credit acknowledges harm but does not recover service`\nA disruption has no feasible operational recovery, a credit is issued, and the case remains without a satisfying `RecoveryPromise`.\n\n3. `VIP chooses among options, not around them`\nFor a premium customer, the system considers commitment-specific options and selects one feasible option; it must not jump directly from VIP status to \u201crecovered\u201d without an option and promise.\n\n4. `Promise must belong to the same commitment`\nAn option derived for commitment A cannot become the promise for commitment B.\n\n5. `One active promise per affected commitment`\nIf a promise already exists, a later selection must replace it explicitly under model rules or be rejected; it cannot silently stack a second active promise.\n\n6. `Goodwill can accompany recovery but not redefine it`\nA reroute plus credit is still recovered because of the promise, not because of the credit.\n\nFriday slice\n- Keep `applyException(...)` as a temporary entry seam.\n- Move only the `vip_override` branch out of the generic engine.\n- Implement a small vertical slice:\n  - map current flat `state` into `ServiceRecoveryCase` terms,\n  - evaluate commitment-aware `RecoveryOption`s,\n  - create `RecoveryPromise` or `GoodwillCredit` according to the rules above,\n  - map the result back to the current external state shape.\n- Leave `delay`, `reroute`, and `credit` branches untouched for now.\n- This preserves current delivery shape while making one branch model-driven instead of adding one more generic type/status rule.\n\nBounded incremental path\n1. Introduce the new domain terms in code and tests around the `vip_override` flow only.\n2. Add scenario tests in domain language for the six cases above.\n3. Put an adapter in front of the old state bag so the new slice can translate in and out without changing callers.\n4. Delegate only `vip_override` from `applyException(...)` to the new recovery service.\n5. Keep behavior-compatible outputs for existing consumers, but make new decisions inside the explicit recovery model.\n6. After Friday, migrate `reroute` next, because it already overlaps directly with `RecoveryOption` and `RecoveryPromise`.\n\nThat gives the team a real implementation-driving recovery model now, protects the committed distinction between promise and compensation, and avoids both a platform rewrite and another generic branch.",
+    "selected_project_skills": [
+      "domain-driven-design",
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

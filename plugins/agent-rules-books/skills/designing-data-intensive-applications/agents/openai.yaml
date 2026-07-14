@@ -1,0 +1,7 @@
+interface:
+  display_name: "Designing Data-Intensive Applications"
+  short_description: "Review distributed data correctness contracts"
+  default_prompt: "Use $designing-data-intensive-applications to review this distributed write path for correctness."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5346-7595-74e1-9062-6da8f45aa5ec",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small-sequence refactor, not a redesign. The current method already has a clean computational pipeline: subtotal -> discount -> shipping -> taxable amount -> tax -> total. The cleanup should only make those phases explicit and independently readable while preserving the exact order and dependencies.\n\n**Recommended Sequence**\n1. Treat the existing focused tests as the safety net and keep them green after every step. Do not add implementation-coupled tests. If anything is unclear, characterize externally visible output only.\n2. Extract subtotal calculation first into a pure helper such as `calculateSubtotalCents(items)`. This is the lowest-risk move because it has no branching and no dependency on other phases.\n3. Extract discount calculation next into a pure helper such as `calculateDiscountCents(customerTier, subtotalCents)`. Keep the current threshold and rounding exactly where they are.\n4. Introduce an explicit intermediate like `discountedSubtotalCents = subtotalCents - discountCents` in `price`, then extract shipping into `calculateShippingCents(destination, discountedSubtotalCents)`. This is the key readability improvement because the free-shipping rule depends on the post-discount amount, and that dependency should become obvious in the orchestration.\n5. Extract taxable/tax computation last, but keep it simple. Either:\n   - extract only `calculateTaxCents(taxableCents)`, or\n   - extract `calculateTaxableCents(subtotalCents, discountCents, shippingCents)` and `calculateTaxCents(taxableCents)`.\n   Do not hide the arithmetic behind vague names.\n6. Leave `price(order)` as the orchestration method that wires the phases together and returns the unchanged `Price` shape. After the extractions, `price` should read almost like a calculation script, with no business rule changed.\n\n**What The Result Should Look Like**\nThe endpoint of the cleanup is a single public `price(order)` method plus a few private or module-local pure helpers. The class should still own the pricing workflow; the helpers should only name the existing rules and phases.\n\n**Where To Stop**\nStop once:\n- each pricing phase has one clear place\n- the free-shipping dependency on discounted subtotal is explicit\n- `price` is just orchestration plus the unchanged return object\n- the existing tests still describe the same observable behavior\n\nDo not continue into strategy objects, policy classes, tables, injected configuration, money value objects, or a pricing rules engine. None of that is justified by the current size or change pressure, and it would turn a preparatory refactor into speculative redesign.\n\n**Review Standard**\nA good reviewable patch sequence here is 3-5 commits or PR slices, each behavior-preserving and test-green:\n- extract subtotal\n- extract discount\n- make discounted subtotal explicit and extract shipping\n- extract tax/taxable helpers\n- optional final naming cleanup inside `price`\n\nThat is the boundary. The goal is not to make the module future-proof in the abstract; it is to make the next pricing change local, obvious, and safe.",
+    "selected_project_skills": [
+      "refactoring",
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:23:31.014186Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5346-7595-74e1-9062-6da8f45aa5ec.1783808554389933000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

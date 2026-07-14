@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/schedule-pressure-controller-policy.md",
+  "case_sha256": "3e1c3b18559a931bfec0d088407244283c234057a6b9abd1efe272398953dd25",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585d-5a4d-76e3-9a8f-bee9a774da28",
+  "exit_code": 0,
+  "result": {
+    "answer": "Reject the controller shortcut.\n\nIt puts business policy in an HTTP adapter, makes the adapter non-humble, and bypasses the `RefundPurchase` use case for one branch. That creates two refund paths with different rule ownership and weakens the existing fast test coverage around the specified behavior. Under schedule pressure, this is exactly the kind of detail-driven shortcut that becomes the architecture.\n\nThe smallest shippable placement is inside `RefundPurchase`, or in a tiny domain policy/function that `RefundPurchase` calls.\n\nKeep the controller unchanged:\n\n```ts\nexport async function postRefund(req: Request, res: Response): Promise<void> {\n  const result = await refundPurchase.execute({\n    purchaseId: req.params.purchaseId,\n    requestedAt: new Date(),\n  });\n  res.status(result.accepted ? 204 : 422).end();\n}\n```\n\nChange the refund decision where the rule already belongs:\n- `VIP` gets 30 days.\n- everyone else keeps 14 days.\n- repository schema and HTTP contract stay unchanged.\n\nPragmatically, the lightest implementation is usually:\n- load the purchase in `RefundPurchase` as it already does or already can,\n- replace the fixed 14-day check with a policy function such as `refundWindowDays(customerTier)` or `canRefund(purchase, requestedAt)`,\n- keep persistence as an effect after the use case decides `accepted`.\n\nThat gives the fastest safe shipment because only one policy path exists, existing use-case tests stay relevant, and you only need a few focused additions:\n- VIP refund at 30 days is accepted.\n- VIP refund after 30 days is rejected.\n- non-VIP still rejects after 14 days.\n\nIf there is no existing domain type for refund eligibility, do not over-engineer it today. A small policy function called by the use case is enough. The key decision is placement: policy inward, controller outward.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:05:40.892280Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-28c0-7703-91ff-e034ae7ca1c1.1783893928129138000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:05:41.060925Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-28bd-70e3-9f3a-e2b0504b81bb.1783893928125669000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:05:41.144877Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-28bc-7183-80a7-cf01186575d2.1783893928125287000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:05:41.184001Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-2916-7fd2-849d-69694f413a34.1783893928215706000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:05:41.227589Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-28f8-7b30-b810-3e000b07908d.1783893928184908000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:09.903054Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-5a4d-76e3-9a8f-bee9a774da28.1783893940813905000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

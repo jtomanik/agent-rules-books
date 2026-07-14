@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/a-philosophy-of-software-design/unnamed-shallow-wrapper-spread.md",
+  "case_sha256": "acd6f765d1b76bbe359c038c37c2b59cb154d4db2c7cca238d0c6eeac124e954",
+  "mode": "green",
+  "run": "green-batch4-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc5-de7f-7ad1-8d85-d3c17960b722",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The boundary that earns its existence is the one that can hide the whole order-creation workflow behind a single domain operation. In this design, `OrderController` and the low-level database client each have a clear job, but `OrderService`, `OrderRepository`, and `SqlOrderGateway` are mostly shallow pass-through layers. They add names without removing facts the caller must know.\n\nThe main problem is leaked workflow knowledge. An ordinary caller currently has to know that creation means: validate first, then map, then insert, then translate duplicate-key failures, and that `validateOnly=false` is the normal mode. That coordination belongs inside one interface, not spread across controller and thin intermediates.\n\nA better boundary is something like a single `OrderCreator.create(request)` or `Orders.place(request)` module that owns:\n- validation rules\n- request-to-persistence mapping\n- persistence call\n- duplicate-key to domain-result translation\n- any \"validate only\" behavior as a separate operation such as `validate(request)` if it is truly needed\n\nThat gives callers a small semantic contract: \"create an order\" or \"validate an order.\" They should not choose a boolean mode flag for two different workflows, and they should not know persistence error taxonomy or execution order.\n\n`validateOnly` in particular is a bad boundary signal. A boolean mode usually means two operations were forced through one API. Split it into distinct methods if both use cases matter:\n- `create(request)`\n- `validate(request)`\n\nThat removes one caller fact immediately: normal callers no longer coordinate `false`.\n\nOn the persistence side, keep only the lowest boundary that hides a real technology choice. If `SqlOrderGateway` is the place that actually knows SQL and database error details, it can be worth keeping, but then it should expose a domain-meaningful persistence operation instead of a renamed `executeInsert`. If it does not add behavior beyond forwarding to `DatabaseClient.query`, it should collapse into the module that owns persistence.\n\nLikewise, `OrderRepository` only earns its existence if it hides meaningful persistence complexity: aggregate reconstitution, identity handling, query composition, transaction concerns, or storage substitution. If it only renames `insert`, it is shallow and should disappear.\n\nA simpler shape would be:\n\n```text\nOrderController\n  -> OrderCreator.create(request)\n       -> validate request\n       -> map to persistence shape\n       -> persist\n       -> translate storage conflicts to domain result\n```\n\nwith one internal persistence collaborator only if it hides real database complexity:\n\n```text\nOrderController\n  -> OrderCreator.create(request)\n       -> OrderStore.insertNew(validOrder)\n```\n\nHere `OrderStore` would own SQL and duplicate-key interpretation, or `OrderCreator` would if that logic is tightly coupled and small. The key is that the controller no longer coordinates the sequence or error mapping.\n\nThis also reduces change amplification. Adding a new required order field should normally change the request/domain object plus the module that owns creation and, if necessary, one persistence mapping point. It should not require six files unless those files each hide independent complexity. Right now the field change fans out because the boundary slices one responsibility into many thin stages.\n\nRecommendation:\n- Keep the controller boundary.\n- Keep one domain-facing order creation module as the deep module.\n- Keep one persistence boundary only if it hides real storage complexity.\n- Remove pass-through service/repository/gateway layers that merely rename the next call.\n- Move validation order, mapping, duplicate-key translation, and normal-write defaults behind the creation interface.\n- Replace `create(request, validateOnly)` with separate operations so callers express intent, not internal control flow.\n\nThe design goal is not fewer files for its own sake. It is fewer facts for an ordinary caller to coordinate. The best module boundary here is the one where \"creating an order\" becomes one semantic operation instead of a choreography the caller must remember.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "a-philosophy-of-software-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:18:32.937161Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc5-de7f-7ad1-8d85-d3c17960b722.1783984676479813000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

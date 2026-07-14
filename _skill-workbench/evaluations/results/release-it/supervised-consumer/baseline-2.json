@@ -1,0 +1,62 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5335-e2e8-7c03-b589-4a91ddbf4846",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is neither `crash on every exception` nor `catch everything and ack`. With this broker and supervisor setup, those are the two unsafe extremes.\n\nThe exact policy should be:\n\n1. `Malformed message` => `quarantine`, do not retry, do not crash.\nA bad payload is message-scoped and deterministic. Retrying it under `max_deliveries: 0` just creates an infinite poison loop, and crashing the process amplifies that loop across all 6 replicas because every unacked delivery is immediately redelivered. The consumer should parse and validate the message up front, classify invalid JSON / missing required fields / invalid schema as poison, and send it to a quarantine path. In practice that means configuring a dead-letter exchange or equivalent quarantine queue, then rejecting without requeue or explicitly publishing the original payload plus error metadata to quarantine before acking.\n\n2. `Transient dependency failure` => `retry`, and `pause` when the failure is systemic.\n`503`, timeout, and dependency `200` with malformed JSON are dependency failures, not poison messages. They should not be acked, because that loses work. They also should not crash the process by default, because with unlimited redelivery and fast restart they become a hot loop. The right boundary is:\n- Single-message or short-lived failure: do not ack; requeue/redeliver after bounded local retries and timeout.\n- Repeated dependency failure across messages: open a circuit / pause consumption while keeping the process alive, so the deployment can be paused instead of thrashing.\n\nGiven the stated operations model, \u201cpause\u201d means stop taking new deliveries without exiting the process. If the implementation cannot currently suspend consumption, the minimum acceptable fallback is to surface an unhealthy dependency state distinctly and let operators pause the deployment. Crashing is the wrong mechanism for dependency outage here because restart does not change the failing external condition.\n\n3. `Compromised process state` => `crash`.\nCrash only when continuing is unsafe for the whole process rather than for one message: invariant violations, corrupted in-memory state, unexpected programmer errors, or any case where the outcome is unknown and the process cannot trust itself. That is the correct use of the supervisor. A restart is valuable only for process-scoped faults.\n\nWhat this means for the current code:\n- The current `catch + throw` is too broad. It treats poison messages, transient dependency failures, and true process-fatal faults as the same thing.\n- The proposed `broad catch + log + ack` is also too broad. It would silently drop valid work on `503`, timeout, malformed dependency JSON, and many database failures.\n\nMinimal changes needed to make this safe and testable:\n\n1. Add explicit error classification in `consume`.\nUse distinct branches for:\n- `PoisonMessageError`: reject to quarantine or publish-to-quarantine then ack.\n- `RetriableDependencyError`: do not ack; requeue/redeliver.\n- `FatalProcessError` or unknown invariant/programming error: log and crash.\n\n2. Validate the message before any side effect.\n`JSON.parse` alone is not enough. Validate required fields and shape for `InventoryEvent` before calling `inventoryClient` or `database`.\n\n3. Configure quarantine explicitly.\nWith `dead_letter_exchange: null`, there is no quarantine boundary. That must change or poison handling is not real. Without it, you only have \u201cretry forever\u201d or \u201cdrop on ack,\u201d both of which are wrong.\n\n4. Put a real timeout on the dependency.\n`dependency_timeout_ms: 0` means no bound. That prevents reliable classification of timeout vs hang and makes pause/retry behavior untestable.\n\n5. Make retries safe via idempotency.\nBecause unacked messages are redelivered on restart and retriable failures will intentionally redeliver, database effects must be idempotent on `event.id`. The insert/update path needs a uniqueness guarantee on `eventId` and duplicate delivery should resolve as success, not as a fatal error.\n\n6. Add a consumer pause signal for systemic dependency failure.\nThe smallest useful version is a circuit breaker or equivalent \u201cdependency unavailable\u201d state that stops consuming new messages and is externally visible. That is the operational boundary between `retry` and `pause`.\n\n7. Test the boundary explicitly.\nYou need tests for:\n- invalid JSON / invalid schema => quarantined, not retried, process stays up\n- dependency `503` => not acked, retried/redelivered, process stays up\n- dependency timeout => same as above\n- dependency `200` with malformed JSON => treated as dependency failure, not poison\n- unexpected invariant/programming error => process exits\n- duplicate redelivery after post-commit/pre-ack failure => no duplicate side effects\n\nRecommended behavior summary:\n- Bad message: quarantine\n- Bad dependency: retry, then pause if widespread\n- Bad process: crash\n\nThat is the boundary that matches the observed staging failure and uses the supervisor only where restart is actually corrective.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Introduce explicit error classification so poison messages, retriable dependency failures, and process-fatal faults do not share one catch path.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Configure a dead-letter exchange or equivalent quarantine queue, then route malformed messages there instead of retrying or ack-dropping them.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Treat inventory `503`, timeout, and malformed dependency JSON as retriable dependency failures: do not ack them; retry/redeliver them.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Add a bounded dependency timeout and a pause mechanism such as a circuit breaker or suspended consumption state for systemic dependency outage.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Make the database write path idempotent on `event.id` so redelivery after crash or post-commit/pre-ack failure is safe.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Crash only on compromised process state or unknown invariant/programming failures where continuing would be unsafe for subsequent messages.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:04:28.517042Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5335-9706-70d1-9294-e697637c24c6.1783807448839161000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:05:50.557060Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5335-e2e8-7c03-b589-4a91ddbf4846.1783807468265239000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

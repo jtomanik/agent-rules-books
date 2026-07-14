@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55d0-8983-7662-8948-7338b2644f89",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a three-patch sequence.\n\n1. Gain deterministic control first, with no semantic change.\nAdd the smallest seams needed to test `RenewalWorker` directly: inject or parameterize the database collaborator and inject a clock such as `now(): Date`, while preserving the current production default of constructing `RenewalDatabase(process.env.RENEWAL_DSN!)` and reading the real clock. Then add focused tests for `quote()` and `renew()` that characterize current behavior and side effects.\n\nWhat must be learned or controlled before semantic edits:\n- Confirm that `quote()` and `renew()` are supposed to share the same automatic-renewal eligibility rule. The duplication suggests yes, but that is still an assumption to verify.\n- Pin the exact cutoff semantics for \u201colder than 30 days\u201d. The safe interpretation is `> 30 days` is ineligible and exactly `30 days` remains eligible, but that boundary should be made explicit in tests.\n- Decide what `plan: \"trial\"` with `trialStartedAt: null` means. The type allows it, and the new rule cannot be safely implemented without an explicit choice.\n- Decide whether invalid or non-ISO `trialStartedAt` values can exist and how they should be treated. Do not hide a data-quality decision inside the feature patch.\n- Control time and database effects so tests can prove both decision outcomes and write behavior.\n\nFocused tests to add in this first patch:\n- `quote()` returns a price for currently eligible accounts and `null` for paused, closed, or negative-balance accounts.\n- `renew()` returns `\"renewed\"` only for currently eligible accounts and `\"skipped\"` otherwise.\n- Successful `renew()` performs exactly the current transaction, insert, and mark-renewed side effects with deterministic timestamps.\n- Skipped `renew()` performs no writes.\n- `quote()` passes the controlled `now` value into price lookup.\n\n2. Add the trial-age rule as the only behavior change.\nOnce control exists, update the current duplicated conditional in both places to exclude trial accounts older than 30 days. Keep this patch intentionally narrow: the only intended outcome change is that old trial accounts are no longer eligible for automatic renewal.\n\nTests for the semantic patch:\n- Trial account at 29 days: still eligible.\n- Trial account at exactly 30 days: expected behavior made explicit.\n- Trial account at 30 days plus a small amount: ineligible.\n- Paid accounts remain unaffected by trial age.\n- Existing paused, closed, and negative-balance outcomes remain unchanged.\n- If `quote()` and `renew()` truly share eligibility, both methods change together under the same matrix.\n\n3. Eliminate the duplicated conditional in a separate behavior-preserving refactor.\nAfter the rule is protected, extract one clear owner such as `isEligibleForAutomaticRenewal(account, now): boolean` or a very small policy object if that better matches local conventions. Keep it pure and keep database access, pricing, and transaction logic outside it. Then route both `quote()` and `renew()` through that owner.\n\nWhat must remain behavior-preserving during the structural patch:\n- No further rule changes beyond delegating to the shared eligibility owner.\n- No change to constructor behavior for production callers.\n- No change to price lookup inputs or timing semantics.\n- No change to renewal transaction boundaries, inserted payloads, or timestamp format.\n- No database API redesign unless the first patch proves the current surface cannot be tested safely.\n- No speculative abstraction beyond the single shared eligibility owner.\n\nReviewable patch boundaries:\n- Patch 1: seams plus focused characterization tests only. `RenewalWorker` wiring and test support; no eligibility changes.\n- Patch 2: trial-age rule only. Keep duplication temporarily if needed so the diff is purely semantic.\n- Patch 3: shared eligibility owner only. Pure extraction and call-site replacement under the existing test net.\n\nThat order is safer than combining the work because it separates three distinct risks: lack of control, the new rule itself, and the ownership refactor. The delivery still ends with one clear owner, but reviewers can verify each patch for exactly one intent.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

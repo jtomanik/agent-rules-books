@@ -1,0 +1,41 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58bf-b00d-7543-859a-c3ca29f2de5c",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n1. The proposed handler makes Next.js the application layer. It loads the order, enforces the approval rule, calculates the total, persists the invoice, and formats HTTP in one function. That couples the use case to the web framework.\n2. Prisma currently owns the core models. `Order` and `Invoice` from `@prisma/client` cross into the rule and use-case flow, so the application action depends on persistence shapes instead of its own boundary models.\n3. Concrete wiring is mixed into the action. `prisma` is called directly instead of through inward-owned ports, so Prisma is not replaceable at the edge.\n\nSmallest production design:\n\n```ts\n// feature/invoice/domain/order-for-invoicing.ts\nexport type OrderForInvoicing = {\n  id: string;\n  status: \"APPROVED\" | \"PENDING\" | \"CANCELLED\";\n  lines: ReadonlyArray<{ amountCents: number }>;\n};\n\nexport function assertApproved(order: OrderForInvoicing): void {\n  if (order.status !== \"APPROVED\") throw new OrderNotApprovedError(order.id);\n}\n\nexport function calculateInvoiceTotal(order: OrderForInvoicing): number {\n  return order.lines.reduce((sum, line) => sum + line.amountCents, 0);\n}\n\nexport class OrderNotApprovedError extends Error {}\n```\n\n```ts\n// feature/invoice/application/create-invoice.ts\nimport {\n  assertApproved,\n  calculateInvoiceTotal,\n  type OrderForInvoicing,\n} from \"../domain/order-for-invoicing\";\n\nexport type CreateInvoiceRequest = { orderId: string };\nexport type CreateInvoiceResponse = { invoiceId: string; totalCents: number };\n\nexport type LoadOrderForInvoicing = {\n  byId(orderId: string): Promise<OrderForInvoicing>;\n};\n\nexport type SaveInvoice = {\n  save(input: { orderId: string; totalCents: number }): Promise<{ id: string }>;\n};\n\nexport class CreateInvoice {\n  constructor(\n    private readonly orders: LoadOrderForInvoicing,\n    private readonly invoices: SaveInvoice,\n  ) {}\n\n  async execute(request: CreateInvoiceRequest): Promise<CreateInvoiceResponse> {\n    const order = await this.orders.byId(request.orderId);\n    assertApproved(order);\n\n    const totalCents = calculateInvoiceTotal(order);\n    const invoice = await this.invoices.save({ orderId: order.id, totalCents });\n\n    return { invoiceId: invoice.id, totalCents };\n  }\n}\n```\n\n```ts\n// feature/invoice/adapters/http/create-invoice-route.ts\nimport type { NextRequest } from \"next/server\";\nimport { NextResponse } from \"next/server\";\nimport { createInvoice } from \"../../infrastructure/wiring\";\nimport { OrderNotApprovedError } from \"../../domain/order-for-invoicing\";\n\nexport async function POST(request: NextRequest): Promise<NextResponse> {\n  const orderId = request.nextUrl.searchParams.get(\"orderId\")!;\n\n  try {\n    const result = await createInvoice.execute({ orderId });\n    return NextResponse.json(result, { status: 201 });\n  } catch (error) {\n    if (error instanceof OrderNotApprovedError) {\n      return NextResponse.json({ error: \"not approved\" }, { status: 409 });\n    }\n    throw error;\n  }\n}\n```\n\n```ts\n// feature/invoice/infrastructure/prisma-order-reader.ts\nimport { prisma } from \"@/infrastructure/prisma\";\nimport type { LoadOrderForInvoicing } from \"../application/create-invoice\";\n\nexport class PrismaOrderReader implements LoadOrderForInvoicing {\n  async byId(orderId: string) {\n    const row = await prisma.order.findUniqueOrThrow({\n      where: { id: orderId },\n      include: { lines: true },\n    });\n\n    return {\n      id: row.id,\n      status: row.status,\n      lines: row.lines.map((line) => ({ amountCents: line.amountCents })),\n    };\n  }\n}\n```\n\n```ts\n// feature/invoice/infrastructure/prisma-invoice-writer.ts\nimport { prisma } from \"@/infrastructure/prisma\";\nimport type { SaveInvoice } from \"../application/create-invoice\";\n\nexport class PrismaInvoiceWriter implements SaveInvoice {\n  async save(input: { orderId: string; totalCents: number }) {\n    const row = await prisma.invoice.create({ data: input });\n    return { id: row.id };\n  }\n}\n```\n\n```ts\n// feature/invoice/infrastructure/wiring.ts\nimport { CreateInvoice } from \"../application/create-invoice\";\nimport { PrismaOrderReader } from \"./prisma-order-reader\";\nimport { PrismaInvoiceWriter } from \"./prisma-invoice-writer\";\n\nexport const createInvoice = new CreateInvoice(\n  new PrismaOrderReader(),\n  new PrismaInvoiceWriter(),\n);\n```\n\nOwnership and translation:\n- Domain owns the approval rule and total calculation.\n- Application owns `CreateInvoiceRequest`, `CreateInvoiceResponse`, and the required interfaces `LoadOrderForInvoicing` and `SaveInvoice`.\n- Adapters translate `NextRequest` to `CreateInvoiceRequest` and `CreateInvoiceResponse` or domain/application errors back to HTTP.\n- Infrastructure translates Prisma rows to `OrderForInvoicing` and application save input to Prisma writes.\n- Concrete wiring belongs in the outermost infrastructure/composition module, not in the use case.\n\nOne important boundary choice: do not hide approval inside a Prisma query such as \u201cload approved order only.\u201d The rule is business policy, so the application/domain should evaluate `order.status` after loading the order.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-architecture/references/index.md",
+      ".agents/skills/clean-architecture/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "clean-architecture",
+        "sections": [
+          "Required Layer Responsibilities",
+          "Code Generation Rules",
+          "Preferred Default Shapes"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

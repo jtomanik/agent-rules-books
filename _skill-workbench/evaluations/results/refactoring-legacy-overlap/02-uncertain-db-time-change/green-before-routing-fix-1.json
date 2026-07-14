@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5346-75a3-7ee2-b28b-3b3fa0406e37",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded change: isolate the due-date decision behind a tiny seam, preserve every other observable behavior, and verify current behavior before changing it.\n\nRecommended implementation shape:\n1. Extract a pure due check such as `isChargeDue(nextChargeAt: string, now: Date, gracePeriodMs: number): boolean`.\n2. Add minimal test seams for hidden dependencies only: an optional clock (`() => Date`) and optional database instance/interface. Keep the current constructor call shape working by defaulting to the existing `BillingDatabase` creation and `new Date()` behavior.\n3. Keep transaction scope, write order, return values, constructor-side `connect()`, and exception propagation exactly as they are today.\n4. Implement grace as absolute-time arithmetic, not local-calendar arithmetic: compare parsed instants in milliseconds and add `48 * 60 * 60 * 1000` to the stored due instant. That avoids inventing a local-time rule the code does not currently express.\n\nIn practice, the only semantic change should be from:\n- current: charge when `nextChargeAt <= now`\n- proposed: charge when `nextChargeAt + gracePeriodMs` reaches the confirmed boundary rule\n\nDo not also fix timestamp normalization, constructor I/O, retries, logging, or transaction handling in the same patch. Those are separate risks.\n\nProduct decisions that must be resolved instead of inferred:\n- Boundary rule at the grace cutoff: should charging happen exactly at `nextChargeAt + 48h`, or only after that instant? The current code uses an inclusive boundary (`<=`) at `nextChargeAt`, but that does not prove product intent.\n- Timestamp contract: are stored `nextChargeAt` values guaranteed to be timezone-qualified instants (`Z` or explicit offset), or do some rows contain local/offset-less strings? If offset-less values exist, \u201c48 hours after\u201d is ambiguous and needs a product/data decision, not a code guess.\n- Scope of grace behavior: does the 48-hour grace apply to all overdue accounts uniformly, including accounts already far overdue, or are there account types / billing states that should be excluded? The snippet gives no basis to infer exemptions.\n\nSafest verification plan:\n1. Add characterization tests for current behavior before the grace change.\n2. Use a fake database and injected clock; do not depend on the shared staging DB for primary feedback.\n3. Characterize and lock down the currently relied-on behavior:\n- returns `\"charged\"` when due under current rule\n- returns `\"not-due\"` when not due\n- charged path performs both writes inside one transaction callback\n- no-due path performs no writes\n- exceptions from `find`, `insert`, `markCharged`, or `transaction` still propagate unchanged\n- constructor still connects by default if that remains part of the public behavior\n4. Add new grace-period tests once the above is protected:\n- just before 48h cutoff: `\"not-due\"`\n- just after 48h cutoff: `\"charged\"`\n- exact 48h cutoff: test according to the explicit product decision above\n- parsing/instant tests for representative timestamp shapes that actually exist in data\n5. Run a bounded, read-only staging inspection instead of shared-fixture mutation:\n- query a small sample or counts of `nextChargeAt` formats\n- determine whether values are consistently timezone-qualified\n- determine whether obviously ambiguous local strings exist\nThis is for data-shape confirmation only, not behavior verification.\n\nIf staging inspection finds mixed or ambiguous timestamp formats, the safe recommendation is to stop the behavior change and resolve the data contract first. Otherwise the code will appear correct while silently shifting charge time for some accounts.\n\nRelease-risk notes:\n- Do not add retries around charging.\n- Do not catch and translate exceptions in this change.\n- Do not split the transaction.\n- If possible, add a minimal diagnostic around the decision path in a later change, but not as part of this one unless the team explicitly wants observability included.\n\nNet: the smallest safe patch is \u201cintroduce clock/database seams, characterize current transaction/exception behavior, then change only the due calculation to use a 48-hour absolute grace period once the product boundary rule and timestamp contract are confirmed.\u201d",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:23:38.249812Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5346-75a3-7ee2-b28b-3b3fa0406e37.1783808554404033000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

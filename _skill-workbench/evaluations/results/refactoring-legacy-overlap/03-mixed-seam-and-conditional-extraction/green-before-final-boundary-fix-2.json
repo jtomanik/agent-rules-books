@@ -1,0 +1,36 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5355-6938-72f0-9844-2e9ca0eac964",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest delivery is a three-patch sequence, not a single mixed patch.\n\n**Work Order**\n1. Establish control first.\n   Add focused tests around `quote()` and `renew()` before changing semantics. The first structural change should be a narrow seam for both hard dependencies: inject the database collaborator and inject time as `now(): Date` or equivalent, while keeping the current constructor behavior as the default path. This patch is behavior-preserving only.\n2. Characterize current eligibility behavior.\n   Lock down the current outcomes for `active`/`paused`/`closed`, negative vs non-negative balance, and the current alignment between `quote()` and `renew()`. Also capture that `renew()` writes both renewal records only when eligible and returns `\"skipped\"` otherwise. Keep the existing slow end-to-end success-path test.\n3. Remove the duplicated conditional without changing behavior.\n   Extract one clear owner for the current rule, for example a private predicate or small policy object such as `RenewalEligibility.isEligible(account, now)`. In this patch, the extracted logic must be exactly equivalent to the current conditional. No new product rule yet.\n4. Add the new trial-age rule in that single owner.\n   Extend the centralized predicate so trial accounts older than 30 days are ineligible for both `quote()` and `renew()`. This is the only semantic patch.\n5. Stop there.\n   Do not redesign persistence, transaction handling, or pricing lookup in the same delivery.\n\n**What Must Be Learned or Controlled Before Semantic Edits**\n- The exact age boundary: whether \u201colder than 30 days\u201d means strictly `> 30 days`, and what should happen exactly at 30 days.\n- Time interpretation: whether `trialStartedAt` is trusted ISO UTC data and whether age is measured as elapsed duration rather than calendar date.\n- Trial data edge cases: what should happen if a trial account has `trialStartedAt: null` or malformed data. Since the task says no other outcome changes, preserve current behavior unless product explicitly says otherwise.\n- Current `quote()`/`renew()` parity: both methods must continue to agree on eligibility.\n\n**Patch Boundaries**\n- Patch 1: tests plus seam only.\n  Add focused unit tests with fake database and fixed clock. Introduce constructor or factory injection with defaults that preserve production wiring.\n- Patch 2: refactor only.\n  Replace the duplicated inline conditional with one owner. No rule changes, no changed assertions except test setup needed for the seam.\n- Patch 3: behavior change only.\n  Add the 30-day trial rule in the centralized owner and add targeted tests for trial age boundaries.\n\n**Behavior-Preserving Constraints During Structural Work**\n- Default construction must still use `RenewalDatabase(process.env.RENEWAL_DSN!)` and the real system clock unless tests provide substitutes.\n- The extracted eligibility owner must preserve every pre-existing result before the new rule lands.\n- `quote()` must still return the same price/null results for all non-trial-age cases.\n- `renew()` must still perform the same transaction and writes when eligible, and no writes when skipped.\n- Keep the refactor local; do not introduce strategy hierarchies or broader abstractions for a two-call-site rule.\n\n**Focused Test Matrix For The Semantic Patch**\n- Paid account, eligible baseline: unchanged.\n- Trial account at less than 30 days: still eligible.\n- Trial account exactly 30 days old: assert the agreed boundary behavior.\n- Trial account older than 30 days: ineligible for both `quote()` and `renew()`.\n- Paused, closed, and negative-balance cases: unchanged from characterization tests.\n\nThis sequence keeps the risky dependency-breaking work separate from the product rule, then keeps the product rule separate from the duplication cleanup. That produces a reviewable history where the only behavioral delta is the new trial-age policy.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:40:05.095602Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5355-6938-72f0-9844-2e9ca0eac964.1783809534264928000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

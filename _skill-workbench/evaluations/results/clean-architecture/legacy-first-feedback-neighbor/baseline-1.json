@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/legacy-first-feedback-neighbor.md",
+  "case_sha256": "21216fea1bb61f49968f93ab41de38988ce829fd632334ecb0bc08028d73ef10",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5859-7af6-7780-ae82-32521b85d13d",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest observation path is to separate construction-time side effects from decision-time behavior, without changing `AccountSuspender.suspend(accountId)`.\n\nStart with two narrow seams only:\n1. Database seam: allow the class to receive an `accounts` gateway (or full database object) through an internal constructor overload/defaulted parameter, while preserving the current public construction path as the default.\n2. Time seam: allow `now` to come from an injected clock function such as `() => Date`, again defaulting to `() => new Date()`.\n\nThat is enough to get first deterministic feedback on current behavior because tests can then drive:\n- `account.lastPaymentAt`\n- the observed current time\n- whether `markSuspended(accountId, now)` was called\n- the exact `now` value passed when it was called\n\nDo not expose or decide the threshold yet. The first characterization test set should treat the current threshold logic as opaque and only pin externally visible outcomes around representative boundaries:\n- clearly recent payment -> does not suspend\n- clearly old payment -> suspends\n- equality/boundary-shaped cases once discovered\n- timestamp propagation -> suspension uses the injected `now`\n\nA practical sequence is:\n1. Add defaulted internal seams for database access and current time.\n2. Write characterization tests against `suspend(accountId)` using fakes/spies for account lookup and suspension marking.\n3. Use those tests to map current outcomes before touching `unknownThreshold()`.\n4. Only after that, make the separate semantic change to the seven-day rule.\n\nThis keeps the public API stable, keeps structural preparation separate from the later rule change, and minimizes the preparatory surface area to exactly the two nondeterministic dependencies blocking feedback today.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:01:27.130235Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-6eed-78b3-94ce-7369c0a8231e.1783893683950034000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:01:27.203466Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-6efd-7ce2-9931-5fdd45df851d.1783893683965645000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:01:27.235541Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-6f1f-70e3-9aea-138e21fb88e5.1783893683999970000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:01:27.384385Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-6f1f-77d2-a3d6-7f275e4a6bcc.1783893683999903000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

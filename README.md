@@ -13,6 +13,10 @@
     ·
     <a href="#release-matrix">Rules / Skills</a>
     ·
+    <a href="docs/DISTRIBUTION.md">Distribution</a>
+    ·
+    <a href="#codex-plugin">Codex Plugin</a>
+    ·
     <a href="#books-list">Books List</a>
     ·
     <a href="docs/USAGE.md">Usage</a>
@@ -38,6 +42,28 @@ For constructive criticism from Reddit, see [CRITICISM.md](docs/CRITICISM.md).
 
 For release history, see [CHANGELOG.md](CHANGELOG.md).
 
+## Distribution
+
+GitHub is the canonical, versioned source. The same source-faithful skill
+packages are also available through [skills.sh](docs/DISTRIBUTION.md#skillssh),
+the Codex marketplace, and the Claude Code marketplace. See
+[DISTRIBUTION.md](docs/DISTRIBUTION.md) for installation, update, and release
+instructions.
+
+## Codex Plugin
+
+Install all fourteen skills as one namespaced Codex plugin:
+
+```bash
+codex plugin marketplace add jtomanik/agent-rules-books --ref codex/rule-book-skills-checkpoint
+codex plugin add agent-rules-books@agent-rules-books
+```
+
+Invoke a bundled skill as `$agent-rules-books:clean-code`,
+`$agent-rules-books:release-it`, or another namespaced skill from the
+collection. See [USAGE.md](docs/USAGE.md#install-the-codex-plugin) for local
+installation, updates, migration from direct copies, and package maintenance.
+
 ## Release Matrix
 
 Metrics:
@@ -48,20 +74,20 @@ Metrics:
 
 | Rule Set | Full file | Full lines | Full rules | Full size | Mini file | Mini lines | Mini rules | Mini size | Nano file | Nano lines | Nano rules | Nano size |
 | --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: |
-| [A Philosophy of Software Design](a-philosophy-of-software-design/) | [full](a-philosophy-of-software-design/a-philosophy-of-software-design.md) | 370 | 177 | 13561 B | [mini](a-philosophy-of-software-design/a-philosophy-of-software-design.mini.md) | 46 | 28 | 5774 B | [nano](a-philosophy-of-software-design/a-philosophy-of-software-design.nano.md) | 35 | 17 | 2258 B |
+| [A Philosophy of Software Design](a-philosophy-of-software-design/) | [full](a-philosophy-of-software-design/a-philosophy-of-software-design.md) | 370 | 177 | 13561 B | [mini](a-philosophy-of-software-design/a-philosophy-of-software-design.mini.md) | 46 | 28 | 5909 B | [nano](a-philosophy-of-software-design/a-philosophy-of-software-design.nano.md) | 36 | 18 | 2566 B |
 | [Clean Architecture](clean-architecture/) | [full](clean-architecture/clean-architecture.md) | 515 | 289 | 17782 B | [mini](clean-architecture/clean-architecture.mini.md) | 49 | 31 | 5486 B | [nano](clean-architecture/clean-architecture.nano.md) | 36 | 18 | 2254 B |
 | [Clean Code](clean-code/) | [full](clean-code/clean-code.md) | 297 | 220 | 13851 B | [mini](clean-code/clean-code.mini.md) | 47 | 29 | 3804 B | [nano](clean-code/clean-code.nano.md) | 32 | 14 | 1235 B |
-| [Code Complete](code-complete/) | [full](code-complete/code-complete.md) | 354 | 180 | 12407 B | [mini](code-complete/code-complete.mini.md) | 56 | 38 | 6717 B | [nano](code-complete/code-complete.nano.md) | 41 | 23 | 2544 B |
-| [Designing Data-Intensive Applications](designing-data-intensive-applications/) | [full](designing-data-intensive-applications/designing-data-intensive-applications.md) | 393 | 205 | 16084 B | [mini](designing-data-intensive-applications/designing-data-intensive-applications.mini.md) | 55 | 37 | 6949 B | [nano](designing-data-intensive-applications/designing-data-intensive-applications.nano.md) | 34 | 16 | 2575 B |
-| [Domain-Driven Design](domain-driven-design/) | [full](domain-driven-design/domain-driven-design.md) | 979 | 523 | 42424 B | [mini](domain-driven-design/domain-driven-design.mini.md) | 48 | 30 | 5683 B | [nano](domain-driven-design/domain-driven-design.nano.md) | 39 | 21 | 2266 B |
-| [Domain-Driven Design Distilled](domain-driven-design-distilled/) | [full](domain-driven-design-distilled/domain-driven-design-distilled.md) | 317 | 158 | 11351 B | [mini](domain-driven-design-distilled/domain-driven-design-distilled.mini.md) | 56 | 38 | 6438 B | [nano](domain-driven-design-distilled/domain-driven-design-distilled.nano.md) | 41 | 23 | 2535 B |
-| [Implementing Domain-Driven Design](implementing-domain-driven-design/) | [full](implementing-domain-driven-design/implementing-domain-driven-design.md) | 337 | 177 | 12848 B | [mini](implementing-domain-driven-design/implementing-domain-driven-design.mini.md) | 57 | 39 | 7333 B | [nano](implementing-domain-driven-design/implementing-domain-driven-design.nano.md) | 37 | 19 | 2723 B |
-| [Patterns of Enterprise Application Architecture](patterns-of-enterprise-application-architecture/) | [full](patterns-of-enterprise-application-architecture/patterns-of-enterprise-application-architecture.md) | 404 | 196 | 15501 B | [mini](patterns-of-enterprise-application-architecture/patterns-of-enterprise-application-architecture.mini.md) | 54 | 36 | 8099 B | [nano](patterns-of-enterprise-application-architecture/patterns-of-enterprise-application-architecture.nano.md) | 35 | 17 | 2823 B |
+| [Code Complete](code-complete/) | [full](code-complete/code-complete.md) | 354 | 180 | 12407 B | [mini](code-complete/code-complete.mini.md) | 56 | 38 | 6591 B | [nano](code-complete/code-complete.nano.md) | 41 | 23 | 2591 B |
+| [Designing Data-Intensive Applications](designing-data-intensive-applications/) | [full](designing-data-intensive-applications/designing-data-intensive-applications.md) | 393 | 205 | 16084 B | [mini](designing-data-intensive-applications/designing-data-intensive-applications.mini.md) | 55 | 37 | 6792 B | [nano](designing-data-intensive-applications/designing-data-intensive-applications.nano.md) | 34 | 16 | 2592 B |
+| [Domain-Driven Design](domain-driven-design/) | [full](domain-driven-design/domain-driven-design.md) | 979 | 523 | 42424 B | [mini](domain-driven-design/domain-driven-design.mini.md) | 48 | 30 | 7842 B | [nano](domain-driven-design/domain-driven-design.nano.md) | 39 | 21 | 3552 B |
+| [Domain-Driven Design Distilled](domain-driven-design-distilled/) | [full](domain-driven-design-distilled/domain-driven-design-distilled.md) | 317 | 158 | 11351 B | [mini](domain-driven-design-distilled/domain-driven-design-distilled.mini.md) | 57 | 39 | 9169 B | [nano](domain-driven-design-distilled/domain-driven-design-distilled.nano.md) | 31 | 13 | 3222 B |
+| [Implementing Domain-Driven Design](implementing-domain-driven-design/) | [full](implementing-domain-driven-design/implementing-domain-driven-design.md) | 337 | 177 | 12848 B | [mini](implementing-domain-driven-design/implementing-domain-driven-design.mini.md) | 59 | 41 | 10887 B | [nano](implementing-domain-driven-design/implementing-domain-driven-design.nano.md) | 37 | 19 | 4103 B |
+| [Patterns of Enterprise Application Architecture](patterns-of-enterprise-application-architecture/) | [full](patterns-of-enterprise-application-architecture/patterns-of-enterprise-application-architecture.md) | 404 | 196 | 15501 B | [mini](patterns-of-enterprise-application-architecture/patterns-of-enterprise-application-architecture.mini.md) | 55 | 37 | 8448 B | [nano](patterns-of-enterprise-application-architecture/patterns-of-enterprise-application-architecture.nano.md) | 35 | 17 | 2834 B |
 | [Refactoring](refactoring/) | [full](refactoring/refactoring.md) | 433 | 242 | 17866 B | [mini](refactoring/refactoring.mini.md) | 49 | 31 | 5167 B | [nano](refactoring/refactoring.nano.md) | 37 | 19 | 1986 B |
 | [Release It!](release-it/) | [full](release-it/release-it.md) | 382 | 204 | 13542 B | [mini](release-it/release-it.mini.md) | 48 | 30 | 6372 B | [nano](release-it/release-it.nano.md) | 38 | 20 | 2205 B |
-| [The Pragmatic Programmer](the-pragmatic-programmer/) | [full](the-pragmatic-programmer/the-pragmatic-programmer.md) | 359 | 179 | 13398 B | [mini](the-pragmatic-programmer/the-pragmatic-programmer.mini.md) | 65 | 47 | 7165 B | [nano](the-pragmatic-programmer/the-pragmatic-programmer.nano.md) | 44 | 26 | 2263 B |
+| [The Pragmatic Programmer](the-pragmatic-programmer/) | [full](the-pragmatic-programmer/the-pragmatic-programmer.md) | 359 | 179 | 13398 B | [mini](the-pragmatic-programmer/the-pragmatic-programmer.mini.md) | 65 | 47 | 7037 B | [nano](the-pragmatic-programmer/the-pragmatic-programmer.nano.md) | 44 | 26 | 2241 B |
 | [Working Effectively with Legacy Code](working-effectively-with-legacy-code/) | [full](working-effectively-with-legacy-code/working-effectively-with-legacy-code.md) | 371 | 193 | 13817 B | [mini](working-effectively-with-legacy-code/working-effectively-with-legacy-code.mini.md) | 50 | 32 | 5707 B | [nano](working-effectively-with-legacy-code/working-effectively-with-legacy-code.nano.md) | 35 | 17 | 1792 B |
-| [Refactoring.Guru](refactoring-guru/) | [full](refactoring-guru/refactoring-guru.md) | 765 | 478 | 62561 B | [mini](refactoring-guru/refactoring-guru.mini.md) | 64 | 46 | 6287 B | [nano](refactoring-guru/refactoring-guru.nano.md) | 41 | 23 | 2593 B |
+| [Refactoring.Guru](refactoring-guru/) | [full](refactoring-guru/refactoring-guru.md) | 765 | 478 | 62561 B | [mini](refactoring-guru/refactoring-guru.mini.md) | 64 | 46 | 7902 B | [nano](refactoring-guru/refactoring-guru.nano.md) | 41 | 23 | 2980 B |
 
 ## Books List
 

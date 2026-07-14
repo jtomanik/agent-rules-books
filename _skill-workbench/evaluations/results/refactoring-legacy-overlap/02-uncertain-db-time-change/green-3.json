@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55c7-71f4-7c73-8f32-9c7bc4fd7236",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded path:\n\nTreat this as a legacy change, not a simple condition edit. The current code has three unknowns that callers may already depend on: the exact due boundary (`<= nextChargeAt`), JavaScript `Date` parsing of stored timestamp strings, and exception/transaction behavior. The implementation should therefore preserve everything except the intentionally changed due threshold.\n\nImplementation plan:\n1. Add a minimal seam for time and persistence so the behavior can be tested without the staging database. Keep the public constructor shape for production callers, but allow an injected clock and injected `BillingDatabase` in tests.\n2. Extract the due decision into a tiny pure function or method that computes `dueAtMs = new Date(account.nextChargeAt).getTime() + 48h` and compares it to `now.getTime()`. Do not normalize timestamps differently, do not reinterpret local time, and do not add new error handling in this change.\n3. Leave the transaction block structure unchanged. Keep the same single `now` value for both `chargedAt` and `markCharged(...)`. Do not add `try/catch`, retries, or compensation logic; current exception propagation is one of the behaviors that must be preserved unless explicitly changed.\n4. Keep the existing inclusive boundary style, but move it to the grace threshold: charge when `now >= nextChargeAt + 48 hours`. That is the narrowest semantic delta from the current `<=` behavior.\n\nVerification plan:\n1. Add focused characterization tests against a fake database and fixed clock before changing behavior:\n- before `nextChargeAt` returns `\"not-due\"`\n- current code charges at exact boundary\n- `transaction(...)` wraps both writes\n- `chargedAt` and `markCharged` receive the same timestamp\n- exceptions from `insert`, `markCharged`, or `transaction` still propagate\n2. Replace only the intentionally changed boundary test with new grace-period tests:\n- `nextChargeAt + 47:59:59.999` => `\"not-due\"`\n- exactly `nextChargeAt + 48h` => `\"charged\"`\n- later than `+48h` => `\"charged\"`\n- at least one case with an explicit timezone offset in `nextChargeAt` so the test locks current parsing semantics\n3. Verify timestamp-format assumptions read-only before rollout. Inspect real stored `nextChargeAt` formats in staging or production-adjacent data without mutating fixtures. If rows mix ISO-with-offset and bare local timestamps, stop and resolve that policy first.\n4. Inspect the `BillingDatabase.transaction` implementation directly to confirm rollback and exception semantics. Do not use shared staging fixtures as the primary confidence mechanism. If a live check is still required, make it a single isolated script or account-level exercise with explicit fixture ownership, not broad exploratory writes.\n\nProduct decisions that must be resolved instead of inferred:\n- Is \"48-hour grace period\" an absolute elapsed 48 hours from the stored timestamp, or a local-calendar/business-time rule? The code can safely implement only the absolute-elapsed interpretation without redefining time semantics.\n- How should legacy timestamps without timezone information be interpreted? Continuing current JavaScript parsing preserves behavior, but it may preserve incorrect historical local-time assumptions too.\n- Should the charge happen exactly at the end of the grace period (`>= nextChargeAt + 48h`) or only after that instant has passed? The bounded implementation keeps the current inclusive style, shifted by 48 hours.\n\nIf those three decisions are answered as absolute elapsed time, existing timestamp interpretation preserved, and inclusive at the grace boundary, this is a small safe change. Without those answers, changing the condition alone would be guessing.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

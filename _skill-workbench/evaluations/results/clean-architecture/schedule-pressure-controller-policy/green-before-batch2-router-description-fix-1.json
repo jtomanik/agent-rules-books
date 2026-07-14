@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/schedule-pressure-controller-policy.md",
+  "case_sha256": "3e1c3b18559a931bfec0d088407244283c234057a6b9abd1efe272398953dd25",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585c-959b-7262-a018-53473b341219",
+  "exit_code": 0,
+  "result": {
+    "answer": "Do not accept the controller shortcut.\n\nThe proposed change puts business policy in an HTTP adapter, makes the controller call the repository directly, and bypasses the existing `RefundPurchase` application boundary. That is the wrong dependency direction for exactly this kind of rule change. Under schedule pressure, it is also not the safest shortcut: it duplicates refund behavior, creates two policy paths, and can silently skip whatever invariants or side effects `RefundPurchase.execute()` already owns.\n\nThe smallest shippable placement is inside the existing refund policy path, preferably in `RefundPurchase` itself if that is where the current 14-day rule already lives. If the use case already delegates eligibility to a domain object or pure policy function, then extend that policy there instead. Keep the controller unchanged.\n\nA minimal shape is:\n\n```ts\nconst refundWindowDays = purchase.customerTier === \"VIP\" ? 30 : 14;\nconst accepted = daysSince(purchase.createdAt, requestedAt) <= refundWindowDays;\n```\n\nThen let the existing use case continue to perform the refund through its normal path.\n\nWhy this is the right smallest change:\n- The rule is business policy, not transport logic.\n- The HTTP contract does not change, so the controller has no new responsibility.\n- The repository schema does not change, so no new boundary is needed.\n- The current behavior is already fully specified by fast tests, so the lowest-risk move is to extend the covered use-case policy and add VIP cases there.\n\nShip it as:\n1. Add VIP refund-window logic in `RefundPurchase` or its existing inward-owned policy helper.\n2. Add fast tests for VIP at 30 days accepted, VIP at 31 days rejected, and non-VIP still using 14 days.\n3. Leave the controller as a thin adapter.\n\nIf changing the application package truly cannot happen, that is an approval/process blocker, not a sound reason to relocate policy into the controller.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-architecture/references/index.md",
+      ".agents/skills/clean-architecture/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:04:50.683891Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585c-8324-7673-a9a6-47fc9db43105.1783893885822588000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

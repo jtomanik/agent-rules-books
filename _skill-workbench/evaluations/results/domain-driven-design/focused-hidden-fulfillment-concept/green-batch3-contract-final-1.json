@@ -1,0 +1,58 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/focused-hidden-fulfillment-concept.md",
+  "case_sha256": "ccc4ce6be7528b8d7fae1b030cd2ab88c77242ac9030b4472468767f4274f70c",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5cb1-20a4-7fa3-b070-b195675a5a22",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The model should be driven by a missing domain concept, not by a rename-only interpretation. In this Fulfillment context, `ALLOCATED` currently carries two different meanings: a replaceable sourcing proposal and an operational stock commitment. That violates the local language boundary because one term is covering two business states with different consequences.\n\nThe smallest behavior-preserving refactoring is additive: keep the legacy outward meaning of `status: \"ALLOCATED\"` for now, but introduce an internal concept such as `allocationCommitment` or `supplyAssignment` with two explicit phases, for example `PROPOSED` and `RESERVED`. `PROPOSED` means planning selected a warehouse candidate that may be replaced without operational release. `RESERVED` means warehouse operations accepted responsibility and reserved stock, so release is a distinct business action. `SHIPPED` remains separate because it is a fulfillment outcome, not a sourcing/commitment phase.\n\nThe explanatory gain that justifies this refactoring is not prettier naming. It is that the model starts teaching the real rules:\n- replacement rules differ: proposals are freely replaceable, reservations are not\n- authority differs: planning can revise a proposal, operations must explicitly release a reservation\n- audit/event language becomes clearer: `WarehouseProposed`, `StockReserved`, `StockReleased` are meaningful facts, while `ALLOCATED` is ambiguous\n\nIf those distinctions matter in multiple workflows, tests, or integrations, the richer concept earns its cost. If they do not, a rename-only change is enough.\n\nThree domain-language scenarios would falsify the deeper model:\n1. \"When planning chooses a warehouse, stock is always reserved immediately in the same business step.\" If proposal and reservation never have independent lifecycles, one concept is enough.\n2. \"Any allocated line can be reassigned to another warehouse at any time before shipment without warehouse approval or explicit release.\" If operational commitment adds no extra rule, the split is artificial.\n3. \"No user, report, SLA, event, or policy needs to distinguish 'planned at warehouse X' from 'warehouse X has reserved stock'.\" If the business never speaks that distinction, the extra concept is ceremony.\n\nIncremental migration path:\n1. Add the new internal phase/concept alongside the current enum.\n2. Derive legacy `ALLOCATED` from either `PROPOSED` or `RESERVED` so existing behavior stays stable.\n3. Move new decisions and tests onto explicit operations such as `proposeWarehouse`, `reserveStock`, and `releaseReservation`.\n4. Only after callers adopt the richer language, consider whether `status` should be split or reduced.\n\nDecision: treat this as a hidden fulfillment concept. A pure rename may reduce confusion briefly, but it will not explain why some \"allocated\" lines are freely swappable and others require an explicit release decision.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/domain-driven-design-distilled/references/index.md",
+      ".agents/skills/domain-driven-design-distilled/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "domain-driven-design-distilled",
+        "sections": [
+          "Ubiquitous Language Rules",
+          "Tactical Pattern Rules",
+          "Aggregate Minimalism Rules",
+          "Application Service Rules",
+          "Architecture and Infrastructure Rules",
+          "Collaboration Rules",
+          "Practicality Rules",
+          "Accelerated Modeling and Project Rules",
+          "Code Generation Rules",
+          "Review Rules",
+          "Testing Rules",
+          "Review Checklist",
+          "Final Instruction"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [
+    "required project skill not selected: domain-driven-design"
+  ],
+  "stderr": "2026-07-13T18:16:46.642040Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5cb1-20a4-7fa3-b070-b195675a5a22.1783966539940960000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

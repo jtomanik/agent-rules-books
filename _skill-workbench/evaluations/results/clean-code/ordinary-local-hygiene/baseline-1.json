@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/ordinary-local-hygiene.md",
+  "case_sha256": "f6282cfcb4fb88d1c1e4906b027e6c02e877c4e4d44f3784e5489e34a8c4e92e",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5362-3c1c-7a62-b555-48bcd57522ca",
+  "exit_code": 0,
+  "result": {
+    "answer": "A minimal readable rewrite is to normalize inputs once at the top, then keep the two output branches direct:\n\n```ts\ntype PersonName = {\n  first: string;\n  last: string;\n  nickname?: string;\n};\n\nexport function makeLabel(p: PersonName, short: boolean): string {\n  const first = p.first.trim();\n  const last = p.last.trim();\n  const nickname = p.nickname?.trim() || \"\";\n\n  if (short) {\n    return nickname || `${first} ${last}`;\n  }\n\n  return nickname ? `${last}, ${first} (${nickname})` : `${last}, ${first}`;\n}\n```\n\nCleanup boundary: do only local normalization inside this helper. Trim `first` and `last` when deriving output, collapse `nickname` to either a trimmed non-empty string or `\"\"`, and stop there. Do not widen scope into shared utilities or type changes because the behavior is fully specified, local, synchronous, and already covered by passing tests.\n\nConcise tests:\n- `short=true` with nickname present: returns trimmed nickname.\n- `short=true` with nickname absent: returns `\"<trimmed first> <trimmed last>\"`.\n- `short=true` with nickname empty/whitespace: same as no nickname.\n- `short=false` with nickname absent: returns `\"<trimmed last>, <trimmed first>\"`.\n- `short=false` with nickname present: returns `\"<trimmed last>, <trimmed first> (<trimmed nickname>)\"`.\n- Trimming case: surrounding whitespace on all three fields is removed exactly where specified.\n- Preservation case: internal spaces are preserved; only leading/trailing whitespace is trimmed.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "stderr": ""
+}

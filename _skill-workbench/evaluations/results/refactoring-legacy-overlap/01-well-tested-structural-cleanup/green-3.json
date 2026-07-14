@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55cf-9976-70d1-9313-8fcbe99e22b7",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small refactoring sequence that turns `price()` into an orchestrator and nothing more. The current function has four clear phases already: subtotal, discount, shipping, and tax/total assembly. That is the natural split, and the focused tests are enough protection for this kind of behavior-preserving cleanup.\n\nRecommended sequence:\n1. Extract subtotal calculation first into a private helper such as `calculateSubtotalCents(items)`. This is the most mechanical move and gives you one obvious pure function.\n2. Extract discount calculation next into `calculateDiscountCents(customerTier, subtotalCents)`. Keep the existing threshold and rounding exactly where they are; this step should be a literal move, not a redesign.\n3. Extract shipping calculation into `calculateShippingCents(destination, subtotalCents, discountCents)` or `calculateShippingCents(destination, discountedSubtotalCents)`. Preserve the existing rule order exactly: international shipping wins, otherwise free shipping is based on subtotal minus discount. That ordering is a real behavior constraint proven by the tests.\n4. Extract tax calculation into `calculateTaxCents(taxableCents)`, then leave `price()` to assemble the final `Price` object from named intermediate values.\n5. Stop there. The end state should be a short `price()` method that reads top-down and a few small private pure helpers in the same module/class.\n\nA reviewable target shape is:\n- `price()` computes `subtotalCents`\n- then `discountCents`\n- then `shippingCents`\n- then `taxableCents`\n- then `taxCents`\n- then returns the unchanged `Price` shape\n\nBoundaries for the cleanup:\n- Do not change the public API, return shape, rounding, thresholds, or rule ordering.\n- Do not introduce new domain types, strategy objects, policy classes, config-driven rules, or dependency injection. The module is too small and already well protected; those would be speculative.\n- Do not collapse everything into a generic pipeline or \u201cpricing engine.\u201d\n- Do not replace the class wholesale or move logic across modules unless a real second caller appears.\n- Optional constants like `GOLD_DISCOUNT_RATE`, `FREE_SHIPPING_THRESHOLD_CENTS`, and `TAX_RATE` are acceptable only if they improve readability without changing ownership or configurability. Stop before turning them into a broader settings model.\n\nIn short: extract the existing phases one by one, keep every decision and formula intact, run the focused tests after each step, and stop once `price()` is a thin coordinator with a handful of private pure helpers. Anything beyond that is no longer cleanup driven by current friction; it becomes redesign.",
+    "selected_project_skills": [
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

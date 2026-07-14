@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/outbound-provider.md",
+  "case_sha256": "420500ae5fd787a2e9919b3b0bbbb67e620f27ac56b3631d066e7d74b79028c2",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55bf-695e-7c03-9b9b-99c4e7de27a5",
+  "exit_code": 0,
+  "result": {
+    "answer": "Do not move this integration to 100% checkout traffic on July 13, 2026 in its current form. The current implementation will let a slow or unhealthy provider consume request workers, DB connections, and memory until checkout collapses again.\n\n**Findings**\n1. Critical: live payment work can wait forever. `Semaphore.acquire()` waits indefinitely, `ProviderClient.post()` is not given `requestSignal`, and both payment timeouts are `0` which means no deadline. A slow provider, hung TCP connection, or saturated semaphore can pin request workers until the whole checkout tier stalls. The minimum fix is to give slot acquisition and the outbound call explicit deadlines shorter than `CHECKOUT_REQUEST_TIMEOUT_MS`, pass `requestSignal` through, and stop trying once that budget is gone.\n2. Critical: a DB transaction is held open across the remote call, retries, and sleeps. `database.beginTransaction()` happens before any provider attempt, so every slow authorization also burns a DB connection. Move the transaction to after a validated provider success, or use it only to durably record fallback work.\n3. Critical: retries are multiplied across layers. The SDK already retries transport errors and `429`/`5xx` twice, while the function adds 4 more attempts. In the bad case one checkout can generate up to 12 provider calls, with no total time budget and no jitter, which is exactly how an overloaded provider and your own workers get buried. Keep one retry layer only, bound total retry time inside the request budget, and retry only transport/timeout/`429`/`5xx` cases.\n4. Critical: the fallback path is unbounded and non-durable. `pendingAuthorizations` is an in-memory array and `PENDING_AUTHORIZATION_CAPACITY=0` means unlimited growth. During a provider outage this becomes a memory leak, and a process restart loses pending work. If `pending` is the degraded behavior, it must be persisted durably and have a finite capacity with a defined full behavior. If that cannot be done before rollout, do not degrade to `pending`; fail checkout explicitly instead.\n5. High: malformed `200` responses are not validated. An HTML error page with status `200` will fail at `response.json()`, be retried repeatedly, and then fall into the pending path without being classified. Validate status, content type, and required fields before committing anything. A malformed response must be treated as a dependency-contract failure, not a success.\n6. High: the current concurrency limit is not a real protection. `PAYMENT_MAX_IN_FLIGHT=400` is unsafe unless it is intentionally sized below available request-worker and DB capacity, and the wait is bounded. The limit should be low enough that payment trouble cannot occupy all checkout workers; when the limit is hit, checkout must degrade or fail fast instead of waiting indefinitely.\n7. Medium: observability is insufficient for a 100% rollout. The code emits only a success counter and a warn log per attempt. Add metrics for provider latency, timeout count, retry count, semaphore saturation/wait time, malformed responses, pending queue depth/age, and degraded outcomes. Avoid one warn log per retry in an outage.\n\n**Smallest Production-Ready Changes**\n- Add explicit slot-acquire, connect, and response timeouts, all shorter than the 2500 ms checkout deadline, and pass `requestSignal` into the SDK call.\n- Remove retry multiplication. Use exactly one retry layer with bounded total time and jitter; for example, either SDK retries or app-level retries, not both.\n- Do not hold a DB transaction open during the provider call.\n- Validate provider responses before writing state: expected status, JSON content type, and required fields like `authorization_id` and `state`.\n- Replace the in-memory pending list with a durable, finite backlog, or disable the `pending` fallback and fail checkout until that exists.\n- Reduce `PAYMENT_MAX_IN_FLIGHT` to a value derived from worker/connection budgets, and make semaphore acquisition time out.\n\n**Required Runtime Behavior**\n- Slow provider: spend only the configured payment budget, then stop waiting, release the slot, avoid holding a DB transaction, and return the degraded outcome immediately.\n- Overloaded provider (`429`/`5xx`): perform only the single bounded retry policy, then stop sending more live traffic for that request and degrade or fail fast. Do not amplify load with nested retries.\n- Unavailable provider / transport failure: treat as retryable only within the same bounded budget; after that, degrade or fail fast immediately.\n- Malformed `200` / HTML / bad JSON: classify as dependency-contract failure, record it separately, never persist authorization state from it, and do not let it poison queues or downstream state.\n\nIf you need a go/no-go decision: this is a no-go for full traffic until the timeout, transaction-scope, retry, and pending-backlog issues are fixed.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

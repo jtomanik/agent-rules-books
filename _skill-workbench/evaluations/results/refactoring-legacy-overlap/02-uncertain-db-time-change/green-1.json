@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55ca-04d8-7fd3-9485-6bd29275d967",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest bounded change is to preserve every observable behavior except the due-time comparison, and to make that comparison testable before changing it.\n\nAdd the smallest seams needed for fast characterization tests:\n- Inject a clock or `now()` function instead of calling `new Date()` directly.\n- Inject the database or a narrow billing-data adapter instead of constructing and connecting `BillingDatabase` unconditionally in the constructor.\n- Extract the due check into a small pure function such as `isChargeDue(nextChargeAt, now, graceMs)`.\n\nKeep these behaviors unchanged unless explicitly asked otherwise:\n- Same public return values: `\"charged\" | \"not-due\"`.\n- Same transaction boundary: `insert` and `markCharged` stay inside one `transaction(...)`.\n- Same exception behavior: do not add catches, retries, or compensation logic.\n- Same timestamp source for persisted `chargedAt` / `markCharged`: one `now` value reused for both writes.\n\nImplement the grace period as an absolute 48-hour offset from the currently parsed `nextChargeAt`, not as a local-calendar rule. Concretely: preserve the existing `Date` parsing behavior, compute `eligibleAt = parsedNextChargeAt + 48h`, and compare `now` to `eligibleAt`. That is the smallest semantic delta and avoids silently \u201cfixing\u201d existing timezone interpretation during this change.\n\nVerification plan:\n1. Add characterization tests for current behavior before the change:\n- charges when `now === nextChargeAt` if that is what current code does\n- does not charge before `nextChargeAt`\n- on charge, inserts one charge and marks the account charged within one transaction\n- exceptions from `find`, `transaction`, `insert`, or `markCharged` still bubble\n2. Add new-behavior tests for grace-period semantics:\n- does not charge at `nextChargeAt`\n- does not charge at `nextChargeAt + 47h59m59s`\n- boundary test at exactly `nextChargeAt + 48h` or just after it, depending on product decision below\n- does charge after the grace window and still writes the same persisted timestamps/fields as before\n- include at least one timestamp with an explicit UTC offset to prove the comparison is duration-based, not local-midnight-based\n3. Do not rely on the shared staging database for primary verification. Use unit tests with a fake database/adapter and fake clock. If an end-to-end check is still wanted, make it one isolated smoke test against a dedicated staging record only if the team can guarantee fixture isolation.\n\nProduct decision that must be resolved instead of inferred:\n- Boundary rule: should charging occur exactly at `nextChargeAt + 48h`, or only strictly after that instant?\n- Time interpretation rule: if stored `nextChargeAt` strings are sometimes naive/local timestamps, should this change preserve current interpretation for existing data, or is product approving a separate normalization/migration to explicit UTC/offset timestamps?\n\nI would not infer either from the current code. Everything else should stay behavior-compatible for this change.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/comprehensive-audit.md",
+  "case_sha256": "114e8945371df220dfdc2cd6c705faf344c5fb5585e06a59c2b351aedea4a201",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5872-ee07-77c0-b3fa-994dd774c192",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Prioritized Audit**\n\n1. `this.db` is used without a declared class field ([line 5]). In TypeScript, this is a concrete defect, not just a style issue: `Property 'db' does not exist on type 'Handler'` unless the project is suppressing type safety hard enough to hide it. Clean Code calls for explicit construction and small, hard-to-misuse APIs; this class currently violates both.\n\n2. `go` mixes too many responsibilities ([lines 9-40]): HTTP boundary handling, order lookup, business decision, persistence, instance-state mutation, async notification scheduling, and response serialization. This breaks the \u201cone reason to change\u201d rule and makes local reasoning expensive. Any change to approval policy, transport, persistence, or notification behavior forces edits in the same method.\n\n3. Boolean control flags `quick` and `send` ([line 9]) hide multiple modes inside one API. This is a primary Clean Code smell. The reader cannot tell from the call site what `true, true` means, and the function\u2019s behavior matrix grows implicitly.\n\n4. The async notification path is unsafe ([lines 30-36]). `setTimeout(async () => ...)` creates fire-and-forget work with no visible error handling, timeout policy, cancellation, or shutdown semantics. If `fetch` rejects, the failure is detached from the request flow. This is both a Clean Code boundary/concurrency problem and a likely defect in operational behavior.\n\n5. Shared mutable state `last` ([lines 2, 27]) is hidden and poorly named. It is not part of the method contract, and if `Handler` is reused across requests it becomes race-prone state with unclear ownership. Even if not currently observed, it increases surprise and change risk.\n\n6. Naming is substantially below Clean Code standards: `go`, `x`, `last`, `quick`, and `send` ([lines 2, 9-10, 27, 30]). The code relies on comments because names do not carry intent. The comments themselves are mostly narrative and should not be needed if the structure and names were clear.\n\n7. The method violates command-query separation ([line 40]). It mutates persistent state, mutates instance state, conditionally schedules external side effects, and also returns the HTTP response result. That makes the contract harder to reason about and harder to test.\n\n8. `any` is used for `last`, `req`, and `res` ([lines 2, 9]). This removes the language\u2019s help exactly where boundary safety matters most. Clean Code favors explicitness over implicit magic; `any` here erases intent and allows misuse.\n\n9. Persistence details leak directly into behavior ([lines 10, 28]). The method loads a record, mutates the fetched object, then writes the whole object back. That couples business logic to ORM representation and makes accidental field persistence more likely.\n\n10. The test is weak and non-diagnostic ([lines 44-47]). `expect(result).toBeTruthy()` does not verify the order status decision, DB update, 404 branch, or notification behavior. It is readable only at a superficial level and would miss most meaningful regressions.\n\n**Bounded Remediation Plan**\n\n1. Fix the concrete type defect first: declare `private readonly db: PrismaClient` and replace `any` at the method boundary with explicit request/response and order types.\n\n2. Split `go` into a thin orchestration method plus focused helpers, for example: load order, decide next status, persist update, send response, enqueue notification. Preserve existing behavior while separating phases.\n\n3. Replace boolean flags with explicit intent. The smallest safe change is an options object or distinct methods/use-case names so callers express meaning instead of positional booleans.\n\n4. Remove `last` unless there is a real contract that requires it. If it must exist, make that state explicit and isolate it from per-request flow.\n\n5. Move notification behind a narrow adapter with explicit fire-and-forget policy and error handling. Preserve non-blocking behavior if required, but make failure handling and lifecycle visible.\n\n6. Rewrite tests around observable behavior: 404 path, `quick` approval path, high-total review path, low-total approval path, update call contents, and notification enabled/disabled behavior.\n\n**Validation Checklist**\n\n- TypeScript compilation fails on no undeclared fields and no boundary `any` usages introduced by the cleanup.\n- A test proves `404` handling returns the current contract and skips update/notification work.\n- A test proves `quick` forces `approved`.\n- A test proves non-quick orders over `1000` become `review`.\n- A test proves non-quick orders at or below `1000` become `approved`.\n- A test proves persistence writes the intended fields, not an uncontrolled whole-object payload.\n- A test proves notification is attempted only when enabled.\n- A test or explicit design note covers notification failure behavior.\n- No hidden instance state changes remain in the request path unless they are part of an explicit contract.\n- The top-level method reads as a short story with names that make the comments unnecessary.\n\nOverall: the main issue is not one isolated smell; it is a concentration of weak naming, mixed responsibilities, hidden state, and unsafe async boundary handling inside one method. The highest-value improvement is to make the request flow explicit and typed before attempting any broader redesign.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "clean-code",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:29:15.072941Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-cb1f-7f62-9145-e14e123fa87e.1783895345951829000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:30:23.385534Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-ee07-77c0-b3fa-994dd774c192.1783895354888190000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

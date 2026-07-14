@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/patterns-of-enterprise-application-architecture/distinctive-unnamed-review.md",
+  "case_sha256": "231196d81d61306de28c4d61386dc6d52cc4629068036383499f0ffbefb173fa",
+  "mode": "green",
+  "run": "green-batch4-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc7-c036-7263-bf66-a581506b1870",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Using `patterns-of-enterprise-application-architecture` and `clean-architecture` guidance: this code has one clear problem, which is responsibility collapse. The controller currently performs transport handling, SQL, pricing, coupon application, transaction-worthy state changes, vendor integration, and response assembly.\n\nThe fitting business-logic pattern is a `Service Layer` operation implemented as a `Transaction Script`, not a full `Domain Model` yet. The checkout flow is still a single use-case workflow, and the only rule pressure called out is coupon growth. That justifies extracting pricing/coupon decisions behind a small policy component, but not committing the whole design to rich aggregates and repositories everywhere. A reasonable bounded split is:\n\n- `CheckoutController`: translate HTTP request/response only.\n- `CheckoutService.checkout(cmd)`: own the use-case workflow.\n- `CartRepository` or `CartGateway`: load cart lines and cart state.\n- `PurchaseRepository`: persist purchase and status.\n- `CouponPolicy` or `DiscountService`: compute eligibility/discount rules in domain terms.\n- `ShippingGateway`/`ShippingFacade`: hide the vendor\u2019s six-call protocol behind one coarse internal method.\n\nFor data access, use explicit repositories/gateways plus mapping, not inline JDBC in the controller. This is not a good fit for Active Record because the behavior is already crossing multiple records and an external integration. A small repository/gateway boundary is enough.\n\nThe transaction belongs in the `CheckoutService`, around local database work only. It should cover: load the cart consistently, compute total, apply coupon rules, create/update purchase state, and persist any local shipment request record if needed. The shipping vendor call should not run inside that database transaction. With a six-call remote interaction, keeping the DB transaction open across the vendor workflow will make failure handling, latency, and testability worse.\n\nThe bounded correction is:\n\n1. `CheckoutService.checkout(...)` starts a DB transaction.\n2. Load cart and calculate total through domain/policy code.\n3. Insert `purchase` with a state such as `PENDING_SHIPMENT`.\n4. Persist a shipment request or outbox record in the same DB transaction.\n5. Commit.\n6. After commit, invoke the shipping facade, ideally asynchronously via a worker/outbox consumer. If synchronous behavior is required, still do it after commit and then update shipment status in a separate short transaction.\n\nThat gives a safer failure model:\n\n- local purchase creation is atomic;\n- remote shipping is retriable and isolated;\n- tests for pricing/checkout no longer need the vendor sandbox;\n- tests for use-case logic no longer need a real database.\n\nThe remote contract should be coarse and application-oriented, not shaped like the vendor API and not shaped like local rows. Two contracts matter here.\n\nInternal shipping boundary:\n\n```java\ninterface ShippingGateway {\n  ShipmentResult requestShipment(ShipmentRequest request);\n}\n```\n\nThat interface hides the vendor\u2019s six calls and vendor payload shapes.\n\nCheckout API contract:\n\n```java\nrecord CheckoutCommand(CartId cartId, CouponCode coupon, ShippingAddress shippingAddress) {}\nrecord CheckoutResult(PurchaseId purchaseId, Money total, CheckoutStatus status) {}\n```\n\nThe checkout response should return purchase identity, computed total, and workflow status such as `CONFIRMED` or `PENDING_SHIPMENT`. It should not echo raw request bodies or expose cart rows unless the API explicitly needs an order summary DTO.\n\nA sketch of the corrected shape:\n\n```java\nfinal class CheckoutController {\n  CheckoutResponse checkout(HttpRequest request) {\n    var result = checkoutService.checkout(toCommand(request));\n    return toResponse(result);\n  }\n}\n\nfinal class CheckoutService {\n  CheckoutResult checkout(CheckoutCommand cmd) {\n    var purchase = tx.inTransaction(() -> {\n      var cart = cartRepository.loadForCheckout(cmd.cartId());\n      var total = pricingService.price(cart, cmd.coupon());\n      var purchase = purchaseRepository.createPending(cart.id(), total, cmd.shippingAddress());\n      shipmentRequestRepository.enqueueFor(purchase.id());\n      return purchase;\n    });\n\n    shipmentCoordinator.dispatch(purchase.id());\n    return new CheckoutResult(purchase.id(), purchase.total(), CheckoutStatus.PENDING_SHIPMENT);\n  }\n}\n```\n\nTesting should then follow responsibility lines:\n\n- unit-test `CheckoutService` with fake repositories and a shipping stub;\n- unit-test coupon/pricing rules directly;\n- integration-test repositories against the database;\n- contract/integration-test the shipping facade separately.\n\nNet: keep the core as a transaction-script use case with explicit repositories/gateways, place the DB transaction in the service layer, move the vendor workflow behind a coarse facade and outside the DB transaction, and return a coarse checkout contract centered on purchase outcome rather than transport/vendor details.",
+    "selected_project_skills": [
+      "patterns-of-enterprise-application-architecture",
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "patterns-of-enterprise-application-architecture"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:20:59.838269Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc7-c036-7263-bf66-a581506b1870.1783984799798337000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

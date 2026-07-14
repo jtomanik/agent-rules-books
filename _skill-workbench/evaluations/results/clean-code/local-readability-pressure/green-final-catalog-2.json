@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5892-e328-7cd1-82f9-2d4b1df60d69",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe change is a small local refactor plus the rule addition, not a raw extra `if` dropped into `finalize`. The current risk is not the new rule itself; it is that discount policy, preview behavior, persistence, email, audit, and hidden state all live in one method. Under a 45-minute window, I would keep the patch strictly inside `InvoiceService` and only separate discount calculation from side effects.\n\nPatch plan:\n1. Extract discount calculation into a private method such as `calculateDiscount(account, invoice): number`.\n2. Preserve existing discount rules exactly: `vip` gets `0.10`; invoices with `total > 1000` get an additional `0.05`.\n3. Add the new rule only there: `partner` gets `0.15` when `invoice.total >= 500`.\n4. Leave `amount` calculation, preview behavior, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, and `lastInvoiceId` behavior unchanged.\n5. Keep the method signature unchanged for this release. Do not introduce new abstractions, new collaborators, or signature churn.\n\nExact scope boundary:\n- In scope: discount-policy calculation inside `InvoiceService`, plus tests that protect the new rule and unchanged side effects.\n- Out of scope: removing boolean flags, redesigning `finalize`, changing persistence/email/audit sequencing, changing `lastInvoiceId`, introducing strategy/policy objects, or touching any caller-facing interface.\n\nRevised function sketch:\n```ts\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    let discount = 0;\n\n    if (a.segment === \"vip\") {\n      discount += 0.10;\n    }\n\n    if (a.segment === \"partner\" && i.total >= 500) {\n      discount += 0.15;\n    }\n\n    if (i.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n}\n```\n\nTests required before shipping:\n- `partner` with `total = 499.99` gets no partner discount.\n- `partner` with `total = 500` gets `0.15` discount.\n- `partner` with `total > 1000` gets `0.20` total discount if stacking with the existing high-total rule is intended by product wording.\n- `vip` behavior is unchanged at a normal total.\n- `vip` with `total > 1000` still gets `0.15` total discount.\n- `standard` behavior is unchanged at totals below and above `1000`.\n- In `preview` mode, returned values reflect the new rule and `accounts.save`, `mailer.send`, and `audit.record` are still not called.\n- In non-preview mode for a qualifying `partner` account, returned values, saved balance delta, `accounts.save`, optional `mailer.send`, and `audit.record` all use the discounted amount.\n\nOne product ambiguity must be resolved explicitly before merge: whether a `partner` account over `1000` should stack to `20%` or cap at `15%`. The smallest reading of \u201creceive a 15% discount when the invoice total is at least 500\u201d does not define interaction with the existing `> 1000` rule. If PM is unavailable, I would document the assumption in the PR and test for stacking, because the current code treats discounts as additive policy.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:04:41.512558Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5892-e328-7cd1-82f9-2d4b1df60d69.1783897449256568000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

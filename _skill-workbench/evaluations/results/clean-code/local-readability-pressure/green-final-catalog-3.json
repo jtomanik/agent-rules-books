@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5892-f89b-70b2-b651-36f64c1563fc",
+  "exit_code": 0,
+  "result": {
+    "answer": "Keep this as a local change, but do not take the manager\u2019s advice literally and pile more branching into `finalize`. The safe 45-minute move is: extract discount calculation into a small pure function, add the new `partner` rule there, and leave mutation, persistence, email, audit, and return shape unchanged.\n\nExact scope boundary: only discount determination changes. Preserve all existing thresholds, call ordering, side effects, return payloads, and preview behavior outside the new rule. Do not redesign the service, remove boolean flags, change collaborators, change `lastInvoiceId`, or alter the existing VIP/high-total composition unless a failing test proves current behavior is wrong.\n\nConcrete patch plan:\n1. Add a pure helper such as `calculateDiscount(account, invoice): number` inside `InvoiceService` or file-local scope.\n2. Move the existing VIP and `total > 1000` logic into that helper unchanged.\n3. Add the new rule there: if `account.segment === \"partner\"` and `invoice.total >= 500`, add `0.15`.\n4. Make `finalize` call the helper, then keep the rest of the method structurally identical.\n5. Do not combine this with broader cleanup beyond removing the current inline discount logic.\n\nA revised sketch:\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\ntype Invoice = {\n  id: string;\n  total: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    let d = 0;\n\n    if (a.segment === \"vip\") d += 0.1;\n    if (a.segment === \"partner\" && i.total >= 500) d += 0.15;\n    if (i.total > 1_000) d += 0.05;\n\n    return d;\n  }\n}\n```\n\nTests required before shipping:\n- `partner` with total `499.99`: no partner discount.\n- `partner` with total `500`: gets `0.15` discount.\n- `partner` with total above `1000`: gets `0.20` total discount if the existing high-total rule is cumulative for all segments.\n- `vip` with total below `1000`: still `0.10`.\n- `vip` with total above `1000`: still `0.15`.\n- `standard` with total above `1000`: still `0.05`.\n- Preview path for qualifying `partner`: returns the discounted amount, `changed: false`, and does not call `accounts.save`, `mailer.send`, or `audit.record`.\n- Non-preview qualifying `partner`: amount reflects discount, `accounts.save` called with updated balance, `mailer.send` still gated by `sendEmail`, `audit.record` still receives the discounted amount.\n\nIf time is tight, I would treat the first three tests plus one side-effect-preservation test on preview and one on finalize as the minimum ship gate. That gives direct protection for the new rule and for the main regression surface.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:04:47.282464Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5892-f89b-70b2-b651-36f64c1563fc.1783897454748113000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

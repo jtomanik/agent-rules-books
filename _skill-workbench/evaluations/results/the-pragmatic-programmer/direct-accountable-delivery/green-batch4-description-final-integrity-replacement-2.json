@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/direct-accountable-delivery.md",
+  "case_sha256": "f417b32d5bf76be34dc02066185cc491faa87283bdc43f5ae7afb83bb9808fa6",
+  "mode": "green",
+  "run": "green-batch4-description-final-integrity-replacement-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5df7-7ac4-7192-97a1-cd547d754237",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposal\u2019s main failure is permanent knowledge duplication. Copying tax rules into `ui`, `api`, and `batch` creates three owners for one fact, so every tax change becomes coordination work under deadline pressure. The smallest correction is to make one authoritative tax-rules source now, and have all three paths consume it. That can be a shared module, checked-in data file, or service boundary; the form matters less than eliminating copied rule logic before release.\n\nThe second issue is irreversible vendor coupling. With a `14_days` contract-change notice and a `12_days` deadline, hard-coding the vendor format into domain objects turns this release into a commitment you cannot safely change in time. Keep the domain model vendor-neutral and add a thin export adapter at the boundary. That preserves reversibility: you can ship the current vendor format without baking it into core objects.\n\nThe third issue is feedback. `manual_spreadsheet_check` and `ci: none` mean the first trustworthy signal arrives late and depends on a person. The smallest acceptable fix is one automated tracer-bullet verification in CI: generate a representative regional tax export fixture and compare it against an approved expected file. Keep the spreadsheet check only as temporary release confidence for this deadline, not as the system of record.\n\n`tribal_knowledge` rollout steps and `owner: unclear` also violate outcome ownership. Do not build a large rollout process; just check in a short release runbook and assign one named owner for execution and rollback decisions.\n\nMinimal delivery correction:\n1. Replace copied tax rules with one shared authoritative rules source used by `ui`, `api`, and `batch`.\n2. Move vendor formatting into an export adapter so domain objects do not know vendor shape.\n3. Add one CI fixture test for export generation; keep manual spreadsheet review as a one-time backstop only.\n4. Write a small checked-in rollout runbook and name a release owner.\n\nThat is the smallest change set that meets the deadline while avoiding permanent copied knowledge, permanent vendor commitment, and permanent manual verification.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:12:23.440760Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}"
+}

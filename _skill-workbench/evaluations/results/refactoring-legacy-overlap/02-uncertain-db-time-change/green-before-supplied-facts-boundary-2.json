@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55bd-d7dd-7431-a3bb-79428fcd53c3",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded change: do not change transaction scope, exception propagation, constructor behavior, or the public return type. First gain control with characterization tests, then make the smallest semantic edit.\n\nImplementation plan:\n1. Add a narrow seam for the two hidden dependencies that block safe tests: current time and database construction/connection. Keep the existing constructor usable by production callers, but allow tests to supply a fake clock and fake database.\n2. Extract the due check into a small pure helper that preserves current parsing behavior for invalid timestamps. Implement grace as exact elapsed time arithmetic, not calendar math: charge only when `nextChargeAt + 48h <= now`.\n3. Keep the existing write path unchanged: same single transaction, same insert + `markCharged` sequence, same exception behavior, same `\"charged\" | \"not-due\"` results.\n4. Use one captured `now` value for both comparison and persisted timestamps, as the current code already effectively does.\n\nWhat to verify before and after the semantic change:\n1. Characterization tests for current behavior with fakes, before changing logic:\n- before `nextChargeAt` returns `\"not-due\"` and performs no writes\n- exactly at `nextChargeAt` currently charges\n- after `nextChargeAt` charges and performs both writes inside one transaction callback\n- exceptions from the transaction body still propagate; nothing is newly caught or translated\n- invalid `nextChargeAt` string remains non-chargeable if that is today\u2019s behavior\n2. New behavior tests after the grace-period edit:\n- `47:59:59.999` after due is still `\"not-due\"`\n- exactly `48:00:00.000` after due charges, if product confirms boundary-inclusive behavior\n- explicit offset/UTC timestamps behave as exact 48 elapsed hours, not local-calendar days\n3. One very small staging smoke check only after unit coverage exists, and only with isolated fixture accounts. Do not use shared fixtures to discover semantics.\n\nProduct decisions that must be resolved, not inferred:\n1. Does \u201c48-hour grace period\u201d mean exactly 48 elapsed hours from the stored timestamp, or \u201ctwo local calendar days\u201d in an account/business timezone?\n2. If stored timestamps are historically mixed between UTC and local/offset-less values, is the fix only forward-looking logic, or is data normalization/migration required?\n3. At the boundary, should charging happen exactly at `nextChargeAt + 48h` (`<= now`) or only after that instant (`< now`)?\n4. During the grace window, is returning `\"not-due\"` acceptable, or does product need a distinct observable state such as `\"in-grace\"`?\n5. Must current exception and transaction behavior remain contractually unchanged for callers? The safest implementation assumes yes and preserves both.\n\nRecommended scope cut: ship only the elapsed-48-hour rule plus seams/tests. Do not mix in cleanup of constructor I/O, timestamp normalization, or broader billing redesign unless one of the product decisions above forces it.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/focused-command-query.md",
+  "case_sha256": "bade0e9ce79858f47d07125e55d2ac72623fb5d89d19580ea2124bbb337646fa",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5357-a619-7591-97ee-8e8799e784b4",
+  "exit_code": 0,
+  "result": {
+    "answer": "Ruling: under this repository\u2019s Clean Code guidance, `findUser` is not strict command-query separation. The decisive rule is that a function that answers a question should not also mutate state, and the skill calls out cache population as still being mutation. So reviewer 1 is correct on the classification.\n\nThe lazy cache can still be acceptable, but only as a strong-reason exception, not as \u201cno real side effect.\u201d The guidance explicitly allows an exception only when you record the strong reason. That reason would be something like: hiding cache management materially improves the API, avoids repeated expensive repository calls, and the mutation is fully encapsulated implementation state rather than domain-visible behavior. Even then, the method should be treated as an intentional exception to CQS, because it has a hidden side effect.\n\nSmallest acceptable alternatives:\n\n1. Keep the current API, but make the exception explicit in naming or contract.\n```ts\ngetOrLoadUser(id: string): User | undefined {\n  if (!this.usersById.has(id)) {\n    this.usersById.set(id, this.repository.findById(id));\n  }\n\n  return this.usersById.get(id);\n}\n```\nThis is the smallest acceptable form if you have a strong reason to keep lazy caching inline. It stops pretending to be a pure query.\n\n2. Separate population from retrieval.\n```ts\nloadUser(id: string): void {\n  if (!this.usersById.has(id)) {\n    this.usersById.set(id, this.repository.findById(id));\n  }\n}\n\nfindCachedUser(id: string): User | undefined {\n  return this.usersById.get(id);\n}\n```\nThis is the cleanest CQS-compliant alternative. One method mutates; one method answers.\n\n3. Remove the cache from this method entirely.\n```ts\nfindUser(id: string): User | undefined {\n  return this.repository.findById(id);\n}\n```\nUse this if the cache is not justified strongly enough to earn the exception.\n\nBottom line: the internal cache is not a harmless non-side-effect under this Clean Code guidance. It is a real mutation. A strong-reason exception exists, but it should be explicit and narrowly justified; otherwise, separate cache population from retrieval.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:41:52.515454Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5357-a619-7591-97ee-8e8799e784b4.1783809680922116000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-construction-overlap.md",
+  "case_sha256": "c6063578900df5f8c905a1e2828420694333b131c657234937f70112fa754348",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5873-fc46-7743-a7e4-5ba62da76e2b",
+  "exit_code": 0,
+  "result": {
+    "answer": "The workspace available here is empty, so this is a read-only design review based on the supplied module and requirements rather than repository-specific file guidance.\n\nA clean reviewable split is two commits/PRs.\n\n1. Structural preparation only, no behavior change.\nKeep `importRows(lines): AcceptedRow[]` and preserve the current validation order exactly. Extract the nested logic into small pure helpers so parsing and validation become explicit without changing outputs:\n- `splitFields(line: string): string[]`\n- `validateFields(fields): { ok: true } | { ok: false; reason: ... }` or equivalent internal result\n- `toAcceptedRow(fields): AcceptedRow`\n- optional `parseAccepted(fields): AcceptedRow | null`\n\nIn this first step, rejected rows must still be dropped exactly as today. The point is only to separate concerns:\n- line iteration / line numbering\n- field splitting\n- ordered validation\n- accepted-row construction\n\nThe important constraint is that validation order stays identical to the current nesting, because that becomes the future rejection reason precedence:\n- `field-count`\n- `missing-id`\n- `kind`\n- `score`\n- `status`\n\nTests for this step should stay behavior-preserving:\n- existing characterization tests remain unchanged\n- if helper tests are added at all, keep them narrow and non-behavioral; the main proof is that the public tests stay green with unchanged expectations\n\n2. Substantial import change.\nAfter the structure exists, introduce the public result model and move the validation boundary to \u201cone source line in, one typed outcome out\u201d:\n\n```ts\ntype RejectionReason =\n  | \"field-count\"\n  | \"missing-id\"\n  | \"kind\"\n  | \"score\"\n  | \"status\";\n\ntype ImportResult =\n  | { accepted: true; line: number; row: AcceptedRow }\n  | { accepted: false; line: number; reason: RejectionReason };\n```\n\nRecommended routine shape:\n- `parseImportLine(text: string, line: number): ImportResult`\n- `importRows(lines: string[]): ImportResult[]`\n\nThat keeps the boundary explicit and avoids mixing collection logic with validation. `parseImportLine` should:\n- split once\n- validate in the preserved precedence order\n- return either rejected result with the first failing reason or accepted result with the mapped `AcceptedRow`\n\nOne product decision must be made explicitly in tests: line numbering should be either 1-based or 0-based. Given \u201coriginal line number\u201d, I would recommend 1-based for the public API, even though the current loop index is 0-based.\n\nTests for the second step should cover each rejection reason independently and one mixed case:\n- wrong field count -> rejected `field-count`\n- empty id -> rejected `missing-id`\n- invalid kind -> rejected `kind`\n- non-numeric score -> rejected `score`\n- invalid status -> rejected `status`\n- accepted row -> `{ accepted: true, line, row }`\n- mixed input -> output array preserves input order and contains both accepted and rejected results\n- precedence case -> a row with multiple defects returns the first reason according to the existing order\n\nA compact mixed test should assert all key properties at once: stable ordering, exact line numbers, accepted row mapping, and explicit rejection reasons.\n\nThe main engineering point is to avoid combining extraction and semantic change in one diff. First expose parsing/validation while keeping \u201caccepted rows only\u201d. Then change the contract to \u201cresult per source line\u201d on top of that structure.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:32:10.979883Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5873-fc46-7743-a7e4-5ba62da76e2b.1783895424071631000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

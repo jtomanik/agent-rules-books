@@ -1,0 +1,7 @@
+interface:
+  display_name: "Code Complete"
+  short_description: "Apply disciplined production-code construction"
+  default_prompt: "Use $code-complete to review this substantial construction decision for defect risk."
+
+policy:
+  allow_implicit_invocation: true

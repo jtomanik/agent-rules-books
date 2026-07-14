@@ -1,0 +1,7 @@
+interface:
+  display_name: "Domain-Driven Design"
+  short_description: "Discover and evolve domain models"
+  default_prompt: "Use $domain-driven-design to review this model and its context boundaries."
+
+policy:
+  allow_implicit_invocation: true

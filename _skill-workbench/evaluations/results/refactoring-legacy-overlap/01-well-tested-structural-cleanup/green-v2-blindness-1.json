@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5889-847d-7300-80dd-951406cfd33e",
+  "exit_code": 0,
+  "result": {
+    "answer": "Keep this as a small refactoring sequence, not a redesign. The current method has four phases already hidden inside it: subtotal, discount, shipping, and tax/assembly. The cleanup should only make those phases explicit and easier to change later, while preserving the same calculation order and the same intermediate values the tests already protect.\n\nRecommended sequence:\n1. Extract `calculateSubtotalCents(items)` first. It is the safest move and gives the method an obvious top-down entry point.\n2. Extract `calculateDiscountCents(customerTier, subtotalCents)`. Keep the gold-threshold rule exactly where it is conceptually: discount depends only on tier and subtotal.\n3. Extract `calculateShippingCents(destination, subtotalAfterDiscountCents)`. This is the important boundary: free shipping must still be decided after discount, while international shipping still overrides it. Make that dependency explicit in the helper name or arguments instead of hiding it.\n4. Extract `calculateTaxCents(taxableCents)` and introduce a local `taxableCents` variable in `price()` as the single place where `subtotal - discount + shipping` is assembled.\n5. Stop with `price()` as a short orchestration method that reads top-down and returns the same `Price` shape.\n\nA reviewable end state looks roughly like this: `price()` calls 3-4 small private helpers, keeps the current order of operations, and assembles the return object in one place. If you want one additional small cleanup, replace `500`, `2500`, `0.1`, and `0.2` with private named constants, but only if done without changing behavior or widening scope.\n\nWhere to stop:\n- Stop after the phases are explicit and the shipping/discount dependency is clear.\n- Do not introduce strategy objects, policy classes, money value objects, or a rule engine.\n- Do not change the public API, return type, rounding, data model, or conditional structure beyond straightforward extraction and naming.\n- Do not split this into multiple modules unless another concrete change later proves that the single class has multiple reasons to change.\n\nThe main risk to guard is accidental reordering. In particular, free shipping must continue to use `subtotalCents - discountCents`, not raw subtotal, and tax must continue to use `subtotal - discount + shipping`. Run the existing focused tests after each extraction step; that is enough protection for this cleanup as described.",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "refactoring",
+        "sections": [
+          "Safety Rules",
+          "Preferred Refactoring Moves",
+          "Function-Level Rules",
+          "Stopping Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:54:37.783760Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5889-847d-7300-80dd-951406cfd33e.1783896835241956000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5354-1e96-7683-bf29-699d25295f19",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small-step extraction sequence that turns `price()` into an orchestration method, and stop there.\n\nThe behavioral invariants to protect throughout the cleanup are:\n- `subtotalCents` is the sum of `unitPriceCents * quantity` for every item.\n- Gold discount applies only when `subtotalCents >= 10_000`, and it is `Math.floor(subtotalCents * 0.1)`.\n- Free domestic shipping is decided after discount: `subtotalCents - discountCents >= 5_000`.\n- International shipping always wins over free shipping.\n- Tax is `Math.floor((subtotalCents - discountCents + shippingCents) * 0.2)`.\n- Returned shape and field values stay exactly as they are now.\n\nRecommended restructuring sequence:\n1. Make the phases explicit inside `price()` with names only. Introduce `discountedSubtotalCents` for `subtotalCents - discountCents`, keep `taxableCents`, and keep all logic inline. This is a no-logic-change readability pass.\n2. Extract `calculateSubtotal(items)` as the first private helper. It is a pure loop and the safest extraction.\n3. Extract `calculateDiscount(customerTier, subtotalCents)`. Keep the threshold and `Math.floor` exactly inside that helper so the policy remains unchanged and obvious.\n4. Extract `calculateShipping(destination, discountedSubtotalCents)`. Pass the already-discounted subtotal rather than recomputing inside the helper; that makes the crucial dependency reviewable and prevents accidental reordering.\n5. Extract `calculateTax(taxableCents)`. Keep `Math.floor` here and nowhere else.\n6. Leave `price()` responsible for sequencing and assembling the `Price` object. After the extractions, it should read top-down: subtotal, discount, discounted subtotal, shipping, taxable amount, tax, return object.\n\nThat should produce a target shape roughly like this:\n\n```ts\nprice(order: Order): Price {\n  const subtotalCents = this.calculateSubtotal(order.items);\n  const discountCents = this.calculateDiscount(order.customerTier, subtotalCents);\n  const discountedSubtotalCents = subtotalCents - discountCents;\n  const shippingCents = this.calculateShipping(order.destination, discountedSubtotalCents);\n  const taxableCents = discountedSubtotalCents + shippingCents;\n  const taxCents = this.calculateTax(taxableCents);\n\n  return {\n    subtotalCents,\n    discountCents,\n    shippingCents,\n    taxCents,\n    totalCents: taxableCents + taxCents,\n  };\n}\n```\n\nWhere the cleanup should stop:\n- Stop once `price()` is a clear coordinator and each helper represents one calculation phase.\n- Do not introduce strategy objects, policy classes, value objects, enums, or a pricing pipeline.\n- Do not redesign `Order`, `Price`, or the public `price(order)` API.\n- Do not \u201cimprove\u201d rounding, thresholds, shipping precedence, or tax semantics.\n- Do not replace the module wholesale; this is a preparatory refactor, not a domain redesign.\n\nReviewability guidance:\n- Prefer one extraction per commit or per reviewable patch.\n- Run the focused tests after every step.\n- If a later step feels like creating new abstractions rather than exposing the existing phases, stop; that is past the justified boundary for this cleanup.",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:38:02.916519Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5354-1e96-7683-bf29-699d25295f19.1783809449634487000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

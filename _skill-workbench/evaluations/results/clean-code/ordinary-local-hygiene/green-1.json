@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/ordinary-local-hygiene.md",
+  "case_sha256": "f6282cfcb4fb88d1c1e4906b027e6c02e877c4e4d44f3784e5489e34a8c4e92e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5372-681e-79b0-8104-48d54487cb7c",
+  "exit_code": 0,
+  "result": {
+    "answer": "A minimal local rewrite is:\n\n```ts\ntype PersonName = {\n  first: string;\n  last: string;\n  nickname?: string;\n};\n\nexport function makeLabel(p: PersonName, short: boolean): string {\n  const first = p.first.trim();\n  const last = p.last.trim();\n  const nickname = p.nickname?.trim() ?? \"\";\n\n  if (short) {\n    return nickname !== \"\" ? nickname : `${first} ${last}`;\n  }\n\n  return nickname !== \"\" ? `${last}, ${first} (${nickname})` : `${last}, ${first}`;\n}\n```\n\nWhy this is the right cleanup boundary: keep the exported signature exactly as-is, including the `short: boolean` mode flag, because callers already depend on it and the behavior is fully specified. The cleanup should stop at removing temporary variables, normalizing the trimmed values once, and making each branch return directly. Anything beyond that, such as changing the API, introducing extra helpers, or modeling separate format modes, would be broader refactoring without behavioral benefit here.\n\nConcise tests:\n- `short=true` returns trimmed nickname when `nickname` is present and padded with whitespace.\n- `short=true` returns `\"<first> <last>\"` when `nickname` is `undefined`.\n- `short=true` returns `\"<first> <last>\"` when `nickname` is `\"\"` or whitespace-only.\n- `short=false` returns `\"<last>, <first>\"` with trimmed `first` and `last`.\n- `short=false` appends `\" (<nickname>)\"` when trimmed nickname is present.\n- `short=false` does not append parentheses when nickname is empty after trimming.\n\nThis preserves the exact output contract while making the helper readable from top to bottom without comments or stateful temporaries.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

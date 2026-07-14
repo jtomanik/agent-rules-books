@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/local-function.md",
+  "case_sha256": "005d9e44fd83587e67979d066d261fbb0580ddb8645a67c6e917cae0b34e14f6",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5337-3589-7cd3-a125-9263d49d30ee",
+  "exit_code": 0,
+  "result": {
+    "answer": "A clearer local refactor is to rename `doIt` to something intent-revealing like `calculateDiscountedTotal`, then split the work into three small local helpers: one for validation, one for discount normalization, and one for the arithmetic. Because the function is pure, local, and not in a concurrency-sensitive path, this decomposition improves readability without changing observable behavior.\n\n```ts\ntype PriceInput = {\n  quantity: number;\n  unitPrice: number;\n  discountPercent?: number;\n};\n\nexport function calculateDiscountedTotal(input: PriceInput): number {\n  validatePriceInput(input);\n  const discountPercent = normalizeDiscountPercent(input.discountPercent);\n  return calculateTotal(input.quantity, input.unitPrice, discountPercent);\n}\n\nfunction validatePriceInput(input: PriceInput): void {\n  if (!Number.isFinite(input.quantity) || !Number.isFinite(input.unitPrice)) {\n    throw new Error(\"invalid price input\");\n  }\n  if (input.quantity < 0 || input.unitPrice < 0) {\n    throw new Error(\"invalid price input\");\n  }\n}\n\nfunction normalizeDiscountPercent(discountPercent?: number): number {\n  return discountPercent == null\n    ? 0\n    : Math.min(100, Math.max(0, discountPercent));\n}\n\nfunction calculateTotal(\n  quantity: number,\n  unitPrice: number,\n  discountPercent: number\n): number {\n  return quantity * unitPrice * (1 - discountPercent / 100);\n}\n```\n\nAlternative names if you want slightly different emphasis:\n- `computeNetPrice`: shorter, but slightly less explicit about total vs unit price.\n- `calculateLineTotal`: good if this represents a cart or invoice line.\n- `calculateDiscountedPrice`: acceptable, but can be misread as returning a unit price.\n\nRecommendation: prefer `calculateDiscountedTotal` unless surrounding domain language strongly favors `line total` or `net price`.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Rename `doIt` to `calculateDiscountedTotal` to make the function's purpose explicit at the call site.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Split the logic into local `validatePriceInput`, `normalizeDiscountPercent`, and `calculateTotal` helpers to separate validation, normalization, and calculation phases without changing behavior.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Keep the same error text and discount clamping rules so the refactor remains behavior-preserving.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:06:19.307830Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-3589-7cd3-a125-9263d49d30ee.1783807554953562000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

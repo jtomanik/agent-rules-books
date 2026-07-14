@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b6-cfe8-75b0-a695-722fbba65e71",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n\n1. High: the call can outlive the checkout budget before it ever reaches the provider (`snippet:7`, `snippet:10-18`). `Semaphore.acquire()` waits forever, `requestSignal` is ignored, and `timeoutMs=2000` does not cover connection setup. With `CHECKOUT_REQUEST_TIMEOUT_MS=2500`, this path can hang in the semaphore or during connect and violate the requirement to fall back to `{ kind: \"unavailable\" }` within the request budget. Smallest fix: derive one per-request deadline from `requestSignal`/remaining checkout budget, pass it into both `carrierSlots.acquire(...)` and `carrierClient.post(..., { signal })`, and treat abort/timeout as `unavailable`.\n\n2. High: invalid provider responses can be accepted as successful quotes (`snippet:19-25`). The contract requires `200`, JSON, and `{ amount: non-negative finite number, currency: three-letter string, expires_at: ISO-8601 timestamp }`, but the code returns `kind: \"available\"` without checking status, content type, or body shape. A malformed `200` can therefore poison checkout with bad price/currency/expiry data. Smallest fix: validate status/content type/body before returning `available`; otherwise handle it as a dependency-contract failure, not a success.\n\n3. Medium: all failures are collapsed into ordinary unavailability (`snippet:27-29`). That is correct for `429`, `5xx`, timeout, and transport failure, and `CARRIER_RETRIES=0` matches the no-retry requirement. It is not correct operationally for non-`429` provider `4xx` or malformed `200` responses: those indicate a request/contract bug and should fail visibly rather than being indistinguishable from routine carrier slowness. Smallest fix: classify outcomes explicitly in logs/metrics, with a separate error path for contract/request failures and a warning/info path for true unavailability.\n\nRecommended minimum before merge:\n\n1. Put the entire operation under one abortable deadline bounded by the checkout request budget, covering semaphore wait, connect, and response wait.\n2. Validate `response.status`, JSON content type, and the quote payload before returning `available`.\n3. Split error handling into at least: `unavailable` (`429`/`5xx`/timeout/transport/abort) versus contract/request failure (`4xx` except `429`, malformed `200`), with distinct structured logs and counters.\n\nNo broader `Release It!` controls look mandatory yet for this routine pre-merge review; a circuit breaker or larger isolation redesign would be beyond the smallest justified change set here.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5346-758b-7923-aa68-72031d268e75",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small, behavior-preserving extraction sequence. The code already has a trustworthy safety net, so this should stay a refactor, not turn into redesign.\n\nRecommended sequence:\n1. Keep the existing focused tests unchanged and use them as the gate after each step. Do not mix any new pricing rule into this cleanup.\n2. Split `price()` into named phases without changing logic order: subtotal, discount, shipping, tax, result assembly. Start with the safest extraction: subtotal calculation into a private helper or local pure function.\n3. Extract discount calculation next. Make it take `customerTier` and `subtotalCents`, and preserve the exact threshold and `Math.floor` behavior.\n4. Extract shipping calculation after that. Its inputs should make the current dependency explicit: destination plus the discounted merchandise amount. Preserve the current precedence exactly: international shipping wins; otherwise free shipping is based on `subtotalCents - discountCents >= 5_000`.\n5. Leave tax and total as the final straight-line phase, or extract a small pure helper if the team wants one more step. Preserve the current taxable base exactly: `subtotal - discount + shipping`, then `Math.floor(... * 0.2)`.\n6. If it still helps readability, rename locals to reflect the phases more clearly, but only after the extractions are in place so review stays obvious.\n\nA good end state is `price()` as a short orchestration method calling 3-4 small pure helpers, with no observable behavior change and the same return shape.\n\nWhere this cleanup should stop:\n- Stop once the phase boundaries are explicit and the next pricing change would be easy to make locally.\n- Do not introduce new classes, strategies, policy objects, or configuration structures.\n- Do not redesign the public API, change data types, alter rounding, reorder rule evaluation, or \u201cgeneralize\u201d for future pricing rules.\n- Do not replace the module wholesale. If the next proposed step is abstraction for hypothetical future rules rather than removing current friction, that is the stopping point.\n\nReview-wise, the safest patch series is one extraction per patch, with tests green after each patch.",
+    "selected_project_skills": [
+      "refactoring",
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:23:23.585604Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5346-758b-7923-aa68-72031d268e75.1783808554379691000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

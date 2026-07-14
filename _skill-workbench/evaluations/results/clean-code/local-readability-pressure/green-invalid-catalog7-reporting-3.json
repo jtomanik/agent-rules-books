@@ -1,0 +1,48 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5874-3d60-7613-8c5b-41a6209c42a0",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest ship path is a minimal internal refactor: isolate discount calculation, add the `partner >= 500 => 15%` rule with explicit precedence, and leave every side effect path in `finalize` unchanged.\n\nExact scope boundary:\n- In scope: discount selection only, plus tests proving the discounted `amount` still flows unchanged into balance mutation, `accounts.save`, `mailer.send`, and `audit.record`.\n- Out of scope: changing `finalize`\u2019s public signature, redesigning `preview` / `sendEmail`, changing rounding behavior, changing audit payload shape, or broader cleanup because of the upcoming rewrite.\n- Product ambiguity to lock before merge: for `partner` invoices above `1000`, does \u201creceive a 15% discount\u201d mean exactly `15%`, or `15%` plus the existing high-total `5%`? My default read is exact `15%`, because the requirement states a concrete discount rather than an additive rule.\n\nConcrete patch plan:\n1. Add focused failing tests for partner boundary cases before touching logic.\n2. Extract discount logic into a small private helper so the new rule is not buried inside side effects.\n3. Implement partner precedence there: if account is `partner` and total is `>= 500`, return `0.15`; otherwise preserve the current `vip` and `> 1000` rules exactly.\n4. Keep `finalize`\u2019s mutation, persistence, email, audit, and return shape unchanged.\n5. Run the full TypeScript suite and verify no existing expectation changes outside the new partner cases.\n\nRevised function sketch:\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\ntype Invoice = {\n  id: string;\n  total: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(a: Account, i: Invoice): number {\n    if (a.segment === \"partner\" && i.total >= 500) {\n      return 0.15;\n    }\n\n    let discount = a.segment === \"vip\" ? 0.1 : 0;\n\n    if (i.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.discountFor(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\nTests required before shipping:\n- `partner` with `total = 499.99` gets no new discount.\n- `partner` with `total = 500` gets `15%`.\n- `partner` with `total > 1000` gets the explicitly intended result. I would require this test because it is the only meaningful ambiguity.\n- `preview` mode for a qualifying `partner` invoice returns discounted values and does not mutate balance or call `save`, `send`, or `record`.\n- Non-preview qualifying `partner` invoice debits the discounted amount, passes that same amount to `accounts.save`, `mailer.send` when enabled, and `audit.record`.\n- Existing regression cases remain: `vip` at ordinary totals, `vip` above `1000`, and non-partner non-vip above `1000`.\n\nIf product confirms stacking instead, only the helper changes; the same extraction and test strategy still applies.",
+    "selected_project_skills": [
+      "clean-code",
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "clean-code",
+        "sections": [
+          "[]"
+        ]
+      },
+      {
+        "skill": "code-complete",
+        "sections": [
+          "[]"
+        ]
+      }
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [
+    "consulted_reference_sections must exactly match skills whose full.md was read: sections=['clean-code', 'code-complete'], full=[]",
+    "reference_mode ordinary requires SKILL.md files and no references"
+  ],
+  "stderr": "2026-07-12T22:30:40.986624Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-2404-7530-8752-9f9227f87026.1783895434245023000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:31:37.509715Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-3d60-7613-8c5b-41a6209c42a0.1783895440736732000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

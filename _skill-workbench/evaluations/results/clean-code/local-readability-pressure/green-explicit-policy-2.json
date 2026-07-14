@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f588b-a60b-7e03-be01-2587247534e2",
+  "exit_code": 0,
+  "result": {
+    "answer": "Assumption to lock before coding: for `partner` accounts with `invoice.total >= 500`, the discount is exactly `0.15`, not `0.15` plus the existing `> 1000` bonus. That matches the wording \"receive a 15% discount\" and keeps all non-partner behavior unchanged.\n\nPatch plan:\n1. Extract discount computation out of `finalize` into a small pure helper such as `calculateDiscount(account, invoice)` or a module-level function. This is the smallest cleanup that makes the rule safe under time pressure.\n2. Implement the new rule as an early return in that helper: `partner && total >= 500 => 0.15`.\n3. Preserve the existing logic for everyone else: `vip => 0.10`, `total > 1000 => +0.05`, otherwise `0`.\n4. Leave all side-effect flow in `finalize` unchanged: preview path, balance mutation, `accounts.save`, `lastInvoiceId`, optional `mailer.send`, and `audit.record`.\n5. Remove or update the stale comment so it does not imply the discount logic is trivial when it now has a business rule.\n\nRevised sketch:\n```ts\ntype DiscountPolicy = (account: Account, invoice: Invoice) => number;\n\nconst calculateDiscount: DiscountPolicy = (account, invoice) => {\n  if (account.segment === \"partner\" && invoice.total >= 500) {\n    return 0.15;\n  }\n\n  let discount = account.segment === \"vip\" ? 0.1 : 0;\n\n  if (invoice.total > 1_000) {\n    discount += 0.05;\n  }\n\n  return discount;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = calculateDiscount(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount selection only.\n- In scope: extracting that logic into one helper if needed for local clarity.\n- Out of scope: changing the public API, renaming domain types broadly, introducing strategy/config infrastructure, changing rounding, changing persistence/email/audit behavior, changing preview semantics, or touching `lastInvoiceId` behavior.\n\nTests required before shipping:\n- Add a focused test for `partner` at exactly `500`: returns `discount: 0.15` and `amount: 425`.\n- Add a focused test for `partner` above `1000` such as `1500`: returns `discount: 0.15`, not `0.20`.\n- Add a focused test for the non-preview path for `partner >= 500`: `accounts.save`, `mailer.send`, and `audit.record` still receive the discounted amount.\n- Keep existing regression coverage for `vip`, `standard`, preview behavior, and collaborator calls. If current tests do not explicitly cover a non-partner `> 1000` case, add one to prove that rule still stays at `0.05` or `0.15` for vip as before.\n\nGiven the time limit, this is the right patch shape: one local extraction, one new rule, targeted tests, no broader redesign.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:56:15.307099Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f588b-79b3-7d51-a9d4-087bfd345003.1783896963507890000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

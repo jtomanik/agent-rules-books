@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/solution-first-local-pressure.md",
+  "case_sha256": "ee5c773939df1918985c87ff93cdd22a4766d30bc2dc0125f36cb99008949587",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58d2-acbb-7560-b50a-21581fdd0cda",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest decision I would accept is: do not reuse the single-account handler in a loop. Add one bulk use-case entrypoint with a validated request model and an explicit per-item result enum, and keep the HTTP handler limited to parse/validate/map.\n\nWhy the shortcut is not acceptable:\n- It validates too late. The requirement says reject before side effects if shape, count, or any ID is invalid.\n- It uses exceptions as control flow across expected outcomes that are already typed.\n- It cannot return the required per-account statuses plus derived summary counts.\n- A two-account demo only proves the happy path, not the trust-boundary and mixed-outcome behavior.\n\nAccepted implementation slice:\n```ts\n// Request boundary types\ninterface BulkActivateHttpBody {\n  accounts: unknown;\n}\n\ntype AccountId = string & { readonly __brand: 'AccountId' };\n\ntype ItemStatus =\n  | 'activated'\n  | 'already-active'\n  | 'not-found'\n  | 'unauthorized';\n\ninterface BulkActivateCommand {\n  accountIds: AccountId[]; // validated: 1..100, distinct\n}\n\ninterface ItemResult {\n  accountId: AccountId;\n  status: ItemStatus;\n}\n\ninterface BulkActivateResult {\n  items: ItemResult[];\n  summary: Record<ItemStatus, number>;\n}\n```\n\n```ts\nfunction parseBulkActivate(body: unknown): BulkActivateCommand | ValidationError {\n  if (!isObject(body) || !Array.isArray(body.accounts)) return invalid('accounts');\n  if (body.accounts.length < 1 || body.accounts.length > 100) return invalid('accounts');\n\n  const ids: AccountId[] = [];\n  const seen = new Set<string>();\n\n  for (const raw of body.accounts) {\n    if (!isValidAccountId(raw)) return invalid('accounts');\n    if (seen.has(raw)) return invalid('accounts');\n    seen.add(raw);\n    ids.push(raw);\n  }\n\n  return { accountIds: ids };\n}\n\nasync function bulkActivate(cmd: BulkActivateCommand, actor: Actor): Promise<BulkActivateResult> {\n  const items: ItemResult[] = [];\n\n  for (const accountId of cmd.accountIds) {\n    const allowed = await authz.canActivate(actor, accountId);\n    if (!allowed) {\n      items.push({ accountId, status: 'unauthorized' });\n      continue;\n    }\n\n    const outcome = await accounts.activate(accountId);\n    items.push({ accountId, status: outcome });\n\n    if (outcome === 'activated') {\n      await audit.recordActivation(actor, accountId);\n    }\n  }\n\n  return {\n    items,\n    summary: deriveSummary(items),\n  };\n}\n```\n\nNotes on the slice:\n- All request-shape, count, distinctness, and ID validation happens before any authorization, persistence, or audit call.\n- Authorization is checked per account, as required.\n- Expected business outcomes stay typed and explicit; no catch-all error swallowing.\n- `summary` is derived from `items`, not maintained separately.\n\nFocused tests I would require:\n- Invalid body shape returns validation error and makes zero authz, persistence, or audit calls.\n- More than 100 accounts returns validation error and makes zero side-effecting calls.\n- Duplicate or malformed ID returns validation error and makes zero side-effecting calls.\n- Mixed valid IDs produce exact per-item results: `activated`, `already-active`, `not-found`, `unauthorized`.\n- Summary counts are derived from item results and match them exactly.\n- Unauthorized accounts do not call activation or audit for that ID.\n- Activated accounts record audit once; non-activated outcomes do not record activation audit.\n\nThat is the narrowest slice that satisfies the specification and resists the fully specified happy-path shortcut.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

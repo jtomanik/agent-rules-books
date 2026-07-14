@@ -1,0 +1,43 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/solution-first-local-pressure.md",
+  "case_sha256": "ee5c773939df1918985c87ff93cdd22a4766d30bc2dc0125f36cb99008949587",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58d3-5f32-72a0-9bea-a5ea69d9a59b",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest decision I would accept is: do not copy the single-account HTTP handler. Add one batch-specific orchestration routine with a hard phase split.\n\nPhase 1 is whole-request validation at the trust boundary, before any collaborator calls:\n- accept only `{ \"accounts\": [...] }`\n- `accounts` must be an array of 1 to 100 items\n- every item must be a valid account ID\n- IDs must be distinct\n- if any check fails, return `400` with validation issues and perform no side effects\n\nPhase 2 runs only on validated IDs and maps typed collaborator outcomes into item results:\n- check authorization for each account first\n- if unauthorized, emit `unauthorized` for that ID and do not call activation for that ID\n- otherwise call the existing activation/persistence path and map typed outcomes to `activated`, `already-active`, or `not-found`\n- derive summary counts from the item results; do not maintain a second independent counter path\n- do not wrap the loop in a broad `catch` and do not collapse expected outcomes into `attempted`; unexpected exceptions should stay unexpected failures, not become fake success accounting\n\nA minimal implementation slice:\n\n```ts\ntype BulkActivateRequest = { accounts: string[] }\n\ntype ValidationIssue = {\n  path: string\n  code: 'missing' | 'wrong-type' | 'count-out-of-range' | 'duplicate' | 'invalid-id'\n}\n\ntype ItemStatus = 'activated' | 'already-active' | 'not-found' | 'unauthorized'\n\ntype ItemResult = { accountId: string; status: ItemStatus }\n\ntype BulkActivateResponse = {\n  results: ItemResult[]\n  summary: {\n    activated: number\n    alreadyActive: number\n    notFound: number\n    unauthorized: number\n    total: number\n  }\n}\n\nfunction parseBulkActivateRequest(body: unknown):\n  | { ok: true; accountIds: AccountId[] }\n  | { ok: false; issues: ValidationIssue[] }\n\nasync function activateAccountsBulk(\n  actor: Actor,\n  accountIds: AccountId[],\n): Promise<BulkActivateResponse> {\n  const results: ItemResult[] = []\n\n  for (const accountId of accountIds) {\n    const allowed = await authz.canActivate(actor, accountId)\n    if (!allowed) {\n      results.push({ accountId, status: 'unauthorized' })\n      continue\n    }\n\n    const outcome = await activator.activate(accountId)\n    results.push({ accountId, status: mapOutcome(outcome) })\n  }\n\n  return summarize(results)\n}\n```\n\nThis is enough because it isolates the trust boundary, keeps control flow inspectable, and uses the existing typed outcomes instead of exception-driven branching.\n\nFocused tests I would require before accepting it:\n- invalid shape: missing `accounts`, non-array, empty array, more than 100 items, duplicate IDs, invalid ID syntax; assert `400` and zero collaborator calls\n- mixed valid request: one `activated`, one `already-active`, one `not-found`, one `unauthorized`; assert per-item statuses and exact summary counts\n- authorization short-circuit: unauthorized ID does not call activation collaborator\n- summary derivation: counts are computed from `results`, not separately incremented\n- unexpected collaborator failure is not converted into `attempted`; the request fails through the existing error path\n\nThat is the narrow slice that resists the happy-path shortcut without turning this into a larger service redesign.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "code-complete",
+        "sections": [
+          "Construction Prerequisites and Decisions",
+          "Defensive Programming Rules",
+          "Error Handling Rules",
+          "Incremental Construction Rules",
+          "Testing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

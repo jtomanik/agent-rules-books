@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5355-3ad6-7543-a812-f467c9d1ae1a",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Patch Plan**\n\nShip this as a small local refactor plus the rule change, not as another inline conditional in `finalize`.\n\n1. Add tests first to lock current behavior and the new partner rule.\n2. Extract discount calculation into a private pure helper inside `InvoiceService`.\n3. Implement the new rule in that helper: `partner` accounts get `0.15` when `invoice.total >= 500`.\n4. Keep the existing `> 1000` extra `0.05` logic unchanged and still additive.\n5. Leave all side effects, ordering, arguments, and return shape exactly as they are.\n6. Run the targeted TypeScript test suite before shipping.\n\nThe key judgment call is interaction with the existing high-total rule. With the requirement phrased as \u201cPreserve all behavior outside that rule,\u201d the lowest-risk interpretation is:\n- `partner` + `total >= 500` sets the base discount to `15%`\n- the existing `total > 1000` bonus still applies\n- example: partner invoice at `1200` gets `20%` total discount\n\nIf product meant a flat capped `15%`, that must be clarified explicitly. I would not silently change the `> 1000` behavior under release pressure.\n\n**Revised Sketch**\n\n```ts\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    let d = 0;\n\n    if (a.segment === \"vip\") {\n      d = 0.1;\n    } else if (a.segment === \"partner\" && i.total >= 500) {\n      d = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      d += 0.05;\n    }\n\n    return d;\n  }\n}\n```\n\nI would keep the interface unchanged. A new pricing policy object is not justified with 45 minutes left unless this logic is already duplicated elsewhere.\n\n**Exact Scope Boundary**\n\nIn scope:\n- `InvoiceService` discount calculation only\n- a small extraction to make the change locally readable and testable\n- test additions for the new rule and relevant boundaries\n\nOut of scope:\n- redesigning `finalize`\n- removing `preview` / `sendEmail` booleans\n- changing persistence, mail, audit, or `lastInvoiceId` behavior\n- introducing new domain types, strategy classes, or a broader pricing model\n- any cleanup outside the touched discount logic and its tests\n\n**Tests Required Before Shipping**\n\nAt minimum, I would require these tests:\n\n1. `partner` with `total = 500` returns `discount: 0.15`.\n2. `partner` with `total = 499.99` returns the old behavior, `discount: 0`.\n3. `partner` with `total > 1000` returns `discount: 0.20` to preserve the existing additive high-total rule.\n4. A non-partner regression case proving existing behavior is unchanged, for example `vip` at `1200` still gets `0.15`.\n5. A non-preview partner case proving side effects use the discounted amount:\n- `accounts.save` sees the reduced balance\n- `mailer.send` receives the discounted amount when enabled\n- `audit.record` records the discounted amount\n6. A preview partner case proving no side effects still occur and `changed: false` is preserved.\n\nIf the suite already has broad collaborator-call coverage, I would still add at least one partner-specific non-preview side-effect test and one preview test. That is the minimum safety net that proves this is not only a return-value change.\n\n**Shipping Decision**\n\nUnder rewrite pressure, the right move is a bounded extraction plus tests, not a bigger redesign and not another raw branch in `finalize`. This keeps the patch reviewable, preserves existing behavior outside the new rule, and avoids making the mixed-responsibility method harder to change again in the next few weeks.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:39:29.991166Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5355-3ad6-7543-a812-f467c9d1ae1a.1783809522390602000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

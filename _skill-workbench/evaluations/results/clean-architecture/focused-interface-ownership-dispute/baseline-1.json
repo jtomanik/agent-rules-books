@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/focused-interface-ownership-dispute.md",
+  "case_sha256": "6ca5339381c6e02940bb15280a89c210fe289e163dda0a61affc1dce1f4c5dea",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5873-6e1c-7f80-ae6a-49fe27d6bfa0",
+  "exit_code": 0,
+  "result": {
+    "answer": "Reviewer B is correct.\n\nThe interface is owned by the application side, not by infrastructure, because ownership in Clean Architecture is determined by source dependency direction and policy level, not by whether a type is spelled as an interface. `GetCustomerName` is an application use case, and `CustomerStore` expresses what that use case needs in order to do its work. That makes it an inward-facing port. If the interface is declared in `infrastructure/sql-customer-store.ts`, the application must import outward to know its dependency, so the source dependency still points from application to infrastructure. Depending on an interface is not sufficient when the interface itself is defined in the outer layer.\n\nThe decisive Clean Architecture interpretation is the smallest one:\n1. The Dependency Rule: source dependencies point inward.\n2. Interface ownership for boundaries: inner layers define the ports they need; outer layers implement them.\n\nApplied here, `CustomerStore` belongs with the application boundary because the application defines the required capability (`findName`), while `SqlCustomerStore` is only one outer implementation of that capability.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:30:26.540386Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5873-6e1c-7f80-ae6a-49fe27d6bfa0.1783895387677240000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

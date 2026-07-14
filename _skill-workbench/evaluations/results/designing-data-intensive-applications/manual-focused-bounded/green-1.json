@@ -1,0 +1,41 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/manual-focused-bounded.md",
+  "case_sha256": "b6d2aacd1293d2ee198c43fa4a0c84a78a96e93f09cd1fb1d102eb475734ad51",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5896-6dd3-7780-aad9-80046e67a4e5",
+  "exit_code": 0,
+  "result": {
+    "answer": "A five-second lag target is not enough to satisfy read-your-writes. It is an operational SLO, not a correctness contract.\n\nResolve the contract with an explicit commit-position handshake:\n\n1. On the primary write, define success as: the profile update is durable on the primary and has a commit position/token (for example an LSN, GTID, log offset, or version fence).\n2. Return that token with the user session/redirect context.\n3. On the redirected read, a replica may serve the request only after it can positively prove it has applied at least that token.\n4. If the chosen replica cannot prove catch-up yet, either wait briefly for catch-up or route the read to a guaranteed up-to-date path.\n5. If catch-up status is unknown because of timeout or network delay, treat it as unknown, not caught up. Serve from the strong path or fail closed for this contract.\n\nFailover follows the same rule. A promoted node must not be assumed current just because it is leader now. It may serve a session-bound read only if it can prove it has applied the session token. If it cannot, the system must continue using a strong path until that proof exists. Promotion without applied-position proof breaks read-your-writes.\n\nThat gives a concrete contract:\n- Source of truth: primary/leader commit log.\n- Visibility rule: this session must not observe state older than its returned commit token.\n- Replica rule: async replicas are allowed only behind a catch-up check.\n- Failover rule: leadership change does not waive the catch-up check.\n- Timeout rule: timeout means uncertain, not fresh.\n\nA practical shape is session consistency with bounded fallback:\n- Prefer replica reads for ordinary traffic.\n- For requests carrying a recent-write token, perform a per-request or sticky-session catch-up check.\n- Wait only up to a small bound you choose for UX.\n- If the bound expires, route to the leader/current strong reader instead of returning potentially stale data.\n\nThis is the minimum design that preserves read-your-writes under asynchronous replication and failover without requiring all reads to be linearizable. Use the lag target only as an observability/SLO metric; do not use it as the acceptance criterion for correctness.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Consistency Rules",
+          "Replication Rules",
+          "Distributed Fault, Clock, and Consensus Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:08:48.201805Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5896-6dd3-7780-aad9-80046e67a4e5.1783897681364153000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

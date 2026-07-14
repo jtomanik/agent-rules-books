@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/ordinary-local-hygiene.md",
+  "case_sha256": "f6282cfcb4fb88d1c1e4906b027e6c02e877c4e4d44f3784e5489e34a8c4e92e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5367-9f49-7ca1-873d-11fa28582649",
+  "exit_code": 0,
+  "result": {
+    "answer": "A minimal readable rewrite is to normalize the trimmed values once, then keep the two output shapes direct while preserving the exported signature:\n\n```ts\ntype PersonName = {\n  first: string;\n  last: string;\n  nickname?: string;\n};\n\nexport function makeLabel(p: PersonName, short: boolean): string {\n  const first = p.first.trim();\n  const last = p.last.trim();\n  const nickname = p.nickname?.trim() || \"\";\n\n  if (short) {\n    return nickname || `${first} ${last}`;\n  }\n\n  return nickname ? `${last}, ${first} (${nickname})` : `${last}, ${first}`;\n}\n```\n\nCleanup boundary: keep the cleanup strictly local to this helper. Normalize `first` and `last` once for output use, collapse `nickname` to either a trimmed non-empty string or `\"\"`, and express the two exact output formats directly. Do not widen scope into shared string helpers, type changes, or API redesign. The boolean flag would normally be a smell, but here it is part of the required exported signature and the function is fully specified, pure, and small.\n\nConcise tests:\n- `short === true` with nickname present: returns the trimmed nickname.\n- `short === true` with nickname absent: returns `\"<trimmed first> <trimmed last>\"`.\n- `short === true` with nickname empty or whitespace-only: same as no nickname.\n- `short === false` with nickname absent: returns `\"<trimmed last>, <trimmed first>\"`.\n- `short === false` with nickname present: returns `\"<trimmed last>, <trimmed first> (<trimmed nickname>)\"`.\n- `short === false` with nickname empty or whitespace-only: does not append the nickname.\n- Surrounding whitespace on `first`, `last`, and `nickname` is trimmed; internal spaces are preserved.\n\nThis is analysis only; no files were edited.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:59:15.788221Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5367-9f49-7ca1-873d-11fa28582649.1783810727754304000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

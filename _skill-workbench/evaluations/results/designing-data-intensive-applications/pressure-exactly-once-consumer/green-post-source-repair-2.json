@@ -1,0 +1,45 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58b9-4421-76b2-aaad-16a86c12cf3f",
+  "exit_code": 0,
+  "result": {
+    "answer": "The shortcut is not safe. Broker transactions do not make this handler exactly-once across `database`, `email`, and offset acknowledgment, and the stated crash window already proves replay will happen after durable local effects.\n\nPrimary findings:\n1. Duplicate/replay safety is broken. If the process crashes after the DB commit and before `message.ack()`, the event is replayed. On replay, `markConfirmed`, `ledger.insert`, and `sendReceipt` run again. Removing the deduplication store turns that into duplicate ledger writes and duplicate receipts unless every effect is independently idempotent, which the facts do not show.\n2. The external side effect is not exactly-once. `email.sendReceipt(...)` is outside the DB transaction, the provider does not support idempotency keys, and timeout outcome is `unknown`. That means a timeout can be \u201csent but caller unsure\u201d. Retrying or replaying can send a second receipt, while not retrying can miss a receipt. The current design has no correctness-preserving recovery path.\n3. Replay support conflicts with inline email sending. The topic is intentionally replayed to rebuild downstream projections. A replay-safe projection consumer must tolerate reprocessing, but this consumer performs a user-visible side effect during normal consumption. Replaying historical events would resend receipts unless side effects are separated or explicitly suppressed.\n4. Ordering assumptions are unsafe. The topic is keyed by `customer_id`, and you stated that two events for the same order can arrive on different partitions. Broker ordering is therefore not sufficient for per-order correctness. Any logic that depends on \u201cconfirm once in order\u201d needs an `orderId`-scoped contract, such as a unique business key, monotonic event version, or explicit duplicate detector.\n5. The handler is a multi-write without atomic coordination or repair. It mutates the order row, writes the ledger, calls email, and then commits broker progress. That is not one atomic success boundary; it is several boundaries with failure gaps between them.\n\nWhat must change before launch:\n1. Do not remove the deduplication/idempotency store. Keep a processed-message or processed-business-event record keyed by a stable event ID or business idempotency key, and write it atomically with the order/ledger mutation before acking.\n2. Make DB effects idempotent by constraint, not hope. `markConfirmed` must be a no-op if already confirmed, and `ledger.insert` needs a unique business key such as one ledger row per confirmation event or per order-confirmation invariant.\n3. Remove inline receipt sending from the consumer transaction path. Persist a send-intent/outbox record atomically with the DB state, then have a separate sender process it.\n4. Add a correctness policy for unknown email success. Because the provider cannot dedupe and can return unknown-on-timeout, exactly-once receipt delivery cannot be proven with this provider as-is. Before launch, either:\n   - switch to a provider/API that supports idempotency or delivery lookup by client key, or\n   - accept a weaker contract explicitly and add manual reconciliation for unknown outcomes.\n   If duplicate receipts are a correctness defect, the first option is the clean one.\n5. Separate replayable projection rebuild from user-visible side effects. Rebuild consumers must be able to replay without resending emails. That usually means projections and notification sending are different consumers with different state and replay rules.\n6. Define per-order ordering/duplication rules explicitly. Since partition order is by `customer_id`, protect correctness at `orderId` scope with unique keys and, if needed, event version checks.\n\nApproval recommendation: do not approve the consumer unchanged, and do not remove the idempotency table before launch.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Partitioning and Locality Rules",
+          "Transaction Rules",
+          "Forbidden Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:46:04.740101Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f58b8-4dcf-7f12-a880-2cb7b00761ec.1783899902978940000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T23:46:58.328779Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58b9-4421-76b2-aaad-16a86c12cf3f.1783899964463491000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

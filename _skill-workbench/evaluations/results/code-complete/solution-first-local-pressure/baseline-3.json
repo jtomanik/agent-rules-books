@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/solution-first-local-pressure.md",
+  "case_sha256": "ee5c773939df1918985c87ff93cdd22a4766d30bc2dc0125f36cb99008949587",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5872-58e5-77f1-b779-d047c5d146f5",
+  "exit_code": 0,
+  "result": {
+    "answer": "I would accept one construction change only: introduce a bulk-specific request validator that returns a trusted `ValidatedBulkActivateRequest` before any authorization, persistence, or audit call happens. Everything after that should operate on typed IDs and typed collaborator outcomes only. I would reject the proposed happy-path loop because it collapses required per-item outcomes, pushes trust-boundary checks into side-effecting control flow, and makes summary counts unverifiable.\n\nMinimal implementation slice:\n\n```ts\n// Trust boundary\nconst AccountId = z.string().uuid().brand<'AccountId'>();\n\nconst BulkActivateBody = z\n  .object({\n    accounts: z.array(AccountId).min(1).max(100),\n  })\n  .strict()\n  .superRefine((body, ctx) => {\n    const seen = new Set<string>();\n    body.accounts.forEach((id, index) => {\n      if (seen.has(id)) {\n        ctx.addIssue({\n          code: z.ZodIssueCode.custom,\n          path: ['accounts', index],\n          message: 'duplicate account id',\n        });\n      }\n      seen.add(id);\n    });\n  });\n\ntype TrustedBulkActivateRequest = {\n  accountIds: AccountId[];\n};\n\ntype ItemStatus = 'activated' | 'already-active' | 'not-found' | 'unauthorized';\n\ntype ItemResult = {\n  accountId: string;\n  status: ItemStatus;\n};\n\ntype BulkActivateResponse = {\n  results: ItemResult[];\n  summary: Record<ItemStatus, number>;\n};\n\nfunction validateBulkActivateRequest(input: unknown): TrustedBulkActivateRequest {\n  const body = BulkActivateBody.parse(input);\n  return { accountIds: body.accounts };\n}\n\nasync function bulkActivateAccounts(\n  principal: Principal,\n  input: unknown,\n  deps: {\n    authorize: (principal: Principal, accountId: AccountId) => Promise<boolean>;\n    activate: (accountId: AccountId) => Promise<'activated' | 'already-active' | 'not-found'>;\n  },\n): Promise<BulkActivateResponse> {\n  const { accountIds } = validateBulkActivateRequest(input);\n\n  const results: ItemResult[] = [];\n\n  for (const accountId of accountIds) {\n    const allowed = await deps.authorize(principal, accountId);\n    if (!allowed) {\n      results.push({ accountId, status: 'unauthorized' });\n      continue;\n    }\n\n    const outcome = await deps.activate(accountId);\n    results.push({ accountId, status: outcome });\n  }\n\n  return {\n    results,\n    summary: {\n      activated: results.filter(r => r.status === 'activated').length,\n      'already-active': results.filter(r => r.status === 'already-active').length,\n      'not-found': results.filter(r => r.status === 'not-found').length,\n      unauthorized: results.filter(r => r.status === 'unauthorized').length,\n    },\n  };\n}\n```\n\nWhat this enforces locally:\n- Invalid shape, count, or ID never reaches side effects because `validateBulkActivateRequest` runs first and is the only place that touches `unknown` JSON.\n- Distinctness is explicit and fail-fast, so the request is either fully trusted or fully rejected.\n- Authorization is per account and cannot be skipped by a broad `catch`.\n- Response items are exhaustive over valid IDs and summary counts are mechanically derived from item results.\n- No catch-all error mapping is introduced. Known business outcomes stay typed; unexpected failures still fail the request instead of being mislabeled.\n\nFocused tests I would require:\n- Rejects non-object bodies, missing `accounts`, extra properties, non-array `accounts`, empty array, and arrays over 100.\n- Rejects any invalid ID and any duplicate ID before calling `authorize` or `activate`.\n- Returns `unauthorized` for an ID when auth fails and does not call `activate` for that ID.\n- Returns `activated`, `already-active`, and `not-found` exactly as provided by the typed activation collaborator.\n- Returns one result per valid input ID in input order.\n- Computes summary counts from results, not from attempted length.\n\nThat is the smallest slice that satisfies the specification without widening scope.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:29:17.993682Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-58e5-77f1-b779-d047c5d146f5.1783895316765568000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

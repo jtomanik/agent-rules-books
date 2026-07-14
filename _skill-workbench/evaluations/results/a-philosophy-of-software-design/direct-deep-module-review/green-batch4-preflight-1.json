@@ -1,0 +1,50 @@
+{
+  "case": "_skill-workbench/evaluations/cases/a-philosophy-of-software-design/direct-deep-module-review.md",
+  "case_sha256": "851e898c10218a0877d43967de6597a1c80e2f78384f8647bfba974c4250df72",
+  "mode": "green",
+  "run": "green-batch4-preflight-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc0-86b6-7aa1-954f-026d2afb2959",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposed API is too shallow. It exposes the export pipeline\u2019s internal choreography instead of a stable export concept, so callers must know sequencing, retain a mutable handle, pick a compatible normalization mode, and own failure cleanup. That is classic complexity leakage: the module is not hiding much more than it implements.\n\nThe main hidden knowledge that should move inside the module is:\n- Step ordering and lifecycle rules.\n- The relationship between requested output format and normalization behavior.\n- Temporary directory creation, ownership, and cleanup on success or failure.\n- Partial-progress bookkeeping and rollback behavior.\n- Format-specific edge handling during archive creation.\n\nThe current `handle` also appears to expose an intermediate state machine to callers. If a caller can hold something that is only valid after `prepareExport` and before `finalizeExport`, the API is making callers reason about half-valid objects and temporal coupling.\n\nA deeper ownership boundary would be: the export module owns the entire export transaction from request to finished artifact, including transient resources and cleanup. Callers should supply export intent and consume a result, not coordinate the workflow.\n\nA better public contract is a single semantic entry point, for example `exportData(options) -> ExportResult` or `runExport(request) -> Archive`. If streaming or progress reporting is required, use a higher-level contract such as `startExport(request) -> ExportJob` where the job owns its state and still does not require callers to invoke internal phases manually. In either shape:\n- The caller specifies what to export and in what output format.\n- The module derives the needed normalization strategy internally.\n- The module guarantees cleanup of temporary resources.\n- Errors are reported as export failures, not as obligations for the caller to repair leaked internals.\n\nIf there are real stable sub-responsibilities, they should sit behind the boundary, not become the public workflow. Internally it may still be reasonable to have row loading, normalization, archive writing, and finalization components, but they should collaborate inside one deeper export abstraction.\n\nReview judgment:\n- Module depth: insufficient; the interface is nearly as complicated as the underlying process.\n- Information hiding: weak; lifecycle, format/normalization coupling, and cleanup policy leak outward.\n- Public contract: should describe an export operation or export job, not pipeline stages.\n- Ownership boundary: the export module should own intermediate state, temp resources, sequencing, and recovery behavior end to end.\n\nThe repeated handler logic is a strong signal that the abstraction boundary is wrong. When several callers must replay the same ceremony with slight cleanup differences, the missing design move is usually to pull that complexity downward into one authoritative module contract.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/a-philosophy-of-software-design/references/index.md",
+      ".agents/skills/a-philosophy-of-software-design/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "a-philosophy-of-software-design",
+        "sections": [
+          "Module Depth Rules",
+          "Information Hiding Rules",
+          "Interface Design Rules",
+          "Error Handling and Exception Elimination",
+          "Pull Complexity Downward",
+          "Temporal Decomposition Rules",
+          "Combine or Separate Code"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "a-philosophy-of-software-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:12:17.358703Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}"
+}

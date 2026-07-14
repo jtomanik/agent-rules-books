@@ -1,0 +1,7 @@
+interface:
+  display_name: "Patterns of Enterprise Application Architecture"
+  short_description: "Choose force-fit enterprise application patterns"
+  default_prompt: "Use $patterns-of-enterprise-application-architecture to review these enterprise pattern choices."
+
+policy:
+  allow_implicit_invocation: true

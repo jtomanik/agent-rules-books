@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55c3-5f2a-7f92-9a5d-4930add4baac",
+  "exit_code": 0,
+  "result": {
+    "answer": "The correct boundary is neither \u201ccrash on every exception\u201d nor \u201ccatch everything and ack.\u201d The safe split is:\n\n1. Malformed inbound message: quarantine, then terminally remove from the live queue. Do not crash the process.\nWhy: this is poison data. With `max_deliveries: 0`, no DLX, `restart: always`, 6 replicas, and immediate redelivery of unacked messages on exit, letting parse/validation errors escape creates an infinite poison-loop across the whole deployment. The staging incident already proved that.\n\n2. Transient dependency failure: retry in a bounded way, then pause or requeue without acking. Do not quarantine the message, and do not crash the process just because one dependency call failed.\nThis includes inventory `503`, timeout, and `200` with malformed JSON. That last case is not a malformed message; it is a dependency contract failure. The original message may be valid, so acking it would lose work.\n\n3. Compromised process state: crash the process.\nUse supervisor restart only when the worker cannot trust its own state anymore or cannot safely determine message outcome. Examples: invariant breach in local processing, corrupted broker/channel state, failure during ack/nack bookkeeping where delivery outcome is unknown, or an uncaught bug outside the classified per-message paths.\n\nWhy each extreme is wrong:\n- \u201cCrash on every exception\u201d turns poison messages into a fleet-wide restart storm because the broker has unlimited redelivery and no quarantine path.\n- \u201cCatch/log/ack everything\u201d silently drops valid work on dependency outages and on malformed dependency responses.\n\nRecommended changes needed to make this safe and testable:\n\n1. Add explicit classification before the top-level boundary.\nCreate distinct outcomes such as:\n- `QuarantineMessageError` for JSON parse/schema/business-shape failures of `InventoryEvent`\n- `RetryableDependencyError` for `503`, timeout, transient DB errors if applicable, and malformed downstream response bodies\n- `ProcessCompromisedError` or fallthrough for unknown/untrustworthy local failures\n\n2. Validate the inbound event explicitly.\n`JSON.parse` alone is not enough. Separate:\n- syntax failure\n- shape/type failure\n- domain plausibility failure\nOnly those inbound failures belong in quarantine.\n\n3. Configure a quarantine path.\nThe broker currently has `dead_letter_exchange: null`, so there is nowhere safe to put poison messages. Add a DLX/DLQ or equivalent quarantine queue and route malformed inbound messages there with enough metadata for diagnosis. Logging plus ack is not enough; it destroys evidence.\n\n4. Stop using infinite dependency waits.\n`dependency_timeout_ms: 0` is unsafe. Set an explicit timeout. Keep retries bounded and add backoff/jitter if the client does not already do that. Otherwise six replicas with `prefetch: 100` can synchronize into a dependency storm.\n\n5. Do not exit the process for ordinary retryable delivery failures.\nAfter bounded retries are exhausted:\n- do not ack the message\n- do not quarantine it\n- do not crash the process solely for that message\nInstead, requeue/delay it if the broker supports that, or pause intake when the dependency is broadly unhealthy. Given the stated operational controls, a consumer-wide pause/circuit-breaker behavior is safer than crash-looping the deployment.\n\n6. Make readiness reflect ability to make progress, not just broker connection.\n`readiness: broker_connection_is_open` is too weak for this policy. If the dependency is timing out or the consumer is in an open-circuit/paused state, readiness should go false. Otherwise the system reports healthy while it can only churn retries.\n\n7. Test the boundary directly.\nMinimum tests:\n- malformed message => quarantine path called, no DB write, process stays alive\n- inventory `503`/timeout => bounded retry, no ack, no quarantine, no process crash\n- inventory `200` with malformed JSON => same as dependency failure, not quarantine\n- successful path => DB commit then ack\n- simulated compromised-state failure => process-level crash path\n\nA minimal policy statement for this consumer is:\n- Invalid message: quarantine and continue.\n- Valid message + unavailable/bad dependency: retry, then pause/requeue without ack.\n- Untrustworthy worker state: crash and let supervision restart.\n\nThat is the narrow boundary that prevents poison-message restart storms without turning real failures into silent data loss.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/refactoring-compatible-overlap.md",
+  "case_sha256": "9d930e6dfea0dc1a8097d9a8f3a802260e1d9fae3f86eec0f3e4173b728d7655",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585f-8e61-7a61-8bec-c979271a1ce5",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small, behavior-preserving extraction into an application action. The controller should keep HTTP translation only; the approval rule and orchestration move inward unchanged.\n\nTarget use case shape:\n\n```ts\n// application/approve-expense.ts\nexport type ApproveExpenseInput = {\n  expenseId: string;\n  approverId: string;\n  approvalLimitCents: number;\n};\n\nexport type ApproveExpenseResult =\n  | { outcome: \"approved\" }\n  | { outcome: \"invalid-status\" }\n  | { outcome: \"limit-exceeded\" };\n```\n\nPolicy-owned ports:\n\n```ts\nexport interface LoadExpenseForApproval {\n  find(id: string): Promise<{\n    id: string;\n    status: string;\n    amountCents: number;\n  }>;\n}\n\nexport interface MarkExpenseApproved {\n  markApproved(expenseId: string, approverId: string): Promise<void>;\n}\n\nexport interface RecordExpenseApprovalAudit {\n  record(event: \"expense-approved\", expenseId: string, approverId: string): Promise<void>;\n}\n```\n\nApplication action, preserving current order exactly:\n\n```ts\nexport async function approveExpenseAction(\n  input: ApproveExpenseInput,\n  deps: {\n    expenses: LoadExpenseForApproval & MarkExpenseApproved;\n    auditLog: RecordExpenseApprovalAudit;\n  },\n): Promise<ApproveExpenseResult> {\n  const expense = await deps.expenses.find(input.expenseId);\n\n  if (expense.status !== \"SUBMITTED\") {\n    return { outcome: \"invalid-status\" };\n  }\n\n  if (expense.amountCents > input.approvalLimitCents) {\n    return { outcome: \"limit-exceeded\" };\n  }\n\n  await deps.expenses.markApproved(expense.id, input.approverId);\n  await deps.auditLog.record(\"expense-approved\", expense.id, input.approverId);\n  return { outcome: \"approved\" };\n}\n```\n\nController after the move:\n\n```ts\nexport async function approveExpense(req: Request, res: Response): Promise<void> {\n  const result = await approveExpenseAction(\n    {\n      expenseId: req.params.id,\n      approverId: req.user.id,\n      approvalLimitCents: req.user.approvalLimitCents,\n    },\n    {\n      expenses: expenseRepository,\n      auditLog,\n    },\n  );\n\n  switch (result.outcome) {\n    case \"invalid-status\":\n      res.status(409).json({ code: \"invalid-status\" });\n      return;\n    case \"limit-exceeded\":\n      res.status(422).json({ code: \"limit-exceeded\" });\n      return;\n    case \"approved\":\n      res.status(204).end();\n      return;\n  }\n}\n```\n\nConcrete reviewable sequence:\n\n1. Add the application input/output models and the three policy-owned ports in the application layer. No controller changes yet.\n2. Implement `approveExpenseAction` by copying the existing controller logic verbatim into the use case, keeping the same branch order, `find` call, `markApproved` call, and audit call order.\n3. Change the controller to translate `Request` into `ApproveExpenseInput`, call the action, and translate the result back to HTTP status/body at the edge.\n4. Run the existing focused controller tests unchanged. They should still prove the same status codes, repository interactions, and audit ordering through the controller.\n5. If review clarity matters, keep this as two commits or two patches: introduction of the action, then controller delegation.\n\nWhere cleanup stops:\n\nStop once the controller is humble and the dependency direction is restored. Do not, in this refactoring:\n- move HTTP status codes or JSON payloads into the use case,\n- redesign the repository API,\n- introduce domain/entity rewrites,\n- collapse result cases into exceptions,\n- broaden the change into general architecture cleanup.\n\nThat gives you the inward move you want, with plain use-case models, policy-owned ports, and unchanged observable behavior.",
+    "selected_project_skills": [
+      "clean-architecture",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

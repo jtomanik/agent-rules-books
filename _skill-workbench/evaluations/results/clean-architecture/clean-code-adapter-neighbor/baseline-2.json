@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/clean-code-adapter-neighbor.md",
+  "case_sha256": "4266be276a1e743926aecda816a6e2fe0a6fa15dca1de25318d1b0769a375fde",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5858-5845-76c3-b72a-21cbc1d511e4",
+  "exit_code": 0,
+  "result": {
+    "answer": "The helper is behaviorally fine; the main issues are compressed naming and the opaque boolean mode. For a private adapter mapper, the best improvement is to make the normalization and fallback steps explicit, keep the boolean but rename it to describe the mode, and drop the broad comment in favor of code that mostly explains itself.\n\nA clearer version with identical behavior is:\n\n```ts\ntype UserRow = {\n  user_id: string;\n  display_name: string | null;\n  deleted_at: Date | null;\n};\n\ntype UserRecord = {\n  id: string;\n  label: string;\n  active: boolean;\n};\n\nfunction m(row: UserRow, useUserIdWhenLabelBlank: boolean): UserRecord {\n  const normalizedLabel = row.display_name === null ? \"\" : row.display_name.trim();\n  const label =\n    useUserIdWhenLabelBlank && normalizedLabel === \"\"\n      ? row.user_id\n      : normalizedLabel;\n\n  return {\n    id: row.user_id,\n    label,\n    active: row.deleted_at === null,\n  };\n}\n```\n\nWhy this is better:\n- `row`, `normalizedLabel`, and `label` are locally readable; `x`, `y`, and `b` are not.\n- `useUserIdWhenLabelBlank` makes the boolean mode legible at the call site and inside the mapper.\n- The fallback rule is expressed as a single value selection instead of mutation.\n- `active: row.deleted_at === null` is already clear enough; no extra comment needed.\n- The existing comment is too generic to earn its keep. If a comment is kept at all, it should explain the non-obvious policy: blank-or-null display names may fall back to `user_id` when that mode is enabled.\n\nIf renaming the function itself is allowed despite the \u201cpreserve signature\u201d constraint, `mapUserRowToRecord` would be materially better than `m`. If not, the parameter and local-name cleanup above still captures most of the readability gain without changing behavior.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:00:46.726446Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5858-5845-76c3-b72a-21cbc1d511e4.1783893612613598000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/a-philosophy-of-software-design/ordinary-caller-centered-api.md",
+  "case_sha256": "fdeb235227658c907b2c146ed844c6096ab75bcf5ba447e77287fe87d12cc1cc",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc7-7635-7880-9a4a-ff8216c55022",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Choose `Candidate B` as the public production interface.\n\nIt matches the module boundary you described: the module owns codec choice, EXIF/orientation normalization, aspect-ratio preservation, temporary buffers, and quality defaults. A public staged API like `decode -> resize -> encode` leaks exactly the knowledge this module is supposed to hide. It makes ordinary callers reason about sequencing, intermediate representations, and policy decisions that are not their job. `createThumbnail(bytes, options)` is the deeper module: small surface, larger hidden implementation.\n\nI would keep the public contract centered on the caller\u2019s real need, something like:\n\n```ts\ntype ThumbnailOptions = {\n  maxWidth: number;\n  maxHeight: number;\n  output: \"webp\" | \"jpeg\" | \"png\";\n  quality?: number;\n};\n\nfunction createThumbnail(bytes: Uint8Array, options: ThumbnailOptions): Promise<Uint8Array>;\n```\n\nIf metadata is useful to callers, return it as result metadata from the same operation, not as exposed pipeline stages:\n\n```ts\ntype ThumbnailResult = {\n  bytes: Uint8Array;\n  width: number;\n  height: number;\n  format: \"webp\" | \"jpeg\" | \"png\";\n};\n```\n\nThe diagnostics need should not shape the main API. Put it behind a separate, explicitly exceptional interface, for example an internal module or diagnostics-only sibling such as `thumbnail/diagnostics` exposing `decodeImageForDiagnostics(...)` or `inspectImage(...)`. That keeps the production path simple while still supporting the rare tool that genuinely needs pixels. If you expose it publicly at all, name it so it is clearly non-default and non-production.\n\nTests should protect the contract as black-box behavior, not the internal stages:\n\n- Produces an image in the requested output format.\n- Output dimensions never exceed `maxWidth`/`maxHeight`.\n- Aspect ratio is preserved within an acceptable tolerance.\n- Orientation normalization is reflected in final dimensions/pixels for rotated source fixtures.\n- Quality default is stable enough to meet size/format expectations without callers specifying it.\n- Unsupported or corrupt input fails with the module\u2019s documented error shape.\n- Equivalent inputs do not require callers to know source codec details.\n- No test asserts that decoding, resizing, and encoding are separate observable steps.\n\nIf you want coverage for the diagnostics path, test it separately as a different contract: that it yields decoded pixels/metadata for inspection. Do not let those tests force the main thumbnail API to expose intermediate buffers or stepwise operations.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "a-philosophy-of-software-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:20:05.466688Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc7-7635-7880-9a4a-ff8216c55022.1783984780854045000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

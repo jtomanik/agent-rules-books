@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55bb-baaf-7731-8706-4e1cc5a405cc",
+  "exit_code": 0,
+  "result": {
+    "answer": "Treat this as a legacy-behavior change, not a simple `+48h` edit. The safest bounded implementation is to preserve every observable behavior except the due-time predicate, and to gain local test control before changing semantics.\n\nRecommended implementation shape:\n- Add the smallest seams needed for deterministic tests: an injected clock or `now()` supplier, and an injected database or narrow database interface/factory. Keep the current one-argument constructor path working by default so production callers do not change.\n- Extract only the due decision behind a tiny seam, for example `isChargeEligible(nextChargeAt: string, now: Date, graceMs: number): boolean`.\n- Keep all of this unchanged unless product explicitly asks otherwise: constructor-side `connect()`, return values, single captured `now`, transaction boundary, `charges.insert(...)` then `accounts.markCharged(...)` order, exception propagation, and timestamp parsing behavior.\n- Apply the grace period as absolute elapsed time, not guessed local-calendar logic: compare `now` against `new Date(nextChargeAt).getTime() + 48 * 60 * 60 * 1000`.\n\nSmallest semantic delta once product confirms the boundary rule:\n```ts\nconst GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;\n\nfunction isChargeEligible(nextChargeAt: string, now: Date): boolean {\n  return new Date(nextChargeAt).getTime() + GRACE_PERIOD_MS <= now.getTime();\n}\n```\nThen `chargeIfDue()` should call that helper and otherwise remain behaviorally identical.\n\nSafest verification plan:\n1. First add characterization tests for current behavior using fake database and fake clock, not staging.\n2. Characterize the behaviors the team explicitly does not know today:\n- before `nextChargeAt` => `\"not-due\"`, no writes\n- exactly at `nextChargeAt` => current boundary behavior\n- charged path wraps both writes in one transaction\n- the same `now.toISOString()` value is written to both persistence calls\n- exceptions from `find`, `transaction`, `insert`, and `markCharged` propagate unchanged\n3. After that safety net exists, add new grace-period tests:\n- just before `nextChargeAt + 48h` => `\"not-due\"`\n- just after `nextChargeAt + 48h` => `\"charged\"`\n- exact grace boundary => blocked on product decision below\n- representative timestamps with `Z` and explicit offsets stay instant-based\n4. Use staging only for bounded read-only inspection of real `nextChargeAt` formats. Confirm whether stored values are consistently offset-qualified or whether timezone-less/local-looking strings exist.\n5. If the team can reserve an isolated fixture, do at most one narrow staging smoke check after local tests pass. Do not use shared staging fixtures for discovery.\n\nProduct decisions that must be resolved instead of inferred from the code:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h`, or only after that instant?\n- Time rule: does \u201c48-hour grace period\u201d mean exactly 48 elapsed hours from the stored instant, or a calendar/business-time rule in some billing timezone?\n- Timestamp contract: are stored `nextChargeAt` values guaranteed to include `Z` or an explicit offset, or do legacy timezone-less/local-time strings exist?\n- Rollout rule: should already-overdue accounts charge immediately once they are more than 48 hours past due, or is there rollout-specific handling?\n- Failure contract: should current exception and transaction behavior be preserved exactly? Safest assumption is yes until product or callers say otherwise.\n\nIf the timestamp contract or boundary rule is unresolved, the safest bounded plan is two-step: first add seams plus characterization tests, then implement the `+48h` predicate only after those product decisions are explicit.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "clean-code"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/working-effectively-with-legacy-code/references/index.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/working-effectively-with-legacy-code/references/full.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T09:50:49.864270Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55bb-baaf-7731-8706-4e1cc5a405cc.1783849794223760000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

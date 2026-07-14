@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5370-2a1f-7e73-825c-4587c6130ffd",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use the smallest safe change: localize discount calculation, add the partner rule there, and leave the rest of `finalize` alone.\n\nExact behavior change:\n- `vip` keeps its existing base `10%` discount.\n- `partner` gets a base `15%` discount only when `invoice.total >= 500`.\n- The existing `invoice.total > 1000` extra `5%` still applies on top of the base discount for every segment, including eligible partners.\n- Everything else stays identical: preview behavior, balance mutation, `accounts.save`, `lastInvoiceId`, optional mail, and `audit.record`.\n\nConcrete patch plan:\n1. Extract the discount branch into a private helper such as `discountFor(account, invoice)` inside `InvoiceService`.\n2. Implement the new partner rule in that helper with explicit ordering: segment/base discount first, then the existing `> 1000` increment.\n3. Replace the inline `let d = ...` block in `finalize` with a call to the helper.\n4. Do not widen scope into redesigning `preview` / `sendEmail` flags, persistence flow, or audit payloads under this release window.\n5. Run the existing suite plus the new targeted tests below.\n\nRevised sketch:\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\ntype Invoice = {\n  id: string;\n  total: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(a: Account, i: Invoice): number {\n    let discount = 0;\n\n    if (a.segment === \"vip\") {\n      discount = 0.1;\n    } else if (a.segment === \"partner\" && i.total >= 500) {\n      discount = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.discountFor(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount computation for `partner` accounts and only the minimal extraction needed to keep the touched code readable.\n- Out of scope: changing method signatures, replacing boolean flags, introducing a new service object, altering audit schema, changing persistence/mail semantics, or reworking money/math handling beyond what the current code already does.\n\nTests required before shipping:\n1. `partner` with total `499.99` gets `0` base discount and preserves current side effects.\n2. `partner` with total `500` gets `0.15` discount.\n3. `partner` with total `1000` gets `0.15` discount.\n4. `partner` with total `1000.01` gets `0.20` discount, proving stacking with the existing `> 1000` rule.\n5. Existing `vip` cases still return `0.10` below `1000` and `0.15` above `1000`.\n6. Existing `standard` cases still return `0` below/equal `1000` and `0.05` above `1000`.\n7. One non-preview partner test should still assert `accounts.save`, optional `mailer.send`, and `audit.record` receive the same shapes as before, with only the computed `amount` changed.\n8. One preview partner test should assert no mutation and no side effects, only the new `amount` / `discount` values.\n\nI would ship this only if those targeted tests are added and the existing green suite stays green. That is the smallest defensible change under the stated time pressure.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

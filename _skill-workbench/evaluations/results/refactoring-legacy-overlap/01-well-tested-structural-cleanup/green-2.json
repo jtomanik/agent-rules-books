@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55cf-9888-7863-aa58-37f2d0ca6a8c",
+  "exit_code": 0,
+  "result": {
+    "answer": "A good stopping point is to split `price(order)` into a small orchestration method plus a few private calculation steps, while keeping the calculation order and data flow exactly the same. This is a refactoring task, not a pricing redesign: no new types at the public boundary, no policy tables, no strategy objects, no changed rounding, and no rearranging of discount/shipping/tax semantics.\n\nRecommended sequence:\n\n1. Extract subtotal calculation first.\nCreate a private helper such as `calculateSubtotalCents(items)` that contains only the item loop. This is the safest move because it has a single input and output and no policy branching.\n\n2. Extract discount calculation next.\nAdd `calculateDiscountCents(order, subtotalCents)`. Keep the current rule exactly as-is: only `gold` and only when `subtotalCents >= 10_000`, with `Math.floor(subtotalCents * 0.1)`. Do not generalize tiers or thresholds.\n\n3. Extract shipping calculation with the current dependency preserved.\nAdd `calculateShippingCents(order, subtotalCents, discountCents)`. This is the important seam because the existing behavior depends on discounted subtotal for domestic free shipping, and international shipping overrides that path. Keep that logic in the same order so reviewers can verify the trusted test: discount is determined before shipping eligibility.\n\n4. Extract taxable/tax calculation as a separate phase.\nEither use two helpers, `calculateTaxableCents(...)` and `calculateTaxCents(taxableCents)`, or one helper returning tax from taxable amount. Keep the formula identical: `subtotal - discount + shipping`, then `Math.floor(... * 0.2)`. Do not fold tax directly into total yet; keeping taxable amount named preserves readability.\n\n5. Leave assembly in `price(order)`.\nAfter extraction, `price(order)` should read top-down: subtotal, discount, shipping, taxable, tax, return object. This is the right final shape for now because it improves local reasoning without hiding the pricing flow behind extra objects.\n\nA reviewable end state would look conceptually like this:\n\n```ts\nprice(order: Order): Price {\n  const subtotalCents = this.calculateSubtotalCents(order.items);\n  const discountCents = this.calculateDiscountCents(order, subtotalCents);\n  const shippingCents = this.calculateShippingCents(order, subtotalCents, discountCents);\n  const taxableCents = this.calculateTaxableCents(subtotalCents, discountCents, shippingCents);\n  const taxCents = this.calculateTaxCents(taxableCents);\n\n  return {\n    subtotalCents,\n    discountCents,\n    shippingCents,\n    taxCents,\n    totalCents: taxableCents + taxCents,\n  };\n}\n```\n\nWhere it should stop:\n\n- Stop once each pricing phase has a single named helper and `price(order)` is a clear composition of those phases.\n- Do not introduce value objects like `Money`, `PricingBreakdownBuilder`, `DiscountPolicy`, or `ShippingPolicy` yet; that would be speculative without new variation pressure.\n- Do not merge calculations into one reusable \"engine\" or convert rules into config.\n- Do not change method visibility beyond what is needed for local structure; private helpers are enough.\n- Do not expand test scope unless a refactoring step exposes unclear current behavior. The provided focused tests are already a sufficient safety net for this cleanup.\n\nWhy this boundary is correct: the current friction is a mixed-responsibility method, not duplicated rules across modules or an unstable public API. Small extractions remove the blocking smell and keep the patch easy to review. Anything beyond that starts turning cleanup into redesign.",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T10:11:35.874130Z ERROR codex_core_skills::service: failed to install system skills: io error while remove existing system skills dir: Directory not empty (os error 66)\n2026-07-12T10:12:04.848022Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55cf-9888-7863-aa58-37f2d0ca6a8c.1783851096201049000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

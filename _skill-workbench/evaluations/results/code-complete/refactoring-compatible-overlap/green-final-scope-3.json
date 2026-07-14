@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-compatible-overlap.md",
+  "case_sha256": "0a3e3ff43521aba3080389491600f106049111ed627a39db0f6bef653a76e695",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58cc-221b-7442-be24-cd54b8c23da4",
+  "exit_code": 0,
+  "result": {
+    "answer": "Phase 1 should be a pure preparatory refactor: expose validation without changing any observable behavior, keep `acceptRow(row): boolean`, and leave `acceptedRows` mutation exactly where it is today.\n\nSuggested phase-1 patch plan:\n1. Introduce explicit row meaning locally, for example `const [id, kind, scoreText, status] = row;` after the existing length check. This removes index decoding without changing behavior.\n2. Extract validation predicates or a single helper that only answers whether the row is acceptable under the current rules. Keep the checks in the same order as today so later rejection reasons map cleanly.\n3. Use guard clauses or a small `isAcceptableRow(row): boolean` helper to flatten the nesting. Do not change return type, pushed payload, parsing, or side effects yet.\n4. Keep tests unchanged in this phase except for any mechanical rewrites needed to preserve coverage around the same externally visible behavior.\n\nPhase-1 sketch:\n```ts\ntype Row = [id: string, kind: string, scoreText: string, status: string];\n\nfunction hasFieldCount(row: string[]): row is Row {\n  return row.length === 4;\n}\n\nfunction isKnownKind(kind: string): boolean {\n  return kind === \"person\" || kind === \"company\";\n}\n\nfunction isNumericScore(scoreText: string): boolean {\n  return /^\\d+$/.test(scoreText);\n}\n\nfunction isKnownStatus(status: string): boolean {\n  return status === \"active\" || status === \"inactive\";\n}\n\nfunction isAcceptableRow(row: string[]): row is Row {\n  if (!hasFieldCount(row)) return false;\n\n  const [id, kind, scoreText, status] = row;\n\n  if (id === \"\") return false;\n  if (!isKnownKind(kind)) return false;\n  if (!isNumericScore(scoreText)) return false;\n  if (!isKnownStatus(status)) return false;\n\n  return true;\n}\n\nexport function acceptRow(row: string[]): boolean {\n  if (!isAcceptableRow(row)) {\n    return false;\n  }\n\n  const [id, kind, scoreText, status] = row;\n\n  acceptedRows.push({\n    id,\n    kind,\n    score: Number(scoreText),\n    status,\n  });\n\n  return true;\n}\n```\n\nPhase 2 is the behavior change: replace the boolean contract with the typed result, make validation return the first explicit rejection reason, and add tests for every rejection branch.\n\nSuggested phase-2 patch plan:\n1. Introduce `AcceptanceResult` and replace the boolean validation helper with `validateRow(row): AcceptanceResult`.\n2. Preserve the same validation order as phase 1 so the first failing boundary determines the reason predictably.\n3. Keep acceptance side effects only on `{ accepted: true }`; rejected rows must not mutate `acceptedRows`.\n4. Add tests for success plus each rejection reason: `field-count`, `missing-id`, `kind`, `score`, and `status`.\n5. Use explicit local names in both validation and construction so data meaning is obvious at the boundary.\n\nPhase-2 sketch:\n```ts\ntype Row = [id: string, kind: string, scoreText: string, status: string];\n\ntype AcceptanceResult =\n  | { accepted: true }\n  | {\n      accepted: false;\n      reason: \"field-count\" | \"missing-id\" | \"kind\" | \"score\" | \"status\";\n    };\n\nfunction hasFieldCount(row: string[]): row is Row {\n  return row.length === 4;\n}\n\nfunction isKnownKind(kind: string): kind is \"person\" | \"company\" {\n  return kind === \"person\" || kind === \"company\";\n}\n\nfunction isNumericScore(scoreText: string): boolean {\n  return /^\\d+$/.test(scoreText);\n}\n\nfunction isKnownStatus(status: string): status is \"active\" | \"inactive\" {\n  return status === \"active\" || status === \"inactive\";\n}\n\nfunction validateRow(row: string[]): AcceptanceResult {\n  if (!hasFieldCount(row)) {\n    return { accepted: false, reason: \"field-count\" };\n  }\n\n  const [id, kind, scoreText, status] = row;\n\n  if (id === \"\") {\n    return { accepted: false, reason: \"missing-id\" };\n  }\n\n  if (!isKnownKind(kind)) {\n    return { accepted: false, reason: \"kind\" };\n  }\n\n  if (!isNumericScore(scoreText)) {\n    return { accepted: false, reason: \"score\" };\n  }\n\n  if (!isKnownStatus(status)) {\n    return { accepted: false, reason: \"status\" };\n  }\n\n  return { accepted: true };\n}\n\nexport function acceptRow(row: string[]): AcceptanceResult {\n  const result = validateRow(row);\n  if (!result.accepted) {\n    return result;\n  }\n\n  const [id, kind, scoreText, status] = row as Row;\n\n  acceptedRows.push({\n    id,\n    kind,\n    score: Number(scoreText),\n    status,\n  });\n\n  return { accepted: true };\n}\n```\n\nTest intent for phase 2:\n- accepted row returns `{ accepted: true }` and appends one parsed row.\n- wrong number of fields returns `{ accepted: false, reason: \"field-count\" }`.\n- empty id returns `{ accepted: false, reason: \"missing-id\" }`.\n- unsupported kind returns `{ accepted: false, reason: \"kind\" }`.\n- non-numeric score returns `{ accepted: false, reason: \"score\" }`.\n- unsupported status returns `{ accepted: false, reason: \"status\" }`.\n- each rejection test should also assert `acceptedRows` is unchanged.\n\nThis keeps intent reviewable: phase 1 is only preparatory refactoring, phase 2 is the contract and behavior change.",
+    "selected_project_skills": [
+      "refactoring",
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:07:20.528460Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58cc-221b-7442-be24-cd54b8c23da4.1783901200923634000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/implicit-greenfield-construction.md",
+  "case_sha256": "d4b5c44ed1d1cf15a79c61af5ae7805bb640ce7bd8ee9538629982ef83dca4da",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58d9-d9cc-7820-80b3-1a0ec0fd9deb",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommendation**\n\nBuild the first slice as a small use-case module around one explicit routine:\n`importJson(payload, repository) -> ImportBatchResult`.\nIts job is only to translate untrusted JSON into typed records, classify per-record outcomes, call the already-typed repository for importable records, and return a batch summary. Keep persistence policy, retries, performance, and deployment concerns out of this slice.\n\n**Construction Decisions**\n\n- Validate at the trust boundary in two steps: `parse JSON -> raw transport shape -> typed domain/import record`. Do not let maps/dictionaries cross inward past the adapter.\n- Treat top-level payload failures as batch-fatal only when the module cannot even enumerate candidate records: malformed JSON, wrong top-level type, missing required `records` collection, or schema version unsupported.\n- Treat record-level field problems as per-record outcomes, not batch failure. That gives reviewable mixed-result behavior and avoids coupling one bad record to unrelated valid ones.\n- Represent duplicates as explicit outcomes, not exceptions. Use distinct reasons for `duplicate_in_payload` and `duplicate_in_repository` so callers can act on the source of the conflict.\n- Keep control flow phase-separated and readable:\n  1. Parse top-level JSON.\n  2. Validate envelope.\n  3. Validate each record into `ValidatedRecord` or `InvalidRecordOutcome`.\n  4. Detect duplicate IDs among validated records before repository calls.\n  5. Import remaining unique valid records through the repository port.\n  6. Aggregate ordered per-record outcomes and batch counts.\n- Use typed result values for expected outcomes. Reserve thrown exceptions, or a fatal batch error variant, for programmer/infrastructure problems the caller cannot sensibly handle as record results.\n\n**Suggested Shapes**\n\n- Typed input after validation: `ValidatedRecord { id: RecordId, ...domain fields... }`\n- Per-record outcome:\n  - `imported`\n  - `invalid` with `fieldErrors`\n  - `duplicate_in_payload`\n  - `duplicate_in_repository`\n- Batch result:\n  - `acceptedCount`\n  - `importedCount`\n  - `invalidCount`\n  - `duplicateCount`\n  - `results: RecordImportOutcome[]`\n  - optional `fatalError` only when no per-record processing was possible\n- Repository boundary: keep it minimal and already typed, for example `repository.insert(record) -> InsertResult`, where `InsertResult` is `inserted | duplicate_existing`. Do not pass JSON, validation errors, or batch concerns into the repository.\n\n**Routine Shape**\n\nUse one orchestrating use-case routine plus small helpers, not a large framework object model:\n\n- `parseEnvelope(payload)`\n- `validateRecord(rawRecord)`\n- `findDuplicateIds(validatedRecords)`\n- `importValidatedRecord(record, repository)`\n- `summarizeResults(results)`\n\nThat keeps setup, validation, duplicate handling, side effects, and summarization separate and easy to review.\n\n**Error Contract**\n\n- Caller gets a normal `ImportBatchResult` whenever the payload was structurally processable, even if every record failed.\n- Caller gets a fatal batch-level error/result only for envelope-level rejection or unexpected repository/module failure.\n- Do not mix expected invalid/duplicate cases into exceptions. Those are part of the business contract.\n- Include stable machine-readable codes, not only free-text messages.\n\n**Smallest Reviewable First Slice**\n\nImplement only this:\n\n- Single synchronous in-process import entrypoint.\n- One transport adapter from JSON string/value to typed records.\n- One typed repository port with `insert(record)` for a single record.\n- Per-record outcomes with duplicate distinction.\n- Batch summary object.\n- No batching optimization, no partial rollback semantics, no async pipeline, no persistence-specific abstractions beyond the single port.\n\nThis is the smallest slice that settles validation, outcomes, duplicates, control flow, caller contract, and repository seam before wider implementation.\n\n**Required Tests For First Merge**\n\n- Boundary test: malformed JSON rejects the batch before any repository call.\n- Boundary test: wrong top-level shape rejects the batch before any repository call.\n- Validation test: a valid raw record becomes the expected `ValidatedRecord`.\n- Invalid-input test: missing/ill-typed required fields produce `invalid` with field-specific codes.\n- Duplicate test: duplicate IDs within the same payload produce `duplicate_in_payload` and are not sent to the repository.\n- Duplicate test: repository duplicate response becomes `duplicate_in_repository`.\n- Mixed-result test: one valid import, one invalid record, one payload duplicate, one repository duplicate in the same batch; verify ordered per-record outcomes and summary counts.\n- Boundary test: invalid or duplicate records do not prevent other valid records from being attempted.\n- Interaction test: repository receives only validated, non-payload-duplicate typed records.\n- Fatal-path test: unexpected repository failure surfaces as batch-fatal and is not mislabeled as a record validation issue.\n\nIf the team wants a default decision set before coding, the safest one is: per-record outcomes for expected bad input, explicit duplicate variants, a thin JSON-to-typed adapter outside the use case, and a single-record typed repository port for the first merge.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-architecture",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:22:26.373550Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58d9-d9cc-7820-80b3-1a0ec0fd9deb.1783902099916557000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

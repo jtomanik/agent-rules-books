@@ -1,0 +1,46 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/implicit-greenfield-construction.md",
+  "case_sha256": "d4b5c44ed1d1cf15a79c61af5ae7805bb640ce7bd8ee9538629982ef83dca4da",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58a4-63a2-7672-bb26-853c20a5c66b",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommended Design**\n\nTreat the import module as a narrow boundary adapter from `unknown` JSON into typed repository commands. The first production slice should make one batch import call with explicit per-record outcomes rather than fail-fast batch semantics.\n\nRecommended routine shape:\n- `importRecords(rawItems: unknown[]): ImportBatchResult`\n- Internally split into four phases: parse shape, validate to typed DTO, detect duplicates, persist valid unique records through the typed repository.\n- Keep repository integration as the only side-effecting step; validation and duplicate analysis should be pure.\n\nValidation decision:\n- Accept untrusted input as `unknown`, never as partially typed objects.\n- Validate each record into a dedicated import type such as `ValidatedImportRecord` before repository use.\n- Return field-level validation errors as domain data, not thrown exceptions.\n- Reserve thrown errors for programmer mistakes or repository/infrastructure failures that violate the import contract.\n\nBatch failure decision:\n- Do not fail the whole batch for ordinary bad records.\n- Return one outcome per input record plus batch summary counts.\n- This keeps the caller diagnosable and prevents one malformed record from hiding useful work on the rest.\n- Only abort the whole call when the batch envelope itself is invalid, such as the top-level payload not being an array.\n\nDuplicate ID decision:\n- Represent duplicates explicitly as an outcome status, not as a generic validation error.\n- Distinguish `duplicate_in_batch` from `duplicate_in_repository` if the repository can report an existing typed ID conflict.\n- Store the duplicated record ID in the outcome so the caller can reconcile deterministically.\n\nError contract:\n- Use a typed result object for expected outcomes.\n- Suggested shape:\n  - `ImportBatchResult { outcomes: ImportRecordOutcome[], summary: ImportSummary }`\n  - `ImportRecordOutcome = Imported | Invalid | DuplicateInBatch | DuplicateInRepository`\n- Each non-success outcome should include `inputIndex`, optional `recordId`, and a machine-readable reason code.\n- Keep thrown exceptions out of normal invalid-input flow.\n\nSmallest integration boundary:\n- Depend on an already-typed repository port such as `save(record: RepositoryRecord): SaveResult` or `saveMany(records: RepositoryRecord[]): SaveResult[]`.\n- The import module should not know persistence details, query logic, or transport concerns.\n- The smallest useful boundary is a repository interface that accepts one already-typed record and can report ID conflicts.\n\n**Smallest Reviewable Slice**\n\nFirst merge should implement only:\n- Top-level batch routine over `unknown[]` input.\n- Validation from raw JSON object to typed import record.\n- In-batch duplicate detection by record ID.\n- Mapping valid unique records into the typed repository call.\n- Typed per-record outcomes and batch summary.\n\nDefer for later:\n- Rich format normalization beyond required fields.\n- Cross-record business rules other than duplicate IDs.\n- Bulk persistence optimization.\n- Retry/recovery/policy concerns.\n\nA minimal control-flow sketch:\n1. Reject non-array batch input.\n2. For each item, validate shape and required fields.\n3. Collect candidate typed records.\n4. Detect duplicate IDs among valid candidates and mark later occurrences as duplicates.\n5. Persist only valid, non-duplicate candidates.\n6. Merge persistence results into final per-record outcomes.\n7. Return summary counts.\n\n**Required Tests For First Merge**\n\nBoundary tests:\n- Non-array batch input returns batch-level invalid request error.\n- Empty array returns zero-count success with no outcomes.\n- Single valid record imports successfully.\n\nInvalid-input tests:\n- Non-object record is rejected with `inputIndex`.\n- Missing required ID is rejected.\n- Wrong field type is rejected.\n- Multiple invalid fields on one record are reported deterministically.\n\nDuplicate tests:\n- Two valid records with the same ID in one batch mark one imported and the later one `duplicate_in_batch`.\n- Duplicate repository ID is surfaced as `duplicate_in_repository`.\n- Invalid records do not participate in duplicate detection unless ID validation succeeded and the rule is explicitly documented.\n\nMixed-result tests:\n- Batch with valid, invalid, in-batch duplicate, and repository duplicate records returns all outcomes in input order.\n- Summary counts match outcome distribution.\n- Repository is called only for records that passed validation and in-batch duplicate checks.\n\nThis is the smallest slice that settles the core construction decisions before coding: trust-boundary validation, explicit data types, readable routine phases, caller-visible failure semantics, and a minimal typed integration seam.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "code-complete",
+        "sections": [
+          "Construction Prerequisites and Decisions",
+          "Routine Design Rules",
+          "Data Type Rules",
+          "Defensive Programming Rules",
+          "Error Handling Rules",
+          "Class and Module Design Rules",
+          "Incremental Construction Rules",
+          "Testing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:24:07.210137Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58a4-63a2-7672-bb26-853c20a5c66b.1783898596274031000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

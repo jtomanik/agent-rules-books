@@ -1,0 +1,46 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58ce-441c-7880-9250-3ef7fe963956",
+  "exit_code": 0,
+  "result": {
+    "answer": "The shortcut is not safe. Broker transactions and producer idempotence do not make this consumer exactly-once across the database, broker offset, and email provider.\n\nThe critical failures are:\n- Duplicate/retry: the stated crash window after the DB commit and before offset commit means the same message can run again. `orders.markConfirmed` may be harmless if idempotent, but `ledger.insert(...)` is a second durable side effect and will duplicate unless guarded by a unique semantic key or retained dedup state.\n- Replay: topic replay is a supported rebuild mechanism, so this handler must survive intentional reprocessing. As written, replay would re-run ledger writes and resend receipts.\n- Ordering: correctness is not scoped to the broker\u2019s actual ordering boundary. The topic is keyed by `customer_id`, and you explicitly state two events for the same order can land on different partitions. With `max_concurrency: 48`, same-order events can be processed concurrently or out of order. If order state or ledger semantics depend on per-order history, this is unsafe without a per-order sequencing/version rule.\n- External side effect: `email.sendReceipt(...)` is outside any real atomic boundary with the DB and offset. The provider has no idempotency key support, and timeout outcome is unknown. A timeout or crash can leave \u201csent but not known sent\u201d, and retry will send again. Since duplicate receipts are a correctness defect, this alone blocks approval.\n- Unknown-success coordination: wrapping everything in `broker.transaction(...)` does not prove atomic commit across broker, DB, and email. The design still has uncoordinated multi-writes with no repair contract.\n\nWhat must change before launch:\n- Do not remove the idempotency protection unless it is replaced by equivalent durable guards. At minimum, keep a processed-event table keyed by stable event ID, or enforce natural idempotency with unique constraints for every durable effect, especially the ledger entry.\n- Make the DB effects replay-safe. `orders.markConfirmed` must be naturally idempotent, and ledger insertion must be keyed so the same business event cannot create two rows.\n- Remove inline email sending from this retryable consumer path. Replace it with a durable outbox/send-intent record committed with the order+ledger transaction, then ack after that durable commit. Send email from a separate worker that tracks send state and supports reconciliation of unknown outcomes. Without provider idempotency support, exactly-once email sending is not achievable here; you need explicit duplicate prevention or a product-accepted repair flow.\n- Separate replayable projection rebuild from user-visible side effects. Reprocessing the topic must not resend receipts.\n- Define ordering by the key that owns the invariant. If same-order event order matters, partition by `order_id` or add per-order version/sequence checks so out-of-order or concurrent same-order processing is rejected or deferred.\n\nApproval unchanged should be denied. The safe statement is not \u201cexactly once\u201d; it is \u201cat-least-once delivery with durable idempotency, explicit ordering scope, and side-effect recovery.\u201d",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Partitioning and Locality Rules",
+          "Transaction Rules",
+          "Review Rules",
+          "Forbidden Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:10:14.788856Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58ce-441c-7880-9250-3ef7fe963956.1783901340700756000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5895-f8ec-7862-8de7-7d1082db97bf",
+  "exit_code": 0,
+  "result": {
+    "answer": "Keep this as a small refactor with `price()` turned into an orchestration method and the current math preserved exactly.\n\nRecommended sequence:\n\n1. Extract subtotal calculation into a pure helper such as `calculateSubtotalCents(items)`.\nThis is the lowest-risk split because it only moves the loop.\n\n2. Extract discount calculation into `calculateDiscountCents(customerTier, subtotalCents)`.\nKeep the exact threshold and rounding rule: gold only, `subtotalCents >= 10_000`, `Math.floor(subtotalCents * 0.1)`.\n\n3. Extract shipping calculation into `calculateShippingCents(destination, subtotalCents, discountCents)`.\nDo not \u201csimplify\u201d its inputs yet. The current behavior depends on `subtotalCents - discountCents` for domestic free shipping, and international must short-circuit to `2_500`.\n\n4. Extract taxable amount and tax into small pure helpers.\nUse something like `calculateTaxableCents(subtotalCents, discountCents, shippingCents)` and `calculateTaxCents(taxableCents)`. This keeps the computation order explicit and protects the current floor behavior.\n\n5. Leave `price()` as the only public entrypoint and reduce it to a straight-line pipeline:\n`subtotal -> discount -> shipping -> taxable -> tax -> return object`.\nAt that point the method is easier to review and new pricing work has clearer insertion points.\n\nWhere to stop:\n\n- Stop once the method is a thin coordinator over a few private or module-local pure helpers.\n- Do not introduce new classes, strategy objects, rule engines, config tables, or a new public API.\n- Do not change argument shapes, return shapes, rounding, calculation order, or threshold ownership.\n- Do not split behavior by tier/destination polymorphically yet; there is not enough variation to justify that abstraction.\n- Do not replace the whole module or redesign pricing around a \u201cpipeline\u201d framework.\n\nReview boundary:\n\n- Each extraction should be a separate reviewable commit or patch.\n- Existing focused tests are enough as the safety net for this cleanup; run them after each step.\n- If a proposed next step does not remove a concrete local friction point in `price()`, it is beyond the cleanup boundary and should wait for the later behavior change.",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:08:00.567840Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5895-f8ec-7862-8de7-7d1082db97bf.1783897651436847000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

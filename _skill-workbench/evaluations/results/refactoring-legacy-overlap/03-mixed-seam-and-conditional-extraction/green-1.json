@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55d0-8984-7fd3-b43a-c131896b2031",
+  "exit_code": 0,
+  "result": {
+    "answer": "Treat this as a two-phase change: first gain control of the worker so the new rule can be tested in isolation, then add the trial-age behavior, then remove the duplicated eligibility logic in a separate behavior-preserving patch.\n\nRecommended work order:\n1. Establish control around `RenewalWorker` before any semantic edit. The current blockers are hidden construction of `RenewalDatabase` and direct reads of `new Date()`. Add the smallest seam that makes both substitutable in focused tests: inject a `RenewalDatabase`-shaped collaborator and a clock function or `nowProvider`. Preserve the current public construction path by defaulting those dependencies from the existing env/real clock so production wiring does not change.\n2. Add focused characterization tests for current behavior through `quote()` and `renew()`. Capture the outcomes that must remain unchanged: `closed` skips, `paused` skips, negative balance skips, eligible paid/trial accounts quote and renew, `renew()` writes both renewal record and mark-renewed timestamp, and `quote()` remains side-effect free. These tests should pin current outcomes before the new rule lands.\n3. Add new-behavior tests for the product rule using a fixed clock: trial accounts older than 30 days are ineligible for both `quote()` and `renew()`, while trial accounts at or under 30 days remain eligible. Before coding, clarify one boundary detail explicitly: whether \u201colder than 30 days\u201d means strict `>` 30 days, so exactly 30 days old is still eligible. Also clarify expected behavior if `plan === \"trial\"` but `trialStartedAt === null`; safest default is to characterize existing behavior or get product direction before changing it.\n4. Implement the rule in the existing conditional shape first, using the injected clock. Keep this patch semantic-only: no extraction, no renames beyond what is required to support the seam. The goal is to make the tests pass with the smallest possible logic change.\n5. After the behavior is protected, consolidate the duplicated eligibility conditional into one owner. Extract a single predicate or policy, for example `isEligibleForAutomaticRenewal(account, now)` or a private worker method if you want the smallest patch. Update both `quote()` and `renew()` to call that one owner. This refactoring patch must be behavior-preserving relative to the tests from steps 2 and 3.\n\nSafe patch boundaries:\n- Patch 1: testability seam only. Introduce injectable database and clock, keep default constructor behavior intact, add characterization tests. No eligibility logic changes.\n- Patch 2: semantic change only. Add the trial-age rule and its focused tests. Avoid cleanup beyond what is necessary to express the rule.\n- Patch 3: structural refactor only. Eliminate duplicated eligibility logic by extracting one owner and reusing it from both call sites. No expected behavior changes, no new rules.\n\nWhat must be learned or controlled before semantic edits:\n- Control time deterministically; otherwise the 30-day rule will produce brittle tests.\n- Control database effects; otherwise `renew()` remains only end-to-end testable.\n- Learn the exact age boundary semantics for day 30.\n- Learn the intended handling of malformed/incomplete trial data such as `trialStartedAt: null`.\n- Characterize any current timestamp formatting/transaction expectations so the seam introduction does not accidentally alter observable behavior.\n\nWhat must remain behavior-preserving during structural work:\n- The default production constructor still builds `RenewalDatabase(process.env.RENEWAL_DSN!)` and uses the real current time.\n- `quote()` still loads once, computes eligibility, and has no writes.\n- `renew()` still performs the same transaction, inserts the same renewal payload shape, and uses the same ISO timestamp for both write sites.\n- Existing non-trial eligibility outcomes remain unchanged except for the new intentional trial-age rule.\n- The extraction step must not broaden ownership into a speculative abstraction; one local owner for the predicate is enough.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/clever-local-readability-pressure.md",
+  "case_sha256": "d4031be584d9d1440a7412df4d178680d97e42683d80ef56034bdaa50dc61809",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585a-c808-77d2-a3e2-d3104d6927e9",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a name that states the outcome, a boolean that states the branch, and a block body so the shared work is not duplicated.\n\n```ts\nexport const formatCustomerLabel = (name: string, includePrefix: boolean): string => {\n  const normalizedName = name.trim().toUpperCase();\n  return includePrefix ? `Customer: ${normalizedName}` : normalizedName;\n};\n```\n\nWhy this is the smallest useful improvement:\n- `label` is vague; `formatCustomerLabel` says what the helper produces.\n- `compact` is indirect; `includePrefix` makes the mode explicit and removes the mental inversion.\n- Hoisting `name.trim().toUpperCase()` into `normalizedName` keeps behavior identical and makes the conditional easier to scan.\n\nIf the team insists on preserving the original branch meaning exactly as named, keep the same structure and only rename the boolean to something like `omitPrefix` instead of `compact`.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:03:08.193969Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585a-c808-77d2-a3e2-d3104d6927e9.1783893772296595000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

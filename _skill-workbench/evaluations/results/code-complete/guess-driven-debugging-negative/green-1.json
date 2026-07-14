@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/guess-driven-debugging-negative.md",
+  "case_sha256": "c7865c634aeaf84f4188190540d595af587074c4c2dd6a52804567e911750d63",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585e-1f50-7090-9b89-ce367d51b456",
+  "exit_code": 0,
+  "result": {
+    "answer": "The next step is not \u201cadd a retry.\u201d The failure is deterministic in one integration test, so first establish which observable step is wrong: the write is not visible in the same session, the cache returns a pre-write value, or the test is not actually using one session.\n\nDiagnostic steps:\n1. Characterize the failure without changing behavior. Capture, for the failing run, the exact sequence `write -> cache invalidation/update -> backing store write/commit -> read -> cache hit/miss -> returned value` for key `account:42` and the session identifier used by both calls.\n2. Verify the test premise. Prove that `store.write` and `store.read` are using the same session/transaction/context object, not two logical sessions that only look adjacent in test code.\n3. Check the write contract. Confirm whether `await store.write(...)` means \u201cdurably committed and cache-visible\u201d or only \u201cwrite scheduled/enqueued.\u201d If the API only awaits enqueueing, the bug is the contract or the test assumption, not a race to paper over.\n4. Distinguish cache staleness from persistence staleness. On the failing path, record whether `read` returned from cache or from the backing store. If cache hit returns old data while backing store has `active`, the fault is cache invalidation/update ordering. If backing store itself still has old data, the fault is below the cache.\n5. Check for hidden shared state in the test harness. Determine whether another test, fixture reuse, singleton cache, or reused process-local store seeded `account:42` before this test.\n\nEvidence required before changing code:\n- A failing trace showing the same session ID for both operations.\n- A failing trace showing whether `read` was a cache hit or miss.\n- Proof of backing-store state at read time.\n- The actual completion semantics of `store.write`.\n- Reproduction showing whether stale data appears only with preexisting cached values or also on cold reads.\n\nMinimal evidence-supported correction depends on what that shows:\n- If `write` resolves before the value is committed or cache-visible, the minimal fix is to strengthen `store.write` semantics or rename/split the API contract.\n- If the backing store is correct but cache returns the old value, the minimal fix is to update/invalidate the cache in the correct order for same-session reads.\n- If the session/context differs between calls, the minimal fix is in session propagation or the test setup.\n- If prior test state seeds the cache, the minimal fix is test isolation, not production retries.\n\nA second retry is justified only if the evidence shows a real eventually-consistent contract that callers are expected to tolerate. For this test, the required behavior is immediate same-session read-your-write visibility, so retrying without that evidence would hide the defect rather than diagnose it.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:06:31.407501Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585e-1479-78a3-b9de-0fe214970b9b.1783893988474227000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:31.465986Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585e-1479-7690-8ce1-ae1013904b42.1783893988473519000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:31.728651Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585e-147f-7d61-babc-52d7b25361f1.1783893988479999000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

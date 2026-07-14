@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/guess-driven-debugging-negative.md",
+  "case_sha256": "c7865c634aeaf84f4188190540d595af587074c4c2dd6a52804567e911750d63",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5859-fc4f-76e0-8635-027cc49cec86",
+  "exit_code": 0,
+  "result": {
+    "answer": "Do not add a second retry yet. The test is asserting a read-your-writes guarantee within one session, and a deterministic integration failure is weak evidence for a race. An immediate retry would more likely mask the defect than identify it.\n\nNext diagnostic steps:\n1. Trace one failing execution end-to-end for `account:42`: log the write completion point, the exact cache key used on write/read, whether the read is a cache hit or miss, and what the backing store returns at that moment.\n2. Separate cache behavior from storage behavior: rerun the same test once with cache bypassed or with cache hit/miss logging enabled. If the backing store already has `\"active\"` but the read returns the old value, the bug is cache coherence. If the backing store is also stale, the issue is write visibility, transaction scope, or an unawaited commit.\n3. Verify session/transaction identity on both calls. The test contract says \u201csame session\u201d; confirm the write and read actually share the same session/connection/transaction context and are not scoped to different caches or snapshots.\n4. Check invalidation/update ordering. For a stale-cache hypothesis, capture whether `write()` returns before the cache entry is updated or evicted.\n\nEvidence needed before changing code:\n- Proof of where the stale value came from: cache hit, backing store, replica, snapshot, or different session scope.\n- The exact ordering: write acknowledged at `T1`, cache update/invalidation at `T2`, read at `T3`.\n- Confirmation of whether the backing store already contains `\"active\"` when the stale read happens.\n\nMinimal evidence-supported correction depends on that result:\n- If the stale value is from a cache hit after a successful write, fix the write path to synchronously update or evict the exact cache entry before `write()` resolves.\n- If the backing store is stale because the write is not actually durable/visible yet, fix `write()` to await the real commit/flush before returning.\n- If write/read use different session scope, fix the session binding or key scoping.\n\nA retry is only justified if evidence shows the contract is intentionally eventual and the transient stale read is acceptable. That would contradict the current test name and expectation, so the bar for adding retry logic here should be high.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:02:00.485808Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-7af5-76b1-bbf8-18584bb23134.1783893687030276000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:02:43.867237Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-fc4f-76e0-8635-027cc49cec86.1783893720144857000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

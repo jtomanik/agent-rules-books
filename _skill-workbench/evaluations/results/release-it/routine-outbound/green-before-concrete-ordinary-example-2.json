@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55ae-8b4c-7fe3-aec1-c59bed26693f",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Findings**\n1. High: `Semaphore.acquire()` can wait forever. With `CHECKOUT_REQUEST_TIMEOUT_MS=2500`, a saturated `CARRIER_MAX_IN_FLIGHT=32` pool can spend the entire checkout budget before the carrier call even starts, and this path will not degrade to `{ kind: \"unavailable\" }` within budget. The smallest fix is to bound slot acquisition by the request deadline or `requestSignal`, and return `unavailable` if no slot is obtained in time.\n2. High: the outbound call is not actually tied to the checkout budget. `carrierClient.post()` ignores `requestSignal` unless passed, and `timeoutMs=2000` does not cover connection establishment. A slow connect can therefore outlive the request budget. The smallest fix is to pass an abort signal to the client and derive it from the checkout deadline, with an effective timeout of `min(remaining checkout time, CARRIER_RESPONSE_TIMEOUT_MS)`.\n3. High: the integration can misclassify bad provider responses as `available`. It never checks for HTTP `200`, JSON content type, or the required `{ amount, currency, expires_at }` shape. A `400`, `500`, or malformed `200` body can currently flow through as `{ kind: \"available\", ...undefined }`. The smallest fix is explicit boundary validation before returning `available`.\n4. Medium: `4xx` responses are being silently downgraded to ordinary unavailability by the catch-all path. Per the stated contract, `429`, `5xx`, timeout, and transport failure are the degradable \"unavailable\" cases; `4xx` means request/contract failure. Before merge, classify `4xx` and malformed `200` separately in logs/metrics at `error` level with provider status and failure class, instead of treating them as routine dependency unavailability.\n\n**What I would change before merge**\n- Add a request-scoped deadline/signal that covers both semaphore wait and HTTP execution.\n- Fail fast to `{ kind: \"unavailable\" }` only for `429`, `5xx`, timeout, abort from budget expiry, and transport errors.\n- Validate `response.status === 200`, JSON content type, `amount` as finite non-negative number, `currency` as 3-letter string, and `expires_at` as a parseable ISO-8601 timestamp before returning `available`.\n- Split logging by failure class: `warn` for expected degraded dependency unavailability, `error` for `4xx` or malformed `200` contract failures.\n\n**Not a pre-merge issue here**\n- The no-retry requirement is satisfied: `CARRIER_RETRIES=0` and the client has no implicit retries.\n- I would not require a circuit breaker for this first merge if the semaphore wait and request budget are properly bounded; the existing slot cap is already a reasonable first bulkhead.\n\n**Assumption**\n- I assumed `requestSignal` represents the checkout request lifetime or can be paired with its deadline. If the code does not currently have access to the absolute request deadline, that deadline needs to be made available; otherwise the integration cannot enforce the stated checkout budget correctly.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

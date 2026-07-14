@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/patterns-of-enterprise-application-architecture/distinctive-unnamed-review.md",
+  "case_sha256": "231196d81d61306de28c4d61386dc6d52cc4629068036383499f0ffbefb173fa",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc6-e3fe-7660-bf2a-652ab10058f3",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current design collapses transport, use-case workflow, pricing rules, SQL, transaction concerns, and a six-call vendor integration into one controller. That is the main design error.\n\nA bounded correction is:\n- Use a `Service Layer` with a `Transaction Script` for `checkout`. The workflow is still use-case-centric and there is not enough committed domain complexity yet to justify a full `Domain Model`.\n- Extract persistence behind small data-access boundaries. Because the data is still fairly tabular, `Table Data Gateway` or thin repositories are the right fit for `Cart`, `Purchase`, and coupon lookup. Do not keep raw JDBC in the controller.\n- Extract shipping behind a `Gateway`/`Remote Facade` that turns one internal shipment request into the vendor\u2019s six remote calls.\n- Extract coupon evaluation into a dedicated policy/service component now, so lifecycle and eligibility rules have a place to grow without forcing a full rich model today.\n\nTransaction ownership should move to `CheckoutService`, not the controller and not the shipping adapter. The local transaction should cover:\n1. Load cart state.\n2. Evaluate coupon rules.\n3. Persist purchase and cart updates.\n4. Persist a shipment request or outbox record if shipment creation must be reliable.\n\nThe transaction should end before any shipping network call. A six-call remote interaction is too slow and failure-prone to hold inside a database transaction. If reliability matters, commit the purchase plus a pending shipment request in one local transaction, then let the shipping adapter process it after commit. That also removes the need for most tests to hit the vendor sandbox.\n\nThe remote contract should be coarse-grained and application-oriented, not shaped like the vendor API. Internally, prefer something like:\n\n```java\nrecord CheckoutCommand(CartId cartId, CouponCode coupon, ShippingDetails shipping) {}\nrecord CheckoutResult(PurchaseId purchaseId, Money total, ShipmentStatus shipmentStatus) {}\n\ninterface ShippingGateway {\n  ShipmentRequestId requestShipment(ShipmentRequest request);\n}\n```\n\nAnd the service shape:\n\n```java\nfinal class CheckoutService {\n  CheckoutResult checkout(CheckoutCommand cmd) { ... }\n}\n```\n\nTwo concrete consequences follow from that contract:\n- `CheckoutController` becomes transport-only: map HTTP to `CheckoutCommand`, call the service, map `CheckoutResult` to the response.\n- The checkout response should expose stable business data such as `purchaseId`, `total`, and `shipmentStatus` like `PENDING` or `REQUESTED`, not raw request bodies or vendor-shaped data.\n\nThis keeps the correction bounded: no full DDD rewrite, but clear separation of workflow, rule evaluation, persistence, transaction ownership, and remote integration.",
+    "selected_project_skills": [
+      "patterns-of-enterprise-application-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "patterns-of-enterprise-application-architecture"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:19:46.072750Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc6-e3fe-7660-bf2a-652ab10058f3.1783984743422564000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

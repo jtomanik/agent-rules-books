@@ -1,0 +1,7 @@
+interface:
+  display_name: "Refactoring.Guru"
+  short_description: "Classify code smells and choose catalog treatments"
+  default_prompt: "Use $refactoring-guru to classify this code smell and choose a treatment."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5354-1e96-75c2-9341-329086d2ff71",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small preparatory-refactoring sequence, with tests run after each step. The code is already protected well enough for behavior-preserving cleanup, so this should stay local to `OrderPricer.price` and stop well before any API or model redesign.\n\nRecommended sequence:\n\n1. Extract the subtotal loop into a private helper such as `calculateSubtotalCents(order)`.\nThis removes the accumulation phase from the policy decisions without changing any branching.\n\n2. Extract the gold discount rule into `calculateDiscountCents(order, subtotalCents)`.\nKeep the exact threshold, percentage, and `Math.floor` behavior. Do not generalize tiers or introduce strategy objects.\n\n3. Extract shipping into `calculateShippingCents(order, subtotalCents, discountCents)`.\nPreserve the current ordering exactly: international shipping wins first; domestic free shipping is based on `subtotalCents - discountCents >= 5_000`. This is the easiest place to accidentally change behavior, so keep the condition structure recognizable.\n\n4. Extract tax and total computation as a final phase.\nA helper like `calculateTaxCents(taxableCents)` is enough. Keep `taxableCents` as the local handoff value so the final assembly still reads as: subtotal -> discount -> shipping -> taxable amount -> tax -> result.\n\n5. Optionally rename intermediate values only where they clarify phase boundaries.\nFor example, `discountedSubtotalCents` for `subtotalCents - discountCents` can help inside shipping or taxable calculations. Do not rename public types or change returned field names.\n\n6. Stop there unless a concrete next change is still awkward.\nAt that point `price()` should mostly orchestrate a few small, named calculations and assemble the `Price` object. That is the right stopping point for this cleanup.\n\nA reviewable end state would look conceptually like:\n\n```ts\nprice(order: Order): Price {\n  const subtotalCents = this.calculateSubtotalCents(order);\n  const discountCents = this.calculateDiscountCents(order, subtotalCents);\n  const shippingCents = this.calculateShippingCents(order, subtotalCents, discountCents);\n  const taxableCents = subtotalCents - discountCents + shippingCents;\n  const taxCents = this.calculateTaxCents(taxableCents);\n\n  return {\n    subtotalCents,\n    discountCents,\n    shippingCents,\n    taxCents,\n    totalCents: taxableCents + taxCents,\n  };\n}\n```\n\nBoundaries for the cleanup:\n\n- Do not change the public API, returned shape, or numeric semantics.\n- Do not add new pricing concepts, configuration objects, enums, policies, or classes.\n- Do not replace conditionals with polymorphism, tables, or a rule engine; there is not enough variation here to justify that.\n- Do not move beyond private helpers unless a real next feature proves ownership is wrong.\n- Do not rewrite tests except for trivial helper naming or fixture cleanup; the current tests are the safety net, not part of the refactor target.\n\nWhere it should stop:\n\nStop once `price()` is a short orchestration method and each extracted helper has one coherent responsibility. If the next step would be introducing abstractions for hypothetical future pricing rules rather than removing current friction, the cleanup has gone too far.",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:38:12.123830Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5354-1e96-75c2-9341-329086d2ff71.1783809449634507000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

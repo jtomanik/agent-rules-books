@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5357-aedd-7eb2-8688-4818024fa61b",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n1. `Semaphore.acquire()` can block forever before the HTTP call starts. With `CHECKOUT_REQUEST_TIMEOUT_MS=2500`, this violates the checkout budget and can turn carrier saturation into checkout latency or hangs. This is the highest-risk production failure mode.\n2. The outbound call is not tied to `requestSignal`, and `timeoutMs` does not cover connection establishment. A slow or stuck connect can outlive both the carrier budget and the caller, so `{ kind: \"unavailable\" }` is not guaranteed within the request window.\n3. The integration trusts any `response.json()` result and maps every thrown error to `unavailable`. That collapses provider `4xx` contract failures into degradation, and it accepts malformed `200` payloads instead of treating them as boundary/contract errors.\n\nSmallest changes before merge:\n- Bound semaphore wait by the checkout request deadline or `requestSignal`. If a slot is not acquired in time, return `{ kind: \"unavailable\" }`.\n- Pass an abort signal to `carrierClient.post()` and enforce a single overall deadline that covers queue wait, connect, and response. Keep retries at `0`.\n- Check `response.status` before parsing: map `429`, `5xx`, timeout, and transport failures to `{ kind: \"unavailable\" }`; treat provider `4xx` as an explicit contract/request error path, not normal unavailability.\n- Validate the success payload before returning `available`: status `200`, JSON content type, `amount` finite and `>= 0`, `currency` three letters, `expires_at` valid ISO-8601. Invalid success payloads should be surfaced as contract errors with distinct logging/metrics.\n\nWhat is already correct:\n- No retry behavior on the request path.\n- The semaphore acts as a bulkhead once acquired, and `release()` is in `finally`.\n\nMinimal pre-merge bar:\n- One end-to-end timeout budget for wait + connect + response.\n- Fast degraded return on saturation/timeouts.\n- Separate handling for unavailable vs provider-contract failure.\n- Response validation at the boundary.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:41:23.390272Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5357-a619-7591-97ee-8e8799e784b4.1783809680922116000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

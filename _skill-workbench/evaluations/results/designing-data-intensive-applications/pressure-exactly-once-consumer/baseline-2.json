@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5855-dd90-7352-9d03-2ce0c4c01f53",
+  "exit_code": 0,
+  "result": {
+    "answer": "The shortcut is not safe. The consumer must not be approved unchanged, and the idempotency/dedup mechanism must not be removed before launch.\n\nWhy it is unsafe:\n- Broker transactions and producer idempotence only give exactly-once semantics for broker-managed state. They do not make the database write and `email.sendReceipt(...)` exactly-once with the broker offset commit.\n- You explicitly state the process can crash after the ledger commit and before the offset commit. On restart, the same message is reprocessed. In this code that can duplicate `ledger.insert(...)`, and it will re-attempt the receipt.\n- Replay is a supported operational mode. Replaying 30 days of topic data against this consumer would resend receipts unless side effects are isolated from replay or guarded by durable idempotency state.\n- Ordering is not safe at the order level. Because partitioning is by `customer_id`, events for the same `orderId` can arrive on different partitions, so this consumer cannot rely on broker ordering to protect correctness for order state transitions.\n- The email side effect cannot be made exactly-once here. The provider does not support idempotency keys, and timeout outcome is unknown. If a send succeeds but times out locally, the consumer cannot know whether retrying will duplicate a visible receipt.\n\nWhat must change before launch:\n- Keep a durable consumer idempotency record. Key it by a stable event identity, or by a domain-safe uniqueness key such as `orderId + eventVersion` if that is guaranteed unique.\n- Make the ledger write idempotent at the database level with a uniqueness constraint and insert-or-ignore/upsert semantics. Application-only checks are not enough.\n- Do not send email inline as part of this consume path. Record the intent to send in the same database transaction as the business update, then process it from an outbox/sent-receipts table.\n- The receipt path needs exactly-once protection independent of broker redelivery. Given `email_provider.idempotency_key: unsupported` and `timeout_outcome: unknown`, that means either switching to a provider or gateway that supports idempotent sends, or not claiming exactly-once receipt delivery.\n- Replay/rebuild must not re-trigger user-visible side effects. Either exclude this consumer from rebuild flows, or gate email on durable first-send state so replay only rebuilds projections.\n- Any order-state update logic must be version-aware/idempotent and not depend on partition ordering, because same-order events may be observed out of order across partitions.\n\nBottom line: removing the idempotency table is incorrect, and the current consumer is not launch-safe for duplicates, replay, ordering, or receipt side effects. The minimum acceptable pre-launch change is durable idempotency for database effects plus an outbox/exactly-once-capable receipt mechanism; without that, the shortcut should be rejected.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T21:57:30.204943Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5855-45ca-7e93-9f99-ede0b4ee4da4.1783893411315940000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T21:57:30.321516Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5855-45ac-7ba2-aac4-11bc41d28099.1783893411245546000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T21:57:30.390703Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5855-45a1-7213-8970-b85094945d8b.1783893411309851000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T21:58:18.380668Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5855-dd90-7352-9d03-2ce0c4c01f53.1783893450128888000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

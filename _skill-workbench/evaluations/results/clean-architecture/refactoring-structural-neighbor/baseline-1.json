@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/refactoring-structural-neighbor.md",
+  "case_sha256": "895d2697037e8f58236072b0101ff3fd01292a571a3993c467f0e80f026011d1",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5858-5856-70d2-9e50-80bb567e4c3c",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use two tiny commits or review steps, each behavior-preserving on its own:\n\n1. Extract `formatCompact(start, end)` from the `compact` branch, keep `result`, and make no other change.\n2. Extract `formatExpanded(start, end)` from the non-compact branch, still keeping `result` and the existing outer control flow.\n3. Once both helpers are in place and tests are still green, replace the temporary `result` flow with direct returns:\n```ts\nformat(start: number, end: number, compact: boolean): string {\n  return compact\n    ? this.formatCompact(start, end)\n    : this.formatExpanded(start, end);\n}\n```\n4. If wanted, do the same direct-return cleanup inside each helper, but only if that remains a separate trivial diff.\n\nRecommended stopping condition: stop as soon as `format` delegates clearly to the two extracted helpers with direct returns and all existing focused tests stay green. Do not continue into renaming, API reshaping, deduplication, or policy changes unless a new refactoring objective is explicitly opened.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:00:13.051761Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5858-4e58-72c0-b184-188d14f86742.1783893610073862000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

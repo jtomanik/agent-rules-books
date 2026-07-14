@@ -1,0 +1,7 @@
+interface:
+  display_name: "Release It!"
+  short_description: "Apply production-survivability guidance"
+  default_prompt: "Use $release-it to review this service for production failure, overload, and recovery risks."
+
+policy:
+  allow_implicit_invocation: true

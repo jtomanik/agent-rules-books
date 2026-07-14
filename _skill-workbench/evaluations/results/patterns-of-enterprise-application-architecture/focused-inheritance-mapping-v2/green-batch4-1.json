@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/patterns-of-enterprise-application-architecture/focused-inheritance-mapping-v2.md",
+  "case_sha256": "351572e25b61059c65a5ab10308e80c76c2d442e9912f5d06ec71261af2db205",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dca-a49c-7e81-94bc-4b1577a3b0ea",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Choose **Candidate B: Class Table Inheritance**.\n\nI consulted `.agents/skills/patterns-of-enterprise-application-architecture/references/full.md` section **`Object-Relational Mapping Pattern Index`**, which says to use **Single Table Inheritance** when one table with nullable columns is simpler than multiple joins, **Class Table Inheritance** when normalized subtype data is worth join complexity, and **Concrete Table Inheritance** when each concrete type can own its table without excessive duplication.\n\nWhy B fits this workload best:\n- Your strongest non-performance force is **constraints and understandable migrations**. B keeps common fields in `PAYMENT_METHOD` and puts subtype rules in subtype tables where `network`, `last4`, `ibanCountry`, and `mandateId` can be `NOT NULL`, checked, and evolved locally.\n- **New subtypes are rare**, so paying some join/mapping complexity to keep the schema normalized is reasonable.\n- The 85% polymorphic lookup by id is the main argument against B, because B is more complex than A for loading the full concrete object. But this is read complexity, not write throughput, and your stated priority is schema integrity and migration clarity over raw speed.\n\nTradeoff against the others:\n- **Candidate A (Single Table Inheritance)** is the runtime winner for polymorphic reads. One lookup, no joins, and listing all methods is simple. I would choose A only if read simplicity/performance dominated. The downside is that subtype columns are nullable and subtype invariants become awkward: you end up encoding \"if discriminator = CARD then `network` and `last4` must be present and bank fields absent\" through broader table-level checks. That gets less clear as subtypes grow.\n- **Candidate C (Concrete Table Inheritance)** is the worst fit here. Repeating `id`, `customer_id`, and `label` across tables duplicates common structure, makes cross-type queries require `UNION`s, and makes \"load by id without knowing subtype\" fundamentally awkward. It is better when operations are mostly subtype-specific and concrete tables are intentionally independent, which is not your workload.\n\nRecommendation: use **B** unless the 85% lookup path is so latency-sensitive that you are willing to trade away relational clarity and stronger subtype constraints. In that case, use **A**. I would not choose **C** for this hierarchy.",
+    "selected_project_skills": [
+      "patterns-of-enterprise-application-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md",
+      ".agents/skills/patterns-of-enterprise-application-architecture/references/index.md",
+      ".agents/skills/patterns-of-enterprise-application-architecture/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "patterns-of-enterprise-application-architecture",
+        "sections": [
+          "Object-Relational Mapping Pattern Index"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "patterns-of-enterprise-application-architecture"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:23:53.694562Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dca-a49c-7e81-94bc-4b1577a3b0ea.1783984989341337000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

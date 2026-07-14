@@ -1,0 +1,42 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/focused-replica-read.md",
+  "case_sha256": "e5c642e655a2e69acfcb89ca0045bf6c520c92d54a608af9a640320b87cd206b",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58b9-4421-79d3-918d-c7511f1b1104",
+  "exit_code": 0,
+  "result": {
+    "answer": "The redirected page must have a `read-your-writes` contract for the updating user, and under the stated failover condition that contract also implies `failover-safe acknowledgment` for a successful update. With asynchronous followers and `promote_available_follower`, the current design cannot satisfy the product contract if `primary.profiles.update()` returns success before the write is present on a promotable follower: a failover in that window can make the redirected read miss the write even if it bypasses replicas.\n\nSmallest strategy that satisfies the contract:\n1. Tighten write success semantics: only return success after the profile write is durable on the leader and replicated to at least one follower that is eligible for promotion. Otherwise, after failover there may be no node that can show the committed profile.\n2. Use the exposed positions as a per-request consistency fence on the redirect. `updateProfile` should attach the committed log/LSN position to the redirect context. `showProfile` should read from a replica only if that replica reports `applied_position >= required_position`; otherwise read from the current leader.\n3. Keep ordinary anonymous/other-user reads on `nearestReplica` with up to 30 seconds staleness, because the stronger rule is required only for the updater immediately after success.\n\nIn concrete terms, the post-update redirect must not do an unconditional asynchronous-replica read. It may use a replica only after proving that replica has applied at least the acknowledged commit position; otherwise it must fall back to the leader. If the team is unwilling to strengthen the write acknowledgment to a promotable follower, then the stated product contract is not implementable under the given failover mode.\n\nMinimal shape:\n```ts\nexport async function updateProfile(userId: string, patch: ProfilePatch): Promise<Response> {\n  const committed = await primary.profiles.updateAndWaitForPromotableReplica(userId, patch);\n  return redirect(`/profiles/${committed.id}?minPos=${committed.position}`);\n}\n\nexport async function showProfile(userId: string, minPos?: string): Promise<Profile> {\n  if (!minPos) return nearestReplica.profiles.get(userId);\n\n  if (nearestReplica.appliedPosition() >= minPos) {\n    return nearestReplica.profiles.get(userId);\n  }\n\n  return currentLeader.profiles.get(userId);\n}\n```\n\nDecision: the required consistency contract is bounded `read-your-writes` for the updating user, plus failover-safe durability for acknowledged writes. The smallest implementation is `commit-position fencing on the redirect read` combined with `ack after replication to a promotable follower`.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Consistency Rules",
+          "Replication Rules",
+          "Derived Data Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:46:04.737079Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f58b8-4dcf-7f12-a880-2cb7b00761ec.1783899902978940000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T23:46:43.604851Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58b9-4421-79d3-918d-c7511f1b1104.1783899964463481000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

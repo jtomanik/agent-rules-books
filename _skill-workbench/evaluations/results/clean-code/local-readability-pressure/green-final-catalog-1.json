@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5892-ce78-7a11-ba99-fb69d04d04d2",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe move is a local change to discount calculation, not a broader cleanup. Rewrite pressure is not a reason to add more branching inside `finalize` without at least isolating the pricing rule.\n\n**Patch Plan**\n1. Extract discount calculation into a small helper inside `InvoiceService` or a nearby pure function, then update `finalize` to call it.\n2. Add the new rule there: `partner` gets `0.15` when `invoice.total >= 500`.\n3. Preserve all existing pricing behavior, including the existing `vip` discount and the extra `0.05` when `total > 1000`.\n4. Leave persistence and side-effect flow unchanged: same preview behavior, same balance mutation, same `accounts.save`, `mailer.send`, `audit.record`, and same `lastInvoiceId` behavior.\n5. Ship only with targeted tests covering the new rule and its boundaries.\n\n**Scope Boundary**\nIn scope:\n- Discount computation for `partner` accounts at the `>= 500` threshold.\n- Minimal extraction needed to make that computation readable and testable.\n- Test additions for the new behavior and its interaction with existing rules.\n\nOut of scope:\n- Reworking `preview` / `sendEmail` booleans.\n- Redesigning `finalize` into separate command/query methods.\n- Changing repository, mailer, or audit interfaces.\n- Reordering side effects.\n- Broader cleanup justified only by the planned rewrite.\n\n**Revised Sketch**\n```ts\ntype FinalizeResult = {\n  amount: number;\n  discount: number;\n  changed: boolean;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean): FinalizeResult {\n    const discount = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    let discount = 0;\n\n    if (a.segment === \"vip\") {\n      discount += 0.1;\n    }\n\n    if (a.segment === \"partner\" && i.total >= 500) {\n      discount += 0.15;\n    }\n\n    if (i.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n}\n```\n\nThis is intentionally small: one extraction, one new rule, no interface churn beyond optionally naming the result type.\n\n**Tests Required Before Shipping**\n- `partner` with `total = 500` in preview returns `discount: 0.15`, `amount: 425`, `changed: false`, and performs no side effects.\n- `partner` with `total = 499.99` gets no partner discount.\n- `partner` with `total = 1200` gets stacked discount `0.20` and the discounted amount is what flows to `accounts.save`, `mailer.send`, and `audit.record`.\n- Non-preview `partner` case verifies balance reduction uses the discounted amount and existing side effects still happen exactly as before.\n- One regression test proving non-partner accounts are unchanged at the new threshold, for example `standard` at `500` still gets no discount.\n\nIf the current suite already covers standard and vip behavior thoroughly, I would not add more than those targeted tests. The release-risk reduction comes from pinning the new threshold, the partner-only condition, and the stacking with the existing `> 1000` rule.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:04:53.044334Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5892-ce78-7a11-ba99-fb69d04d04d2.1783897443960831000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

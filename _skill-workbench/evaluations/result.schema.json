@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "answer",
+    "selected_project_skills",
+    "consulted_files",
+    "reference_mode"
+  ],
+  "properties": {
+    "answer": {
+      "type": "string"
+    },
+    "selected_project_skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "consulted_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reference_mode": {
+      "type": "string",
+      "enum": ["none", "ordinary", "focused", "comprehensive"]
+    }
+  }
+}

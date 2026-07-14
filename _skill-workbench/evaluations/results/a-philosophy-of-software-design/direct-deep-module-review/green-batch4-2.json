@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/a-philosophy-of-software-design/direct-deep-module-review.md",
+  "case_sha256": "851e898c10218a0877d43967de6597a1c80e2f78384f8647bfba974c4250df72",
+  "mode": "green",
+  "run": "green-batch4-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc3-9b9c-7270-8c91-3ab10a9bf61d",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposed API is not deep enough. It exposes the module\u2019s workflow instead of hiding it, so callers must understand internal staging, state transitions, cleanup rules, and the coupling between normalization mode and archive format. That is classic shallow-module design: a fairly large interface that mainly forwards operational detail upward.\n\nThe main information that should be hidden is:\n- Step ordering: callers should not have to remember `prepare -> load -> normalize -> write -> finalize`.\n- Handle lifecycle: retaining and passing a mutable export handle is internal workflow state.\n- Format/normalization coupling: if a format implies a normalization strategy, the module should choose it.\n- Failure cleanup: temporary directory ownership and rollback semantics belong inside the export module.\n- Variant error paths: repeated handler cleanup is a signal that the abstraction boundary is too low.\n\nThe better ownership boundary is: the export module owns the entire export transaction, including temporary workspace management, row preparation rules, format-specific normalization, archive writing, and cleanup on both success and failure. Callers should provide export intent and destination, then observe success/failure through one stable contract.\n\nA stronger public contract would be something like a single export operation: provide export options, receive the archive result or a failure. If the system genuinely needs progress reporting or cancellation, expose that as a higher-level job/session abstraction, but keep the sequence internal. Even then, the public API should express stable domain concepts such as `start export`, `await progress`, `cancel`, and `collect result`, not internal phases like `normalizeRows` or `finalizeExport`.\n\nDesign judgment:\n- `prepareExport`, `loadRows`, `normalizeRows`, `writeArchive`, and `finalizeExport` are implementation steps, not good public concepts.\n- The current API creates temporal coupling and hidden dependencies between calls.\n- The repeated cleanup across handlers is evidence that the module is exporting complexity instead of absorbing it.\n- A deeper design would make the common case automatic and make invalid states unrepresentable from the caller side.\n\nIn short: the module boundary should move downward. Callers should request an export; the module should own the pipeline.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "a-philosophy-of-software-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

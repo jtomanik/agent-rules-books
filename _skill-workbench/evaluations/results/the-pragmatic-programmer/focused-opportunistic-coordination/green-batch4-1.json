@@ -1,0 +1,52 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/focused-opportunistic-coordination.md",
+  "case_sha256": "eb9cebc246459bba2209bf55add49670c5134790849bed085a97c7960108b6fa",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dce-5636-7c91-8a4b-7c4daa5327e9",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "A shared blackboard-style coordination space fits when the work is driven by converging evidence rather than a required stage sequence, inputs can arrive in any order, and handlers can safely re-run as new facts appear. The source conditions are:\n\n- correctness does not depend on a global processing order\n- ordering, if any, is only needed per case or entity, not across the whole pipeline\n- handlers are idempotent and replay-safe under duplicate, late, or repeated inputs\n- publish decisions are based on explicit state convergence rules, not on \u201cthis step ran after that step\u201d\n- the shared board is treated as derived, observable, and repairable state, or else protected with stronger per-case coordination if it is authoritative\n\nThis case meets those conditions well enough to prefer shared-space coordination over a fixed orchestrated pipeline. The inputs are independent signals with unknown arrival order, and the handlers are naturally opportunistic: correlation can happen whenever supporting evidence appears, more-evidence requests can fire whenever confidence remains low, and publish can wait until independent signals converge. That is a state-based workflow, not a linear one.\n\nThe main constraint is implementation discipline. `mutable_case_board` should be keyed per case, updates should use stable deduplication/correlation identifiers, and publish should be guarded by a monotonic convergence check so duplicate or out-of-order handler runs do not create duplicate cases or regress confidence. If those controls are absent, a fixed pipeline would be safer. With them, the shared board is the better fit.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Derived Data Rules",
+          "Distributed Fault, Clock, and Consensus Rules",
+          "Batch and Stream Processing Rules",
+          "API and Service Boundary Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [
+    "required project skill not selected: the-pragmatic-programmer"
+  ],
+  "stderr": ""
+}

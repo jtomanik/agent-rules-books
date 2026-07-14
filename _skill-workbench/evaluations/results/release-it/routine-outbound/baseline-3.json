@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5350-d42a-79e1-9d2f-c2a5d093498f",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n\n1. `fetchCarrierQuote` can block past the checkout budget before the HTTP call starts because `Semaphore.acquire()` waits forever and does not use `requestSignal` ([snippet line 7]). Under carrier saturation, checkout can stall instead of falling back to `{ kind: \"unavailable\" }`. Smallest fix: make semaphore acquisition abortable or deadline-bounded by the request budget; on abort/timeout, return `{ kind: \"unavailable\" }`.\n\n2. The outbound call is not tied to the checkout cancellation path, and `timeoutMs` does not cover connection setup ([lines 10-17]). A connect stall can outlive `CARRIER_RESPONSE_TIMEOUT_MS=2000`, and because `requestSignal` is ignored, it can also outlive the overall checkout request budget. Smallest fix: pass `requestSignal` into `carrierClient.post()` or a composed signal derived from it, so queueing, connect, and in-flight work are all cut off when checkout time expires.\n\n3. The handler collapses every failure into `unavailable`, including provider `4xx` and malformed `200` responses ([lines 19-29]). That masks request/contract defects as transient unavailability, which is the wrong production behavior for first release and will make a broken integration look healthy. Smallest fix: classify failures explicitly:\n- `429`, `5xx`, timeout, abort-from-budget, and transport errors => log at warn and return `{ kind: \"unavailable\" }`\n- provider `4xx`, non-JSON `200`, or invalid body shape => treat as contract/request errors, surface them distinctly (for example throw or emit an error-level integration fault) instead of returning `unavailable`\n\n4. Successful responses are not validated against the stated contract before returning `kind: \"available\"` ([lines 19-25]). A bad `amount`, `currency`, or `expires_at` can escape into checkout state. Smallest fix: require `status === 200`, JSON content, `amount` as finite non-negative number, `currency` as 3-letter string, and `expires_at` as a valid ISO-8601 timestamp before returning `available`.\n\nWhat does not need change for this review:\n- No retry path is visible here, and your stated client behavior plus `CARRIER_RETRIES=0` is consistent with the no-retry requirement.\n\nRecommended minimal pre-merge shape:\n- Make both semaphore wait and HTTP call observe `requestSignal`.\n- Keep returning `unavailable` only for `429`/`5xx`/timeout/transport/budget-expiry cases.\n- Add explicit response/status/schema validation and do not downgrade `4xx` or malformed `200` responses to `unavailable`.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "stderr": "2026-07-11T22:33:54.009382Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f534e-e2da-7d60-bc01-cb1704c162c4.1783809108073193000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

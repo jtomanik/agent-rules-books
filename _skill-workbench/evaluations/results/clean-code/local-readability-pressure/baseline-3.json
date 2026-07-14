@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5337-4a49-7b60-9f3c-f100349ebee1",
+  "exit_code": 0,
+  "result": {
+    "answer": "Treat this as a minimal local change, not a rewrite. The manager\u2019s instruction is optimizing for speed, but the safe fast path is still to keep the pricing rule isolated and avoid adding more branching noise directly into `finalize` than necessary.\n\nConcrete patch plan:\n1. Extract discount calculation into a small pure helper such as `computeDiscount(account, invoice)` inside the service file or class.\n2. Preserve existing rules exactly:\n   - `vip` gets `0.1` base discount.\n   - invoices with `total > 1000` add `0.05`.\n3. Add the new rule exactly as specified:\n   - `partner` gets `0.15` when `invoice.total >= 500`.\n4. Keep all non-pricing behavior unchanged:\n   - preview return shape and `changed: false`\n   - balance mutation\n   - `accounts.save`\n   - `lastInvoiceId`\n   - optional `mailer.send`\n   - `audit.record`\n   - return payload shape\n5. Do not broaden scope into refactors of persistence, mail, audit, or state handling.\n\nRevised function/interface sketch:\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\ntype Invoice = {\n  id: string;\n  total: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private computeDiscount(a: Account, i: Invoice): number {\n    let d = 0;\n\n    if (a.segment === \"vip\") {\n      d += 0.1;\n    }\n\n    if (a.segment === \"partner\" && i.total >= 500) {\n      d += 0.15;\n    }\n\n    if (i.total > 1_000) {\n      d += 0.05;\n    }\n\n    return d;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.computeDiscount(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount computation only, plus narrowly restructuring that computation into a helper if needed for clarity/testability.\n- Out of scope: changing thresholds other than the new `partner >= 500` rule, altering persistence/email/audit semantics, changing rounding behavior, changing method signatures, introducing strategy objects/policy engines, or touching unrelated callers.\n\nTests required before shipping:\n1. Existing tests must remain green unchanged.\n2. Add a test for `partner` with `total = 500`:\n   - discount is `0.15`\n   - amount is `425`\n   - existing side effects still occur when not previewing.\n3. Add a test for `partner` with `total > 1000`, for example `1200`:\n   - discount is `0.20`\n   - confirms stacking with the existing high-total rule.\n4. Add a test for `partner` with `total = 499.99` or `499`:\n   - no partner discount\n   - preserves old behavior below threshold.\n5. Add a preview-mode test for eligible `partner` invoices:\n   - returns discounted amount\n   - does not call `accounts.save`, `mailer.send`, or `audit.record`.\n6. Keep or verify existing tests covering `standard` and `vip` paths so behavior outside the new rule is pinned.\n\nShip criterion: only the new `partner >= 500 => 15%` pricing behavior changes; every other observable behavior stays identical.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Extract discount calculation into a pure helper before adding the new rule so the change stays local and testable under time pressure.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Require boundary tests at `500` and just below it, plus a stacking test above `1000`, because the new rule overlaps with an existing threshold-based discount.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Do not refactor persistence, mail, audit, or method signatures in this release-window change; keep the scope limited to discount calculation.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:06:34.852706Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-4a49-7b60-9f3c-f100349ebee1.1783807560265794000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

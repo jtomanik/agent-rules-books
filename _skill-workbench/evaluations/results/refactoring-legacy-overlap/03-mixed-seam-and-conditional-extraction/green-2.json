@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55d0-8986-7b83-b4a0-5a5ba40f90c3",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a three-patch sequence.\n\nPatch 1: gain control and add focused tests only.\n- Introduce the smallest seam needed to stop `RenewalWorker` from hard-coding `new RenewalDatabase(...)` and `new Date()`. Keep the public construction path intact by adding optional injected collaborators or a test-only factory, with defaults that still use `RENEWAL_DSN` and the real clock.\n- Add focused characterization tests for current behavior of both `quote()` and `renew()`: `closed` skips, `paused` skips, negative balance skips, eligible paid account quotes, eligible account renews and writes both records inside the transaction, skipped renewal performs no writes.\n- Add observation around time-sensitive behavior through the injected clock so tests can assert exact timestamps and price lookup inputs.\n- Do not add the trial rule yet. This patch is purely about control and feedback.\n\nWhat must be learned or controlled before semantic edits:\n- Whether trial accounts can legally have `trialStartedAt === null`. If yes, product must decide whether that stays eligible or becomes ineligible; do not guess.\n- The exact boundary rule: \u201colder than 30 days\u201d implies `> 30 days` is ineligible and exactly `30 days` is still eligible. Lock that in with a test.\n- The date format assumptions for `trialStartedAt`. If parsing can vary by timezone or non-ISO input, characterize current accepted inputs before relying on age math.\n- Whether any callers depend on `quote()` and `renew()` diverging today. The snippet suggests they should share the same rule, but the characterization tests are the proof.\n\nPatch 2: add the trial-age rule with minimal structural change.\n- In both existing conditionals, add the new trial predicate directly: trial accounts older than 30 days are not eligible for automatic renewal.\n- Add new focused tests for trial eligibility boundaries: paid accounts unaffected, recent trial eligible, exactly-30-days trial eligible, older-than-30-days trial skipped for `renew()` and returns `null` for `quote()`.\n- Keep everything else unchanged: same constructor behavior, same transaction contents, same timestamp usage, same skip/renew return values.\n\nPatch 3: eliminate duplication as a behavior-preserving refactor.\n- Extract one clear owner for automatic-renewal eligibility, preferably a pure helper or small domain policy such as `isEligibleForAutomaticRenewal(account, now)`.\n- Have both `quote()` and `renew()` call that single owner.\n- Do not change tests except where names or setup become clearer. This patch should be proven by the Patch 1 and Patch 2 tests staying green.\n\nRecommended ownership boundary:\n- Keep pricing lookup and persistence inside `RenewalWorker`/database collaborators.\n- Put only the eligibility decision in the shared owner.\n- Pass `account` and `now` explicitly so the rule stays deterministic and easy to test.\n\nReviewable patch boundaries:\n- Patch 1 may change constructor signatures and add test doubles, but must not change production outcomes.\n- Patch 2 may change outcomes only for trial accounts older than 30 days.\n- Patch 3 must be structurally behavior-preserving only.\n\nThat sequence gives you explicit control over the two real legacy barriers here: hidden construction and hidden time. Once those are under test, the new rule is a small semantic patch, and the duplication cleanup becomes ordinary refactoring instead of mixed-intent surgery.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

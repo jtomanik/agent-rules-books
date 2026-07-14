@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55c3-5f0e-71b0-ab35-cd870c75f20f",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is neither \u201clet every exception crash\u201d nor \u201ccatch everything and ack.\u201d\n\nUse a three-way policy:\n\n1. Quarantine malformed inbound messages.\nThis includes invalid JSON in `message.body`, missing/invalid `id` or `sku`, and payloads that fail consumer-owned validation before any side effects.\nAction: route to a quarantine/DLQ and remove from the hot path. Do not retry. Do not crash.\nReason: broker redelivery cannot repair poison input, and with `max_deliveries: 0`, no DLQ, `restart: always`, and immediate redelivery on exit, these messages become infinite restart fuel. The staging incident is the expected outcome.\n\n2. Retry, then pause consumption, for dependency failure.\nThis includes inventory `503`, timeouts, and inventory `200` with malformed JSON. That last case is a dependency-contract failure, not a malformed broker message.\nAction: use an explicit timeout and one bounded retry layer with backoff/jitter. If the retry budget is exhausted, do not ack the message, keep the process alive, and stop consuming new work by entering a paused/not-ready state until the dependency recovers or operators pause the deployment.\nReason: crashing is the wrong retry mechanism here. A crash immediately re-exposes all unacked deliveries, and with `prefetch: 100` and 6 replicas it amplifies the outage.\n\n3. Crash the process only for compromised process state or unclassified internal bugs.\nThis means failures where the worker can no longer trust its own state or its ability to classify outcome safely: invariant violations, corrupted runtime/client state, fatal resource corruption, or an unexpected internal defect after explicit malformed-message and dependency-failure classification exists.\nAction: let the exception escape and rely on supervision.\nReason: this is the real let-it-crash boundary. Supervisor restart is appropriate for a bad worker, not for poison input or ordinary upstream flakiness.\n\nWhat the current implementation gets wrong:\n\n- The single `try/catch` collapses poison messages, retryable dependency failures, and fatal internal failures into one path.\n- `dependency_timeout_ms: 0` allows infinite wait, which is unsafe.\n- `max_deliveries: 0` plus `dead_letter_exchange: null` means poison messages have no safe terminal path.\n- `readiness: broker_connection_is_open` does not reflect whether the worker is actually safe to consume.\n- Crash behavior is currently a fleet-wide redelivery amplifier because unacked messages become immediately eligible again.\n\nMinimal changes needed to make this policy safe and testable:\n\n- Add explicit parse/validation classification before calling `inventoryClient` or the database.\n- Configure a quarantine/DLQ path. Without it, malformed messages cannot be handled safely.\n- Set a real dependency timeout. Infinite waits must go away.\n- Keep exactly one retry owner for inventory calls, with bounded retries and backoff/jitter.\n- Add a consumer pause/breaker state for dependency exhaustion, and make readiness fail while paused.\n- Make redelivery safe with idempotent persistence on `event.id` so retry/redelivery cannot double-apply the event.\n- Narrow the crash path to compromised-state or unexpected internal failures only.\n- Add finite restart throttling/backoff in the supervisor so true fatal bugs do not spin forever.\n\nA practical decision matrix:\n\n- Invalid inbound JSON/schema/domain payload: quarantine.\n- Inventory `503` or timeout: retry, then pause/not-ready, no ack.\n- Inventory `200` with malformed JSON: same as dependency failure, not quarantine.\n- Database temporary failure before commit: same retry/pause policy as other transient dependency failure.\n- Unexpected internal invariant failure or corrupted worker state: crash.\n\nFocused tests to add:\n\n- malformed inbound message goes to quarantine and does not restart the process;\n- inventory `503` and timeout retry within budget, do not ack, and transition the worker to paused/not-ready after exhaustion;\n- inventory `200` with malformed JSON follows the dependency-failure path, not quarantine;\n- duplicate redelivery of the same `event.id` is idempotent;\n- unexpected internal bug escapes and causes process exit;\n- readiness reflects paused dependency state, not just broker connectivity.\n\nBottom line: quarantine permanent bad input, retry then pause on dependency trouble, and crash only when the worker itself is no longer trustworthy.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

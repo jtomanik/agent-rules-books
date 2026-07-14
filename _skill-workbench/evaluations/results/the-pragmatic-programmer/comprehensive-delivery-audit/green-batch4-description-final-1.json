@@ -1,0 +1,43 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/comprehensive-delivery-audit.md",
+  "case_sha256": "3f375252a29f73cf615cd6cc3131d1306f6d6ae02a8018a7371be26355621934",
+  "mode": "green",
+  "run": "green-batch4-description-final-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5e00-a792-71a1-8421-dd33f5d9275d",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "**Audit Verdict**\n\nThe proposal fails the pragmatic delivery audit in multiple foundational areas, but it does not require a big-bang redesign. The main problem is not ambition; it is committing early to brittle structure while delaying the first real feedback.\n\n**Source-Backed Findings**\n\n1. The plan delays the first running slice until after all layers, which directly violates tracer-bullet delivery and guarantees late integration risk. A municipal permit platform with unresolved questions should start with a thin end-to-end path now, not after layer completion. Relevant sections: `Tracer Bullets and Iterative Delivery`, `Feedback Loop Rules`, `Estimation and Increment Rules`, `Code Generation Rules`, `Testing Rules`.\n\n2. The shared module is a severe orthogonality failure. A module that knows UI, database vendor, and domain details creates hidden coupling, spreads change fan-out, and makes unrelated decisions move together. Relevant sections: `Orthogonality Rules`, `DRY Rules`, `Resource and Coupling Rules`, `Core Pragmatic Principles`.\n\n3. Storing vendor workflow IDs in the core domain is an avoidable irreversible commitment to an external mechanism before the requirements are stable. That is exactly the kind of vendor lock-in this guidance says to delay or isolate. Relevant sections: `Reversibility, Domain Languages, and Requirements`, `Primary Directive`, `Core Pragmatic Principles`.\n\n4. The growing 180-page specification, combined with unresolved ownership and timing questions, is a specification-trap signal. The copied legacy screens are evidence of current behavior, not authoritative requirements. The proposal needs executable learning, not more prose. Relevant sections: `Reversibility, Domain Languages, and Requirements`, `DRY Rules`, `Naming and Communication Rules`, `Text and Data Rules`.\n\n5. Promoting a prototype without explicit hardening is prototype fossilization. If shortcuts are entering production, the team must state what was proven, what remains unsafe, and what must be rebuilt or hardened before release. Relevant sections: `Prototyping Rules`, `Forbidden Patterns`, `Core Pragmatic Principles`.\n\n6. A build that only works on a developer laptop and a 14-step manual release process are direct automation failures. They also imply duplicated operational knowledge and low bus factor. Relevant sections: `Automation Rules`, `Tooling Rules`, `DRY Rules`, `Forbidden Patterns`.\n\n7. Feedback arriving only through an integration test at the end of the quarter is far too late for this risk profile. The guidance explicitly prefers cheap early signals over late expensive surprises, especially while architecture and requirements are unsettled. Relevant sections: `Feedback Loop Rules`, `Tracer Bullets and Iterative Delivery`, `Project and Team Rules`, `Testing Rules`.\n\n8. `null` or generic exceptions with discarded diagnostic context mean the system has no explicit failure contract. That blocks recovery decisions and makes defects expensive to diagnose. Relevant sections: `Design by Contract and Assertions`, `Error Handling and Recovery`, `Naming and Communication Rules`.\n\n9. Shared resource ownership plus cleanup only on the success path is a correctness defect, not a style issue. Ownership is unclear, failure paths leak responsibility, and temporal coupling is likely. Relevant sections: `Resource and Coupling Rules`, `Contracts, Failure, and State` themes captured in `Design by Contract and Assertions`, `Error Handling and Recovery`, `State and Concurrency Rules`.\n\n10. The mutable global context for tenant, user, clock, and transaction is a broad ambient-coupling hazard. It weakens contracts, obscures test setup, and makes concurrency and ordering assumptions invisible. Relevant sections: `State and Concurrency Rules`, `Orthogonality Rules`, `Design by Contract and Assertions`, `Resource and Coupling Rules`.\n\n11. Discouraging risk reporting and tolerating small decay until rewrite institutionalizes broken windows. That is a team-level quality failure which will compound every technical issue above. Relevant sections: `Project and Team Rules`, `Broken Windows Rule`, `Core Pragmatic Principles`, `Review Rules`.\n\n12. As a whole, the proposal conflicts with the policy-level expectations to reduce duplicated knowledge, preserve adaptability, automate repeated work, communicate intent clearly, and leave the system easier to change. Relevant sections: `Purpose`, `Review Checklist`, `Final Instruction`.\n\n**General Implementation Suggestions**\n\nTreat the copied legacy screens as input evidence only. Establish authoritative owners for fee rules, appeal timing, jurisdiction change semantics, and vendor mappings before encoding them in multiple places.\n\nMove external workflow IDs and database/vendor details behind adapters. Keep the core domain expressed in municipal concepts, not integration identifiers.\n\nReplace ambient globals with explicit inputs or scoped request context objects, and define typed error categories with preserved diagnostic context.\n\nAutomate build, test, and release in shared scripts or CI before adding more process documents.\n\n**Incremental Correction Order**\n\n1. Build one tracer slice now: one permit flow through UI, application, domain, persistence, and one external integration, with the unresolved questions called out explicitly where they block policy.\n2. Establish shared automation for build, smoke test, and release packaging so the system no longer depends on one laptop or 14 manual steps.\n3. Introduce explicit contracts for error types, resource ownership, cleanup, tenant/user/clock inputs, and transaction boundaries.\n4. Isolate vendor workflow IDs and database-specific details behind adapters; stop adding new core-domain dependencies on external mechanisms.\n5. Break up the shared module along policy/mechanism/presentation boundaries as changes arrive, starting with the paths touched by the tracer slice.\n6. Convert the largest unresolved requirements into executable examples and focused tests, reducing dependence on the growing prose spec.\n7. Formalize a hardening gate for prototype code and make risk reporting expected rather than discouraged.\n8. Fix small local decay continuously instead of deferring it to a future rewrite.\n\nThe practical path is to recover feedback, contracts, and automation first. Once those exist, the architectural corrections become smaller, safer, and more reversible.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/the-pragmatic-programmer/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "the-pragmatic-programmer",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:22:13.943175Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}"
+}

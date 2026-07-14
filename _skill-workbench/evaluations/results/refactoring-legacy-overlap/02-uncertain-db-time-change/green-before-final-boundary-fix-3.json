@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5355-69ed-7510-bc60-3861a7e58637",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded change:\n\nAdd the grace period as a narrow policy seam, not as a broader rewrite of billing flow. The implementation shape should be:\n\n1. Preserve the current side-effect sequence and transaction boundary.\nKeep `find`, `transaction`, `charges.insert`, `accounts.markCharged`, the single captured `now`, and exception propagation exactly as they are today.\n\n2. Extract only the due decision behind a testable seam.\nExample shape: `isChargeDue(nextChargeAt: string, now: Date, graceMs: number): boolean` or an injected clock plus a small helper. The scheduler should still parse `nextChargeAt` the same way it does now and only compare against `nextChargeAt + 48h`.\n\n3. Do not \u201cfix\u201d timestamp semantics in the same change.\nIf stored strings may already mix UTC, offsets, or local-time-like values, this change should preserve the existing parse behavior and only shift the charge threshold by 48 hours. Historical timestamp cleanup is a separate migration/product decision.\n\n4. Default implementation assumption, only if product confirms it:\nCharge when `now >= parsed(nextChargeAt) + 48 hours`.\nThat is the smallest extension of the current `<= now` rule.\n\nSafest verification plan:\n\n1. Add characterization tests before changing behavior.\nBecause the class has no trustworthy tests and callers may rely on current behavior, first lock down:\n- charges when `nextChargeAt` is before `now`\n- whether charging exactly at `nextChargeAt` is currently intentional (`<=`)\n- returns `not-due` when in the future\n- both writes happen inside one transaction\n- the same `now` value is used for `chargedAt` and `markCharged`\n- current exception behavior: if insert fails or mark fails, does the method propagate and does the fake transaction observe a rollback path or just bubbling\n\n2. Use fast deterministic tests with seams, not staging.\nIntroduce a fake database and injected clock or helper-level tests. Shared staging fixtures are the wrong first safety net here.\n\n3. After characterization, add new-behavior tests for the grace window.\n- not due at `nextChargeAt + 47:59:59.999`\n- due at the approved boundary rule\n- due after the boundary\n- transaction/exception behavior unchanged from characterization tests\n\n4. Add a read-only data check before rollout.\nRun a read-only query or sample against real data to see what `nextChargeAt` strings actually look like: UTC `Z`, explicit offsets, or timezone-less timestamps. This is not for changing code now; it is to decide whether the grace rule is being applied to clean instants or to already-ambiguous data.\n\n5. Roll out as a bounded production change.\nNo fixture cleanup, no timestamp migration, no constructor/database redesign unless needed only to create the minimal test seam.\n\nProduct decisions that must be resolved, not inferred from code:\n\n- Exact boundary: should charging happen exactly at `nextChargeAt + 48h`, or only after that instant?\nThe current code uses inclusive `<=`, but that may be accidental. Product must confirm whether the grace boundary is inclusive.\n\n- Meaning of \u201c48-hour grace period\u201d: exact elapsed 48 hours, or two local calendar days/business days?\nThose are different rules. The code should not guess.\n\n- Historical timestamp ambiguity: if some stored `nextChargeAt` values were created in local time or without offsets, should this change preserve existing interpretation, normalize them, or grandfather old rows and fix only new writes?\nThat is a product/data decision, not a scheduler refactor.\n\n- Customer-visible timing promise: if an account becomes chargeable during the grace period, is charging expected immediately at expiry, or only on the next scheduler pass with normal job delay?\nThat affects operational expectations, not just code.\n\nRecommendation:\nDo this as a two-commit change if possible.\nCommit 1: characterization tests plus minimal seam.\nCommit 2: `+48h` rule once product confirms the boundary semantics.\nThat is the safest bounded path because it changes only the due-policy calculation while explicitly preserving transaction, exception, and persistence behavior.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:38:54.508065Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5355-6938-72f0-9844-2e9ca0eac964.1783809534264928000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:39:55.095288Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5355-69ed-7510-bc60-3861a7e58637.1783809534446331000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

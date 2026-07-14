@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5354-1e96-7802-ac75-77ede9f2f5eb",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommendation**\n\nTreat this as a legacy-behavior change, not a billing cleanup. The safest bounded change is to add a narrow seam for `now` and the due-time calculation, preserve the existing database/transaction/exception flow exactly, and put the 48-hour rule only into the due check.\n\nA bounded implementation shape is:\n1. Extract the decision into a small pure helper such as `isChargeDue(nextChargeAt: string, now: Date, graceMs = 48 * 60 * 60 * 1000)`.\n2. Keep the current comparison semantics except for the grace offset: effectively charge only when `new Date(nextChargeAt).getTime() + graceMs <= now.getTime()`.\n3. Inject or override time only enough to test repeatably. Do not change constructor behavior, database connection timing, transaction boundaries, return values, or exception propagation in the same patch.\n4. Do not \u201cfix\u201d timezone/local-time handling as part of this change. The current code already delegates parsing to `new Date(account.nextChargeAt)`. Changing parsing/storage interpretation at the same time would be an unbounded semantic change.\n\nThat gives the requested grace period while minimizing blast radius:\n- `charged` vs `not-due` stays unchanged.\n- The same transaction wraps `charges.insert` and `accounts.markCharged`.\n- Any current exceptions from `find`, `transaction`, `insert`, or `markCharged` still surface the same way.\n- The only intended semantic delta is that eligibility moves from `nextChargeAt` to `nextChargeAt + 48h`.\n\n**Verification Plan**\n\nPrimary verification should be fast characterization tests with a fake database and controlled clock, not the shared staging database.\n\nAdd characterization tests first for current behavior:\n- charges when `now` is exactly equal to `nextChargeAt`\n- does not charge when `now` is before `nextChargeAt`\n- on charge, inserts one charge row and marks the account charged inside the transaction\n- if the transaction body throws, the method preserves current exception behavior\n- constructor/database setup behavior is unchanged if you introduce a seam there\n\nThen add new-behavior tests for the grace period:\n- does not charge at exactly `nextChargeAt`\n- does not charge at `nextChargeAt + 47h 59m 59s`\n- does charge at exactly `nextChargeAt + 48h`\n- does charge after more than 48 hours\n- preserves the existing charged amount and `chargedAt` value shape\n\nAdd explicit timestamp-format cases because the team is unsure about stored-time history:\n- an ISO timestamp with `Z`\n- an ISO timestamp with an explicit offset\n- a timestamp string without offset, if that format exists in production data\n\nUse staging only for a narrow smoke check after unit characterization exists:\n- one fixture/account that is clearly not due under the new rule\n- one fixture/account that is clearly past `nextChargeAt + 48h`\n- verify only observable outcome, not broad fixture-dependent side effects\n- run off-peak because the environment is slow/shared\n\n**Product Decisions That Must Be Resolved**\n\nThese should not be inferred from the snippet:\n- Is the grace period exactly 48 elapsed hours from the stored instant, or \u201c2 calendar days\u201d in some business timezone? Those are different rules.\n- For timestamps stored without an offset, which timezone is authoritative? Server local time, account timezone, or UTC?\n- Is charging exactly at the boundary intentional under the new rule? The safest implementation preserves the current inclusive boundary style: charge when `now >= nextChargeAt + 48h`.\n- If `nextChargeAt` is malformed or ambiguous, should billing fail, skip charging, or alert? Current behavior is not explicit.\n- Must the current exception propagation and transaction semantics remain part of the public contract? The safest bounded change assumes yes and preserves them.\n- If another job already charged the account, is duplicate-charge prevention handled elsewhere? This code does not show idempotency guarantees.\n\nIf product cannot answer the time-rule questions yet, the least risky default is: `48 elapsed hours`, computed from the stored timestamp as currently parsed, with the same inclusive comparison and the same failure/transaction behavior as today.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:38:23.687643Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5354-1e96-7802-ac75-77ede9f2f5eb.1783809449634533000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

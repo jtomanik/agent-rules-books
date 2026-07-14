@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55c7-71ab-7fb0-b889-e0b88e021bd6",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommendation**\n\nTreat this as a legacy change, not a simple date tweak. The safest bounded implementation is:\n\n1. Add a minimal seam for `now` and the database so `chargeIfDue()` can be tested without the real constructor side effects.\n2. Characterize the current externally visible behavior before changing semantics:\n- charges when `nextChargeAt` is exactly equal to `now` or in the past\n- returns `\"not-due\"` and performs no writes when not due\n- wraps both writes in the existing transaction call\n- preserves current exception propagation from `find`, `transaction`, `insert`, and `markCharged`\n3. Extract the due decision into a tiny pure helper and change only that rule.\n- Compute against the parsed instant, not local calendar logic: `dueAtMs = Date.parse(nextChargeAt) + 48h`\n- Then compare `nowMs` to `dueAtMs`\n- Leave the rest of the method structurally unchanged\n4. Do not change constructor behavior, transaction boundaries, exception handling, DB schema, or timestamp parsing rules in the same patch.\n\nA bounded shape is:\n\n```ts\nconst GRACE_PERIOD_MS = 48 * 60 * 60 * 1000;\n\nfunction isChargeDue(nextChargeAt: string, now: Date): boolean {\n  const dueAtMs = new Date(nextChargeAt).getTime() + GRACE_PERIOD_MS;\n  return dueAtMs <= now.getTime(); // or <, pending product decision\n}\n```\n\nUse optional constructor injection or a small internal factory so production callers still use `new BillingScheduler(accountId)` exactly as they do now.\n\n**Verification Plan**\n\nPrimary verification should be fast local tests with a fake database and fixed clock. Do not use shared staging as the main feedback loop.\n\nAdd focused tests for:\n- current legacy boundary at exact `nextChargeAt` before the change\n- new boundary at `nextChargeAt + 48h`\n- just before and exactly at the grace cutoff\n- transaction wrapper still used\n- same exception behavior as today\n- no writes when not due\n\nExample cases after the behavior change:\n- `nextChargeAt = now - 47h 59m 59s` => `\"not-due\"`\n- `nextChargeAt = now - 48h` => boundary depends on product decision\n- `nextChargeAt = now - 48h - 1ms` => `\"charged\"`\n\nUse staging only for one bounded confidence check after tests pass, and only with an isolated fixture or dedicated account. Because staging is slow and shared, avoid broad fixture edits and avoid any cleanup-heavy plan.\n\nIf the team is worried about stored timestamp interpretation, add a read-only production/staging data audit before rollout rather than guessing in code:\n- sample real `nextChargeAt` values\n- confirm whether strings are consistently ISO-with-offset / UTC-normalized\n- identify any legacy local-time-shaped rows that would shift behavior unexpectedly\n\n**Product Decisions That Must Be Resolved**\n\nDo not infer these from the current code:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h`, or only after that instant?\n- Time interpretation rule: is the grace period 48 absolute hours from the stored timestamp, or a business/local-time concept tied to account timezone?\n- Legacy bad data policy: if historical rows were stored with inconsistent local-time assumptions, should those be honored as-is, migrated, or manually corrected before rollout?\n\nEverything else should be preserved unless product explicitly asks otherwise: current transaction shape, exception behavior, and caller-facing return values.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T10:03:51.612815Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55c7-71ab-7fb0-b889-e0b88e021bd6.1783850561974853000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

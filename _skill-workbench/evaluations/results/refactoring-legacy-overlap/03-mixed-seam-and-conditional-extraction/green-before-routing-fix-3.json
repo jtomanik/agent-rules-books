@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5349-adb2-71a2-84a5-487ef1ab048c",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a three-patch sequence. This is legacy-change work first, refactoring second.\n\nPatch 1: gain control with seams and focused tests, no logic change.\n- Add a database seam and a clock seam so `RenewalWorker` can be tested without constructing `RenewalDatabase` internally or reading `new Date()` directly.\n- Keep production defaults behavior-identical: same `process.env.RENEWAL_DSN!`, same real clock.\n- Add focused worker tests for current behavior before semantics change:\n  - `quote()` returns a price for currently eligible accounts.\n  - `quote()` returns `null` for `closed`, `paused`, and negative-balance accounts.\n  - `renew()` returns `\"renewed\"` for currently eligible accounts and `\"skipped\"` otherwise.\n  - `renew()` writes exactly one renewal row and one mark-renewed update for eligible accounts.\n  - `renew()` uses one captured timestamp per invocation for both writes.\n  - `quote()` and `renew()` currently agree on eligibility for the same account shape.\n- Keep the existing slow end-to-end success-path test as a backstop, not the primary feedback loop.\n\nPatch 2: remove duplication with one owner, still no logic change.\n- Extract the current predicate unchanged into one owner, preferably a pure helper such as `isEligibleForAutomaticRenewal(account, now)`.\n- Make both `quote()` and `renew()` call that owner.\n- Do not move pricing, transaction handling, persistence calls, or return shaping into the helper.\n- This patch should be reviewable as behavior-preserving refactoring only.\n\nPatch 3: add the trial-age rule in the single owner.\n- Extend eligibility so `trial` accounts older than 30 days are ineligible for both quoting and renewal.\n- Add focused boundary tests:\n  - younger than 30 days remains eligible\n  - exactly 30 days old must be pinned explicitly before coding\n  - older than 30 days is ineligible\n  - ineligible trial accounts produce `null` from `quote()` and `\"skipped\"` from `renew()` with no writes\n- Preserve every existing non-trial outcome.\n\nWhat must be learned or controlled before semantic edits:\n- Exact boundary meaning of \"older than 30 days\". Safe reading is strict `>` 30 days, so exactly 30 days remains eligible, but product must confirm.\n- Time basis: exact elapsed duration vs calendar-day interpretation. Use one explicit rule, not an implicit local-time parse.\n- Data contract for `trialStartedAt` on trial accounts: can it be `null`, malformed, or non-UTC? Do not invent fallback behavior silently.\n- Whether `quote()` and `renew()` are required to share identical eligibility semantics. The current code strongly implies yes; test that invariant.\n- Whether constructor changes can be made compatibly for existing callers. Defaulted dependency injection is the low-risk shape.\n\nBehavior-preserving constraints during structural work:\n- No business-rule changes in Patch 1 or Patch 2.\n- Preserve DSN lookup and default runtime wiring.\n- Preserve one captured `now` per method call.\n- Preserve `quote()` inputs to `prices.forPlan(account.plan, now)`.\n- Preserve `renew()` transaction boundary, write order, timestamp format, and return values.\n- Preserve current eligibility outcomes for `closed`, `paused`, and negative-balance accounts.\n- Do not broaden scope into repository redesign, pricing changes, or unrelated cleanup.\n\nRecommended ownership shape:\n```ts\nfunction isEligibleForAutomaticRenewal(account: Account, now: Date): boolean\n```\nThat is the smallest seam that centralizes the duplicated conditional, keeps the rule testable, and avoids speculative abstraction.\n\nIf the team insists on fewer patches, do not combine seam creation, duplication removal, and the new rule into one edit. The minimum safe compromise is: seams and tests first, then one patch that extracts the unchanged predicate and adds the trial-age rule inside that single owner, with explicit boundary tests.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:26:05.466673Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5349-326e-7521-919a-2a2cb064e1b2.1783808733806873000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:27:00.099833Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5349-adb2-71a2-84a5-487ef1ab048c.1783808765362272000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

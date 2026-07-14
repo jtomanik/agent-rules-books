@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5365-3609-72c0-a81d-5fbb2018ecda",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small-step refactoring sequence, with each step keeping the current tests green and changing only structure.\n\n1. Keep the existing focused tests as the safety net and treat them as the contract. Do not change assertions, public types, rounding, thresholds, or condition order.\n2. Extract subtotal calculation first. Move the item loop into a private helper or local pure function such as `calculateSubtotalCents(items)`. This is the lowest-risk split and gives the rest of the method a clearer top-down shape.\n3. Extract discount calculation next into a pure helper taking `customerTier` and `subtotalCents`. Keep the exact threshold and `Math.floor` behavior. This isolates the first pricing policy without changing any downstream math.\n4. Make the post-discount amount explicit with a named local like `discountedSubtotalCents = subtotalCents - discountCents`. Do this before shipping extraction so the current dependency is obvious in code review.\n5. Extract shipping calculation into a helper that takes `destination` and the already-discounted subtotal. That preserves the important current rule: free domestic shipping is decided after discount, while international shipping overrides it.\n6. Extract tax calculation last. Keep `taxableCents = discountedSubtotalCents + shippingCents` explicit, then compute tax in one small helper. At that point `price()` becomes orchestration only: subtotal, discount, shipping, tax, assemble result.\n7. Stop there unless an immediately-following feature proves another smell is still blocking change.\n\nWhere the cleanup should stop:\n- Stop once `price()` reads as a short top-down workflow and each pricing rule lives in one small, pure calculation.\n- Do not redesign the public API, introduce new domain objects, add configuration layers, or create strategy/policy class hierarchies yet. The current variation is too small to justify that abstraction.\n- Do not split this into multiple modules unless a new feature creates a real second reason to change. A single pricer with a few focused helpers is still an appropriate ownership boundary.\n- Do not \"improve\" behavior while refactoring: no threshold changes, no different rounding, no reordered rules, no altered shipping precedence, no performance-driven rewrites.\n\nA good reviewable patch sequence is therefore: extract subtotal, extract discount, make discounted subtotal explicit, extract shipping, extract tax, then stop. That removes the current mixed-phase long method without turning a protected cleanup into a speculative redesign.",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:56:09.894682Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5364-d8a2-7113-8e28-aa5f189f2c8d.1783810545827411000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:56:54.623874Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5365-3609-72c0-a81d-5fbb2018ecda.1783810569737885000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

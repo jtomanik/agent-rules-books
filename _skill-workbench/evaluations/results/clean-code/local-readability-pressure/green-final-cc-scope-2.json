@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58cd-a6ef-77d0-9a5f-4d7b5585fffc",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest change is a local extraction of discount logic and a narrow test addition. I would not \"just add another branch\" inline inside `finalize`; that increases the risk in a method that already mixes pricing, mutation, persistence, notification, and audit side effects.\n\nConcrete patch plan:\n1. Extract discount computation into a small pure helper inside `InvoiceService`, for example `private discountFor(account: Account, invoice: Invoice): number`.\n2. Encode the new rule as an overriding case: `partner` accounts with `invoice.total >= 500` get `0.15` total discount.\n3. Preserve current behavior for every other case: `vip` still gets `0.10`, invoices with `total > 1000` still add `0.05` only when the new partner rule does not already apply.\n4. Leave `finalize` side effects unchanged: preview behavior, balance mutation, `accounts.save`, `lastInvoiceId`, optional `mailer.send`, and `audit.record` all stay exactly as they are.\n5. Add targeted tests around the new rule and its boundaries before shipping.\n\nRevised sketch:\n```ts\ntype FinalizeResult = {\n  amount: number;\n  discount: number;\n  changed: boolean;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(account: Account, invoice: Invoice): number {\n    if (account.segment === \"partner\" && invoice.total >= 500) {\n      return 0.15;\n    }\n\n    let discount = account.segment === \"vip\" ? 0.1 : 0;\n\n    if (invoice.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean): FinalizeResult {\n    const discount = this.discountFor(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount selection logic, a small local extraction to make the rule explicit, and tests that prove unchanged downstream behavior.\n- Out of scope: changing the `finalize` signature, removing boolean flags, introducing money/value objects, redesigning side-effect sequencing, or broader service cleanup because that increases review and regression risk under the 45-minute release window.\n\nTests I would require before shipping:\n1. `partner` with `total === 500` gets exactly `discount: 0.15` and correct `amount`.\n2. `partner` with `total > 500` in preview mode returns the discounted amount and does not call `accounts.save`, `mailer.send`, or `audit.record`.\n3. `partner` with `total > 500` in finalize mode still performs the existing side effects with the discounted amount passed through to `save`/`send`/`record` expectations.\n4. `partner` with `total > 1000` gets exactly `0.15`, not `0.20`; this is the main ambiguity trap worth locking down.\n5. Boundary regression: non-partner behavior remains unchanged, especially `vip` at normal totals and any account with `total > 1000` still receiving the existing extra `0.05` where applicable.\n\nIf the current suite already covers the non-partner paths well, I would add only the new partner cases plus the `> 1000` partner regression test. That is the smallest safe patch that still stands up in review.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:09:03.675348Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58cd-a6ef-77d0-9a5f-4d7b5585fffc.1783901300463802000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

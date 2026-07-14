@@ -1,0 +1,46 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58cd-437d-7c23-ad0e-2fe3e6be2e4c",
+  "exit_code": 0,
+  "result": {
+    "answer": "The shortcut is not safe for launch. The current consumer is only safe if you assume no duplicate delivery, no replay, no cross-partition reordering, and known-success email outcomes; your stated facts explicitly deny all four.\n\nThe blocking correctness issues are:\n- Duplicate/retry after crash: the process can crash after the database commit and before offset commit. On restart, the same event can be consumed again. Broker transactions do not make `orders`, `ledger`, and `email` part of one atomic exactly-once boundary. As written, that can repeat `ledger.insert(...)` and resend the receipt.\n- Replay safety: replaying the topic is a supported rebuild mechanism, but this handler performs a user-visible side effect inline. Replaying old events would resend receipts unless there is a durable local guard. That alone disqualifies removing deduplication.\n- Ordering: the topic is keyed by `customer_id`, and you state two events for the same order can land on different partitions. With `max_concurrency: 48`, the consumer cannot rely on broker order for per-order correctness. If order history matters, the ordering contract is currently wrong or incomplete.\n- Unknown-success side effect: the email provider does not support idempotency keys and timeout outcome is unknown. If `sendReceipt` times out, you cannot know whether the email was sent. Retrying inline risks duplicate receipts; not retrying risks a missing receipt. The current design has no repair-safe contract for that ambiguity.\n- Uncoordinated multi-write: one logical operation updates the DB, calls an external provider, and commits broker progress, but there is no explicit recovery or reconciliation strategy across those boundaries.\n\nWhat must change before launch:\n- Keep the deduplication mechanism, or replace it with an equivalent durable processed-event/apply-once record. Do not remove it.\n- Make database effects idempotent under replay. At minimum, guard `markConfirmed` and `ledger.insert` with a stable event identity or business uniqueness constraint so reprocessing the same confirmation cannot create a second ledger entry.\n- Remove email sending from the inline consume transaction. Persist a durable \"receipt pending/to-send\" record in the same database transaction as the order/ledger update, then ack only after that durable state is committed.\n- Send receipts from a separate delivery process that uses the durable outbox/receipt table and a local once-only business rule such as \"at most one receipt for this order\". Because the provider has unknown timeout outcome and no idempotency key support, you need reconciliation state such as `pending`, `sent`, `send_unknown`, `failed`, plus operational handling for `send_unknown` rather than blind retry.\n- Define ordering at the same key as the invariant. If correctness depends on per-order sequencing, partition by `order_id` or carry per-order version/sequence metadata and reject stale/out-of-order events explicitly. Current `customer_id` partitioning is not enough.\n- Separate replayable projection work from non-replayable side effects. Topic replay must be able to rebuild state without re-emailing users.\n\nApproval recommendation: do not approve the consumer unchanged, and do not approve removal of the idempotency table. The minimum safe pre-launch bar is durable deduplication/idempotent DB application, durable outbox-style receipt scheduling, and an explicit per-order ordering contract.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Partitioning and Locality Rules",
+          "Transaction Rules",
+          "Review Rules",
+          "Forbidden Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:08:55.509832Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58cd-437d-7c23-ad0e-2fe3e6be2e4c.1783901275005788000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

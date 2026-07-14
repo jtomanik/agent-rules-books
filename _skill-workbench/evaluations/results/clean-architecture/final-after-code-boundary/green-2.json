@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58a7-f5fe-79b1-b790-feb96762b98f",
+  "exit_code": 0,
+  "result": {
+    "answer": "The current proposal puts the use case inside a Next.js/Prisma adapter. That is too coupled for the requirement: the approval rule, total calculation, and application action should live in an inner application layer that owns its own models and ports.\n\nA minimal production design is:\n\n```ts\n// application/create-invoice.ts\nexport type CreateInvoiceInput = {\n  orderId: string;\n};\n\nexport type CreateInvoiceOutput = {\n  invoiceId: string;\n  totalCents: number;\n};\n\nexport type OrderSnapshot = {\n  id: string;\n  status: \"APPROVED\" | \"PENDING\" | \"CANCELLED\";\n  lines: Array<{ amountCents: number }>;\n};\n\nexport type InvoiceDraft = {\n  orderId: string;\n  totalCents: number;\n};\n\nexport interface LoadOrderById {\n  loadById(orderId: string): Promise<OrderSnapshot | null>;\n}\n\nexport interface SaveInvoice {\n  save(draft: InvoiceDraft): Promise<{ id: string }>;\n}\n\nexport class OrderNotApprovedError extends Error {}\nexport class OrderNotFoundError extends Error {}\n\nexport async function createInvoice(\n  input: CreateInvoiceInput,\n  deps: {\n    loadOrderById: LoadOrderById;\n    saveInvoice: SaveInvoice;\n  },\n): Promise<CreateInvoiceOutput> {\n  const order = await deps.loadOrderById.loadById(input.orderId);\n  if (!order) throw new OrderNotFoundError();\n  if (order.status !== \"APPROVED\") throw new OrderNotApprovedError();\n\n  const totalCents = order.lines.reduce((sum, line) => sum + line.amountCents, 0);\n  const invoice = await deps.saveInvoice.save({ orderId: order.id, totalCents });\n\n  return { invoiceId: invoice.id, totalCents };\n}\n```\n\nTranslation and ownership should be explicit:\n\n- The use case owns `CreateInvoiceInput`, `CreateInvoiceOutput`, `OrderSnapshot`, `InvoiceDraft`, and the two interfaces.\n- The Next.js route is only a controller: read `orderId` from `NextRequest`, call the use case, map success/errors to HTTP.\n- The Prisma adapter implements `LoadOrderById` and `SaveInvoice`, and translates Prisma records to/from the use case models.\n- Concrete wiring belongs at the outer edge: the route module or a small composition function creates the Prisma-backed adapters and passes them into `createInvoice`.\n\nThat gives the smallest clean split:\n\n```ts\n// app/api/invoices/route.ts\nimport { NextRequest, NextResponse } from \"next/server\";\nimport { createInvoice, OrderNotApprovedError, OrderNotFoundError } from \"@/application/create-invoice\";\nimport { prismaLoadOrderById, prismaSaveInvoice } from \"@/infrastructure/invoice-prisma\";\n\nexport async function POST(request: NextRequest) {\n  const orderId = request.nextUrl.searchParams.get(\"orderId\");\n  if (!orderId) {\n    return NextResponse.json({ error: \"missing orderId\" }, { status: 400 });\n  }\n\n  try {\n    const result = await createInvoice(\n      { orderId },\n      {\n        loadOrderById: prismaLoadOrderById,\n        saveInvoice: prismaSaveInvoice,\n      },\n    );\n\n    return NextResponse.json(result, { status: 201 });\n  } catch (error) {\n    if (error instanceof OrderNotFoundError) {\n      return NextResponse.json({ error: \"order not found\" }, { status: 404 });\n    }\n    if (error instanceof OrderNotApprovedError) {\n      return NextResponse.json({ error: \"not approved\" }, { status: 409 });\n    }\n    throw error;\n  }\n}\n```\n\nThis is the smallest design that keeps policy independent:\n\n- approval rule stays in the use case\n- total calculation stays in the use case\n- Next.js handles HTTP only\n- Prisma handles persistence only\n- wiring stays in the outer layer",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

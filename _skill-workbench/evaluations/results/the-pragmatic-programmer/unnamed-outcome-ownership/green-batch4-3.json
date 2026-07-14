@@ -1,0 +1,39 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/unnamed-outcome-ownership.md",
+  "case_sha256": "d869553f51c12d27bb19473b82db8448dc7c3c58408000fcda992863b5071a60",
+  "mode": "green",
+  "run": "green-batch4-3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dcc-f049-7352-a792-f71458928c1b",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The delivery manager\u2019s position should be rejected. It optimizes for local ownership of edits, but not for the export outcome. In this situation, duplicated eligibility logic across three entry points is one piece of business knowledge with three inconsistent owners, vendor format written into domain records turns a reversible integration detail into a core commitment, and a six-command tribal release process means critical operational knowledge is effectively unowned.\n\nThe result needs a single accountable owner: the export capability, not the API team, job team, admin team, or release engineer in isolation. Those teams can own their adapters, but one engineer or small export slice team must own end-to-end correctness across rule calculation, vendor shaping, and release repeatability. Without that, every defect will be classified as someone else\u2019s boundary.\n\nOne authority is required for each of these knowledge areas:\n- Eligibility rules: one shared policy/module/use case, called by API, nightly job, and admin preview.\n- Vendor format mapping: one exporter adapter/translator, outside the domain model.\n- Release procedure: one scripted, versioned workflow, not six undocumented shell rituals.\n\nThe commitment that should remain reversible is the vendor-specific representation. The domain should keep domain facts; the vendor file shape should be derived at the boundary. If the vendor changes format or is replaced, that should be an adapter change, not a domain data rewrite.\n\nA thin, reviewable first slice is:\n1. Extract one shared eligibility calculation module with tests.\n2. Add one exporter adapter that converts canonical domain data into the new vendor format without storing that format in domain records.\n3. Wire only one entry point end-to-end first, preferably admin preview, because it is the fastest review loop.\n4. Add a golden-file or approval-style test for the vendor output so reviewers compare structured output, not screenshots or eyeballing.\n5. Replace the six manual release commands with one checked-in script or pipeline target that performs a dry run and emits the artifact deterministically.\n\nThat slice is small enough to review, but real enough to validate the architecture immediately. It proves four things before the deadline: the rule can be centralized, the vendor format can stay outside the domain, the output can be mechanically verified, and release knowledge can move from a person into the repository.\n\nFeedback should arrive before all three entry points are complete. The first slice should produce fast signals from unit tests on eligibility, fixture-based export output checks, and a scripted dry-run release. After that passes review, the API and nightly job should be reduced to thin callers of the same shared export path. That sequence keeps the risky decisions visible early instead of discovering, on day nine, that the chosen style locked in duplication and manual operations.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer",
+      "a-philosophy-of-software-design",
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

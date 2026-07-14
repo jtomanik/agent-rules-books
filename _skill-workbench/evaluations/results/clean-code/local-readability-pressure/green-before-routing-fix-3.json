@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5348-1dd2-7d21-8db6-987acbae500c",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommendation**\nShip the smallest local change: isolate discount calculation into a tiny pure helper and add the new `partner` rule there. Do not broaden the patch into a service rewrite, persistence change, or collaborator-flow cleanup. That matches the repository guidance: gain control with a narrow seam, keep behavior change separate from refactoring, and avoid rewrite-pressure sprawl.\n\n**Exact Scope Boundary**\nIn scope:\n- Discount computation only.\n- A very small extraction if needed to make the rule testable in isolation.\n- Targeted tests for returned values and unchanged collaborator behavior.\n\nOut of scope:\n- Renaming the service API.\n- Reworking `preview` / `sendEmail` flow.\n- Changing `accounts.save`, `mailer.send`, `audit.record`, or `lastInvoiceId` behavior.\n- Reinterpreting existing rules outside the new `partner` condition.\n\n**Concrete Patch Plan**\n1. Extract the current discount logic into a helper such as `calculateDiscount(account, invoice)` or a private method on `InvoiceService`.\n2. Preserve current rules exactly:\n   - `vip` starts at `0.1`.\n   - invoices over `1000` add `0.05`.\n3. Add the new rule in that helper:\n   - if `account.segment === \"partner\"` and `invoice.total >= 500`, add `0.15`.\n4. Keep `finalize` otherwise unchanged: same preview behavior, same balance mutation, same save/mail/audit calls, same return shape.\n5. Add focused tests around the helper outcome via `finalize` unless the codebase already has a pattern for testing private pure logic indirectly.\n\n**Revised Sketch**\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\ntype Invoice = {\n  id: string;\n  total: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    let d = a.segment === \"vip\" ? 0.1 : 0;\n\n    if (a.segment === \"partner\" && i.total >= 500) {\n      d += 0.15;\n    }\n\n    if (i.total > 1_000) {\n      d += 0.05;\n    }\n\n    return d;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n}\n```\n\n**Important Assumption**\nI would implement the `partner` rule as additive with the existing `> 1000` rule, because that preserves all pre-existing behavior outside the new segment condition. Under that reading, a `partner` invoice of `1200` gets `0.20` total discount. If product meant \"15% total and not stackable,\" that must be clarified before shipping.\n\n**Tests Required Before Ship**\n1. `partner` with `total = 499.99` gets no new discount.\n2. `partner` with `total = 500` gets `0.15` discount.\n3. `partner` with `total = 1000` gets `0.15` discount.\n4. `partner` with `total = 1000.01` gets `0.20` discount under the additive interpretation.\n5. `vip` behavior is unchanged at a non-threshold amount.\n6. Existing `> 1000` behavior is unchanged for `standard` and `vip`.\n7. In `preview` mode, return values reflect the new discount and no `save` / `send` / `record` calls occur.\n8. In non-preview mode for a qualifying `partner`, `accounts.save`, optional `mailer.send`, and `audit.record` still receive the correctly discounted `amount`.\n\nThat is the patch I would approve under a 45-minute release window: one local seam, one behavior change, and regression coverage around the thresholds and existing collaborator effects.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:25:19.768702Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5348-1dd2-7d21-8db6-987acbae500c.1783808662995155000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

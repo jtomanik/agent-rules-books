@@ -1,0 +1,41 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/manual-focused-bounded.md",
+  "case_sha256": "b6d2aacd1293d2ee198c43fa4a0c84a78a96e93f09cd1fb1d102eb475734ad51",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58b9-4421-7403-b4d3-9e008d14c89d",
+  "exit_code": 0,
+  "result": {
+    "answer": "A five-second lag target is not a read-your-writes contract. It is only an operational target. This case needs an explicit per-session catch-up contract tied to commit position, plus a failover rule that aligns acknowledgment semantics with promotion safety.\n\nUse this contract:\n\n1. The source of truth is the primary\u2019s committed write log.\n2. Every successful profile write returns a session read token such as `commit_lsn` or another monotonic commit position.\n3. Any redirected read to an async replica must include that token.\n4. A replica may serve the read only if it can prove `applied_position >= commit_lsn`.\n5. If the replica cannot prove catch-up quickly, route that read to the current leader or another node that can prove it. Do not guess from elapsed time.\n\nThat resolves the disagreement: five seconds of nominal lag does not matter if the replica has not applied the session\u2019s commit, and a replica with more than five seconds of ordinary lag is still acceptable for this session if it can prove it has applied the required position.\n\nFailover changes the durability question. If you acknowledge a write before it is replicated to nodes that can survive promotion, then after failover you may promote a node that never received that write. In that case read-your-writes is unachievable because the write may be gone, not merely lagging. So you must choose one of these two honest contracts:\n\n- Stronger contract: acknowledge the profile update only after the commit is durable on the failover set needed for promotion. Then a promoted node can eventually prove `applied_position >= commit_lsn`, and session catch-up remains valid after failover.\n- Weaker contract: acknowledge on the primary before failover-safe replication. Then after failover the system must admit possible write loss or unknown success. It must not promise read-your-writes for that acknowledged response.\n\nGiven your stated requirement, the stronger contract is the correct one. Concretely:\n\n- Write acknowledgment point: primary commit plus replication to the promotion-safe quorum/set.\n- Read visibility point on replicas: only after local apply reaches the client token.\n- Failover rule: only serve session reads from a promoted node that can prove the token is present and applied.\n- Timeout rule: if catch-up status is uncertain because of network delay, treat it as unknown, not caught up. Fallback to leader/strong read path.\n\nThis keeps the contract bounded and precise:\n\n- Normal case: async replicas are allowed, but reads are fenced by commit position.\n- Catch-up case: waiting is based on replicated/apply position, not wall-clock lag.\n- Failover case: correctness depends on promotion-safe durability, not replica freshness averages.\n\nIf you do not want the write latency cost of promotion-safe acknowledgment, then the product contract must be weakened explicitly to \u201cusually fresh, but read-your-writes can be lost across failover.\u201d There is no design that preserves a strict read-your-writes guarantee after promoting a node that may not contain the acknowledged write.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Consistency Rules",
+          "Replication Rules",
+          "Distributed Fault, Clock, and Consensus Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:46:04.758291Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f58b8-4dcf-7f12-a880-2cb7b00761ec.1783899902978940000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T23:46:43.600789Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58b9-4421-7403-b4d3-9e008d14c89d.1783899964463465000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

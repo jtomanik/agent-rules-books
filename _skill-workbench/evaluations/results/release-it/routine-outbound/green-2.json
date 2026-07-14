@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55cb-1235-7e83-bde6-42830066ba00",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n1. High: the semaphore wait is unbounded, so optional quote work can block checkout past the 2.5s request budget before the carrier call even starts ([integration snippet](#) line 7). `Semaphore.acquire()` waits forever unless given a deadline or signal, and `requestSignal` is currently ignored. Smallest fix: make slot acquisition cancellable by the checkout request budget and return `{ kind: \"unavailable\" }` when that wait is aborted or times out.\n2. High: the outbound call is not bounded by the checkout request budget and its configured timeout does not cover connection establishment ([integration snippet](#) lines 10-18). As written, a slow connect can outlive `CHECKOUT_REQUEST_TIMEOUT_MS`, and the quote call will continue after checkout should have degraded. Smallest fix: pass an abort signal into `carrierClient.post()` that is tied to `requestSignal` and capped to the remaining carrier budget; keep `CARRIER_RETRIES=0`.\n3. Medium: failure classification does not match the stated contract, and successful responses are not validated ([integration snippet](#) lines 19-29). All exceptions become `{ kind: \"unavailable\" }`, which incorrectly hides provider `4xx` contract/request bugs, and any `200` JSON body is accepted even if `amount`, `currency`, or `expires_at` are malformed. Smallest fix: explicitly branch on status/content/body validity: only `200` + JSON + valid fields returns `available`; `429`, `5xx`, timeout, and transport failure return `unavailable`; other `4xx` and invalid `200` responses should be treated as integration errors, not graceful degradation.\n\nRecommended pre-merge change set:\n- Derive one deadline from the checkout budget and use it for both semaphore acquisition and the HTTP call.\n- Pass the derived abort signal into `carrierClient.post()` so connection setup is also bounded.\n- Validate `status`, `Content-Type`, and response shape before returning `available`.\n- Log classified outcomes (`timeout`, `transport`, `429`, `5xx`, `provider_4xx`, `invalid_response`, `semaphore_timeout`) so the first production failures are diagnosable.\n\nI would not ask for retries, circuit breakers, or a broader resilience redesign before first merge. The blocking issues are bounded waiting, request-budget propagation, and correct contract classification.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

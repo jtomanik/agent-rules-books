@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58bd-6f3f-7bc0-ae40-2e0dec9ee108",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest patch is to isolate discount selection into one small helper, change only that rule, and leave the rest of `finalize` untouched. Under this deadline, I would not add more branching inline inside `finalize`; I would extract the branching that already exists so the new rule is local and testable.\n\nConcrete patch plan:\n1. Extract the current discount logic into a private helper such as `computeDiscount(account, invoice): number`.\n2. Implement the new rule there: if `account.segment === \"partner\"` and `invoice.total >= 500`, return `0.15`.\n3. Preserve the existing rules for every other case: `vip` still gets `0.10`, and invoices with `total > 1000` still add `0.05` where they already applied.\n4. Keep `finalize` behavior unchanged otherwise: same return shape, same `preview` behavior, same `accounts.save` call, same `mailer.send` call, same `audit.record` payload, same `lastInvoiceId` mutation.\n5. Ship only after targeted test additions prove the new rule and guard the unchanged side effects.\n\nRevised sketch:\n```ts\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.computeDiscount(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n\n  private computeDiscount(a: Account, i: Invoice): number {\n    if (a.segment === \"partner\" && i.total >= 500) {\n      return 0.15;\n    }\n\n    let discount = a.segment === \"vip\" ? 0.1 : 0;\n\n    if (i.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount computation only, plus tests that pin the new rule and unchanged observable behavior.\n- Out of scope: changing method signature, removing `preview` or `sendEmail` flags, renaming domain types, changing persistence or notification sequencing, changing audit payloads, or broader cleanup justified by the upcoming rewrite.\n\nTests required before shipping:\n- `partner` with `total = 500` gets `discount = 0.15` and correct `amount`.\n- `partner` with `total > 500` gets `discount = 0.15` and correct `amount`.\n- `partner` with `total < 500` keeps prior behavior.\n- Existing `vip` case still returns `0.10` below `1000`.\n- Existing `> 1000` rule still adds `0.05` for non-partner paths that already had it.\n- A non-preview `partner` case still calls `accounts.save`, optionally `mailer.send`, and `audit.record` exactly as before, with the discounted amount.\n- A preview `partner` case still performs no save/send/audit side effects.\n\nOne product question should be resolved explicitly before merge: for `partner` invoices above `1000`, should the result be exactly `15%`, or should the existing `+5%` large-invoice rule stack to `20%`? The wording \"receive a 15% discount when the invoice total is at least 500\" reads as a fixed `15%`, so the sketch above uses non-stacking behavior for that path. If product means stacking, the helper should instead start at `0.15` for qualifying partners and still add `0.05` when `total > 1000`, and the tests must pin that exact expectation.",
+    "selected_project_skills": [
+      "clean-code",
+      "code-complete",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

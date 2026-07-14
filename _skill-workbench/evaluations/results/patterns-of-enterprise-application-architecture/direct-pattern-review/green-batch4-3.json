@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/patterns-of-enterprise-application-architecture/direct-pattern-review.md",
+  "case_sha256": "196e516d72d4740968a5b7442a707413cb990b929ab31d5cf8829f3a7bae9537",
+  "mode": "green",
+  "run": "green-batch4-3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc6-18b6-7f50-b0c2-de1a0298010c",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Current design collapses presentation, workflow, domain rules, persistence, transaction timing, and remote integration into the controller. In PoEAA terms, that is the main defect.\n\nThe smallest fitting pattern set is:\n\n- Business logic: `Domain Model`, with a thin `Service Layer` operation around it.\n- Persistence: `Repository` for `Invoice`, backed by the ORM as a `Data Mapper`.\n- Transaction/write coordination: explicit `Unit of Work` owned by the service layer.\n- Remote boundary: `Remote Facade` for accounting, with DTO translation at the boundary.\n\nI would not keep this as a `Transaction Script` in the controller. Three calculations alone would fit, but the next-quarter roadmap adds jurisdiction-specific exemptions and approval rules, which means the adjustment behavior is acquiring policy, invariants, and lifecycle decisions. That is the point where a small `Domain Model` is the better fit, not a larger controller script.\n\nResponsibility placement should be:\n\n- Controller: parse `POST /invoices/{id}/adjust`, validate transport fields, call `InvoiceAdjustmentService.adjust(...)`, return a response DTO/JSON.\n- Service Layer: start the transaction, load the invoice through `InvoiceRepository`, invoke domain behavior, persist/commit, and orchestrate post-commit integration work.\n- Domain Model: `Invoice.adjust(...)` or an `InvoiceAdjustmentPolicy` used by `Invoice`; own tax, discount, exemption, and approval decisions, plus invariants such as whether an adjustment is allowed and whether approval is required.\n- Repository/Data Mapper: translate between domain objects and ORM rows; the controller should not load or mutate `InvoiceRow` directly.\n- Remote Facade: `AccountingGateway` or similar that exposes a coarse `postAdjustment(...)` operation using an integration DTO, not the ORM entity.\n\nFor transactions, do not let the ORM \"flush sometime before the response\". Make the database transaction explicit in the service layer and keep it short. Because the accounting call is remote and cannot join the database transaction, do not perform it inside the DB transaction and pretend the whole workflow is atomic.\n\nThe safe shape is:\n\n1. Controller calls service.\n2. Service opens DB transaction.\n3. Repository loads `Invoice`.\n4. Domain model computes the adjustment and records an integration fact such as `AdjustmentPostedNeeded`.\n5. Service commits through the unit of work.\n6. After commit, invoke the accounting remote facade, preferably from a reliable post-commit/outbox-style handoff if delivery matters.\n\nThat avoids holding DB locks across a network call and makes the partial-failure boundary explicit. If the accounting call fails after commit, the system needs retry/reconciliation behavior; that belongs in the application/integration workflow, not in the controller and not hidden behind ORM auto-flush.\n\nOne more boundary correction: do not return the ORM row as JSON. Return a response DTO shaped for the API. That keeps lazy loading, persistence fields, and transport shape from leaking across layers.\n\nIn short: controller at the edge, service owns workflow and transaction, invoice domain owns adjustment rules, repository/mapper owns persistence, remote facade owns accounting translation, and the remote call happens outside the DB transaction with explicit failure handling.",
+    "selected_project_skills": [
+      "patterns-of-enterprise-application-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "patterns-of-enterprise-application-architecture"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:18:47.561603Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc6-18b6-7f50-b0c2-de1a0298010c.1783984691382847000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/release-it-neighbor.md",
+  "case_sha256": "57db58c946751052a20daa1953549fae2239a3f6ec798a39c3f7e2dee50e556b",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585b-729b-7f02-b994-2f21ce650055",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Findings**\n1. Critical: `request_timeout_ms: 0`, `image_provider.response_timeout_ms: 0`, and layered retries let slow dependencies hold resources indefinitely and multiply demand. In this shape, one user request can fan out into `3 x 2 x client retries`, which matches the incident. Make the gateway own retry policy in one layer only, disable SDK retries, and keep the synchronous path at `0` retries by default because placeholder mode is already acceptable. If you retain a retry, allow at most `1` retry for transient transport failures or `502/503/504/429`, only before response body consumption, with jitter and only if total request budget still permits it.\n2. Critical: `renderer.worker_pool_size: 200` with an effectively unbounded queue turns latency into memory growth and then process death. Bound both concurrency and buffering. Size renderer workers to CPU, not traffic spikes: roughly `cores` to `2x cores`, rarely more than `8-16` per replica for this kind of gateway. Set a finite queue such as `2-4x` worker count, then fail fast instead of absorbing unbounded backlog.\n3. High: slow provider behavior is not isolated. Use separate bulkheads for provider fetches and rendering, plus a dedicated bounded connection pool for the provider instead of a shared pool. Add a circuit breaker around `imageProvider.fetch`; when the provider is timing out or the breaker is open, return the placeholder immediately rather than consuming fetch slots, renderer slots, and request time.\n4. High: overload behavior is undefined. With `20` replicas, the observed `9000` RPS spike is about `450` RPS per replica. This service should not queue that much work locally. Enable load shedding with a per-replica in-flight cap and immediate degraded responses once concurrency, queue depth, or memory thresholds are crossed. Prefer placeholder on dependency failure; prefer `503` only when local saturation means even degraded work is no longer safe.\n5. High: health checks are misleading. `process_running` is not enough. Liveness should only answer whether the process can make progress; it should not flap on dependency trouble. Readiness should reflect whether the instance can still serve its declared contract, including degraded mode. If placeholder mode still works, provider outage alone should not make the instance unready; local saturation, queue exhaustion, shutdown, or memory pressure should.\n6. Medium: observability is missing exactly where the failure happened. Add dependency latency histograms, timeout counts, retry counts, breaker state, provider pool usage, renderer worker saturation, queue depth and age, in-flight requests, memory pressure, load-shed count, placeholder count, and outcome classification (`full`, `placeholder`, `rejected`). Alert on sustained timeout rate, open-breaker duration, saturation, queue growth, and degraded-response ratio.\n\n**Recommended bounds**\nA reasonable first cut for this gateway:\n\n```yaml\nreplicas: 20\nrequest_timeout_ms: 1200\n\nimage_provider:\n  SDK_retries: 0\n  application_retries: 0\n  connect_timeout_ms: 100\n  response_timeout_ms: 500\n  total_timeout_ms: 600\n  connection_pool: dedicated\n  max_in_flight_per_replica: 32\n  circuit_breaker: enabled\n\nrenderer:\n  worker_pool_size: 8   # or up to 2x cores, capped around 16\n  queue_capacity: 32\n\ntraffic:\n  normal_rps: 400\n  observed_spike_rps: 9000\n  load_shedding: true\n  max_in_flight_requests_per_replica: 64\n\ndegradation:\n  placeholder_response: supported\n  on_provider_timeout: placeholder\n  on_breaker_open: placeholder\n  on_fetch_saturation: placeholder\n  on_render_queue_full: placeholder_or_503\n\nhealth:\n  liveness: event_loop_and_worker_heartbeat\n  readiness: can_serve_degraded_contract\n\nobservability:\n  dependency_latency: true\n  worker_saturation: true\n  queue_depth: true\n  queue_age: true\n  retry_count: true\n  breaker_state: true\n  load_shed_count: true\n  placeholder_count: true\n  in_flight_requests: true\n  memory_pressure: true\n```\n\n**Operational guidance**\nThis is a failure-containment problem, not a data-design problem. The safe posture is: bounded time budgets, one retry owner, finite queues, explicit admission control, fast degradation to placeholder, and readiness based on ability to serve the degraded contract. That directly addresses the incident chain without changing data ownership or persistence semantics.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:03:36.191578Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585b-4baa-7351-993e-7fb975d2fb9e.1783893806045486000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:04:58.246326Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585b-729b-7f02-b994-2f21ce650055.1783893815964022000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

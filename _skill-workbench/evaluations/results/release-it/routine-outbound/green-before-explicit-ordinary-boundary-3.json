@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55ad-1d0d-72c2-948c-4276275fa714",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n\n1. `Semaphore.acquire()` can block forever before the HTTP call starts. That violates the checkout degradation contract under saturation: once `CARRIER_MAX_IN_FLIGHT` is full, requests can wait past the checkout budget instead of returning `{ kind: \"unavailable\" }`. Smallest pre-merge fix: bound the acquire with the checkout/request deadline, and if the wait expires or `requestSignal` aborts, return `{ kind: \"unavailable\" }` without calling the carrier.\n\n2. The outbound call is not tied to the request lifetime, and `timeoutMs` does not cover connect time. `carrierClient.post()` ignores `requestSignal` unless passed explicitly, and the documented timeout excludes connection establishment, so a stuck connect can outlive `CHECKOUT_REQUEST_TIMEOUT_MS=2500` and keep a semaphore slot occupied after checkout should have moved on. Smallest pre-merge fix: pass an abort signal into `carrierClient.post()` and make it represent the full remaining request budget, not just response wait. In practice this should cover both queue wait and the entire HTTP operation.\n\n3. Response handling does not enforce the provider contract. The code currently treats any response with JSON as `kind: \"available\"`, even if it is HTTP `400`, wrong content type, malformed JSON, negative `amount`, non-finite `amount`, bad `currency`, or invalid `expires_at`. That can turn provider/request-contract failures into bogus quotes. Smallest pre-merge fix: explicitly require `200`, JSON content, and validated `{ amount, currency, expires_at }` before returning `available`. Treat `429`, `5xx`, timeout, abort-from-budget, and transport failures as `{ kind: \"unavailable\" }`. Treat provider `4xx` and invalid `200` bodies as contract/request failures in observability terms: do not retry, log them distinctly with status/outcome details, and avoid returning `available` from bad data.\n\nWhat is already correct:\n\n- `CARRIER_RETRIES=0` and \u201cclient performs no implicit retries\u201d satisfy the no-retry requirement.\n- The semaphore release in `finally` is correct once wait/call cancellation is bounded.\n\nMinimum recommendation before merge:\n\n1. Make semaphore acquisition deadline-aware.\n2. Pass a composed abort/deadline signal into the carrier client so the full operation respects the checkout budget.\n3. Validate status, content type, JSON parsing, and response fields before returning `available`, with distinct logging for `4xx` / invalid-contract responses versus ordinary unavailability.\n\nResidual risk if these are not fixed: a saturated or half-open carrier path can consume request time and in-flight slots indefinitely, and malformed provider responses can leak through as apparently valid quotes.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

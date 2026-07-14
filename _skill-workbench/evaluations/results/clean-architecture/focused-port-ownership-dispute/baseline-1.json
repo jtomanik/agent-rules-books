@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/focused-port-ownership-dispute.md",
+  "case_sha256": "04e9788c9bc435a66f25015110790c17324b5596afdc587187370ed72b4f6ed4",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5856-584f-7742-a174-4bbaf059452a",
+  "exit_code": 0,
+  "result": {
+    "answer": "Reviewer B is correct.\n\n`GetOrderSummary` currently depends on infrastructure-owned source code because both `OrderRepository` and `OrderRow` live in `infrastructure/sql-order-repository.ts`. Clean Architecture cares about source dependency direction, not just whether the imported symbol happens to be an interface. An interface declared in an outer layer is still an outward dependency when an inner layer imports it.\n\nThe corrected ownership is:\n\n- The application/use-case layer defines the port because it is the layer that needs the capability.\n- The application layer also defines the data shape that crosses that boundary.\n- The infrastructure layer implements that port and maps SQL-specific rows into the application-owned type.\n\nSo the flow should be:\n\n1. `application` declares something like `OrderRepository`.\n2. `application` declares either:\n   - an application response/read-model type such as `OrderSummaryData`, or\n   - a domain type if the use case truly needs a domain entity.\n3. `infrastructure` keeps `OrderRow` private as an adapter detail.\n4. `SqlOrderRepository` converts `OrderRow` to the inward-owned type before returning.\n\nConceptually:\n\n```ts\n// application/order-repository.ts\nexport type OrderSummaryData = {\n  id: string;\n  status: string;\n  totalCents: number;\n};\n\nexport interface OrderRepository {\n  findById(id: string): Promise<OrderSummaryData | null>;\n}\n```\n\n```ts\n// infrastructure/sql-order-repository.ts\ntype OrderRow = {\n  id: string;\n  status_code: string;\n  total_cents: number;\n};\n\nexport class SqlOrderRepository implements OrderRepository {\n  async findById(id: string): Promise<OrderSummaryData | null> {\n    const row: OrderRow | null = await ...;\n    if (!row) return null;\n    return {\n      id: row.id,\n      status: mapStatus(row.status_code),\n      totalCents: row.total_cents,\n    };\n  }\n}\n```\n\nThis resolves both issues in the dispute:\n\n- Dependency inversion is actually satisfied because the abstraction is owned by the inner policy layer.\n- Persistence shape leakage stops because `OrderRow` does not cross into the application layer.\n\nThe smallest Clean Architecture guidance needed to settle this is:\n\n1. The Dependency Rule: source dependencies must point inward.\n2. The boundary ownership rule for use cases/gateways: interfaces used by an inner layer are defined by that inner layer.\n3. The boundary data rule: data crossing layers should be simple inward-facing models, not outer mechanism-specific formats such as SQL rows.\n\nThat is enough to settle this dispute without a broader architecture audit.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T21:58:01.619729Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5855-dd79-7802-b234-ac75ba740ffb.1783893450105683000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T21:58:01.724458Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5855-dd90-7352-9d03-2ce0c4c01f53.1783893450128888000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T21:58:01.765939Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5855-dd89-76b2-8505-7adfb6d88302.1783893450122062000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T21:58:56.363816Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5856-584f-7742-a174-4bbaf059452a.1783893481551774000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

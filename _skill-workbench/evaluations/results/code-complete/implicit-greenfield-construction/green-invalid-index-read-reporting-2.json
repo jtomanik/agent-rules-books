@@ -1,0 +1,33 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/implicit-greenfield-construction.md",
+  "case_sha256": "d4b5c44ed1d1cf15a79c61af5ae7805bb640ce7bd8ee9538629982ef83dca4da",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58a5-3ed3-7da3-970d-34bee6806ec3",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a two-level contract: batch-level errors for inputs the module cannot meaningfully process, and per-record outcomes for expected data-quality problems.\n\nRecommended first-slice design:\n\n```text\nimportJsonBatch(json, repository) -> Result<ImportBatchResult, ImportBatchError>\n```\n\nValidation and typing:\n- Treat the incoming payload as untrusted at the module boundary.\n- Accept a top-level JSON array of objects only for the first slice; reject malformed JSON or a non-array payload as `ImportBatchError`.\n- Validate each element in two steps: `RawJsonValue -> ParsedImportCandidate -> TypedRecord`.\n- Keep validation explicit and field-based. Reject missing fields, wrong types, malformed IDs, and domain-invalid values before touching the repository.\n- Return validation failures as per-record outcomes, not exceptions.\n\nBatch failure vs per-record outcomes:\n- Do not fail the whole batch for ordinary bad records.\n- Return an ordered outcome for every input record.\n- Reserve batch failure for:\n  - malformed JSON,\n  - invalid top-level shape,\n  - repository/integration failure,\n  - impossible internal invariant violations.\n- This keeps the normal contract predictable: bad data is reported, systemic failure aborts.\n\nDuplicate IDs:\n- Represent duplicates as an explicit per-record outcome, not as a generic validation error.\n- Distinguish:\n  - `duplicate_in_batch` for a later record whose ID already appeared earlier in the same payload,\n  - `duplicate_in_repository` when the repository rejects an already-existing ID.\n- Use first-wins semantics within the batch: the first valid occurrence of an ID continues, later valid occurrences become duplicate outcomes.\n- Invalid earlier records should not reserve the ID; only successfully validated records participate in batch deduplication.\n\nRoutine and control-flow shape:\n- Keep the routine phase-oriented and linear:\n  1. Parse top-level JSON.\n  2. Validate each record into either `TypedRecord` or `Invalid` outcome.\n  3. Deduplicate validated records within the batch.\n  4. For each unique valid record, call the repository boundary.\n  5. Convert repository responses into final outcomes.\n  6. Return ordered outcomes plus summary counts.\n- Do not mix parsing, validation, deduplication, and persistence in one loop if that obscures control flow.\n- Preserve input order in the returned outcomes.\n\nError contract to the caller:\n- Use a narrow fatal error type and a richer success result:\n\n```text\nImportBatchError\n- MalformedJson\n- InvalidTopLevelShape\n- RepositoryFailure\n- InternalInvariantViolation\n\nImportBatchResult\n- outcomes: [RecordImportOutcome]\n- counts: { imported, invalid, duplicate_in_batch, duplicate_in_repository }\n```\n\n```text\nRecordImportOutcome\n- Imported { id }\n- Invalid { index, errors[] }\n- DuplicateInBatch { index, id, first_index }\n- DuplicateInRepository { index, id }\n```\n\nSmallest integration boundary with the typed repository:\n- Keep the repository boundary minimal and typed:\n\n```text\nrepository.insertIfAbsent(record) -> Result<InsertOutcome, RepositoryError>\nInsertOutcome = Inserted | DuplicateExisting\n```\n\n- This is the smallest useful seam because it preserves duplicate semantics without leaking storage details into the import module.\n- Avoid batch repository APIs in the first merge; performance is out of scope and single-record insertion keeps review scope smaller.\n\nSmallest reviewable implementation slice:\n- One public import routine for a top-level JSON array.\n- One typed input schema for a single record shape.\n- Per-record outcomes for `Imported`, `Invalid`, and both duplicate cases.\n- First-wins in-batch deduplication.\n- A repository interface stub with `insertIfAbsent`.\n- No batching optimizations, retry logic, transport concerns, or persistence policy.\n\nTests required for first merge:\n- Boundary tests:\n  - malformed JSON returns `ImportBatchError::MalformedJson`\n  - non-array top-level JSON returns `InvalidTopLevelShape`\n  - empty array returns success with zero outcomes\n  - minimal valid record imports successfully\n- Invalid-input tests:\n  - missing required field\n  - wrong field type\n  - malformed ID\n  - multiple validation errors reported on one record\n- Duplicate tests:\n  - later duplicate in same batch becomes `DuplicateInBatch`\n  - duplicate already in repository becomes `DuplicateInRepository`\n  - invalid earlier record does not reserve the ID\n- Mixed-result tests:\n  - one imported, one invalid, one in-batch duplicate, one repository duplicate in a single batch\n  - returned outcomes preserve input order\n  - summary counts match outcomes exactly\n- Integration-boundary tests:\n  - repository `Inserted` maps to `Imported`\n  - repository duplicate maps to `DuplicateInRepository`\n  - repository error becomes fatal `ImportBatchError::RepositoryFailure`\n\nThe key decision is to make invalid data and duplicates part of the normal result, while keeping fatal errors narrow. That gives the team a small, reviewable first production slice with explicit control flow, typed boundaries, and tests that pin down behavior before any implementation detail hardens.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [
+    "reference_mode ordinary requires SKILL.md files and no references"
+  ],
+  "stderr": ""
+}

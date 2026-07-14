@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/unnamed-customer-meaning-collision.md",
+  "case_sha256": "05b23f1934f2473d70822bdfd1f2d56ec62bb9fe263a1be25403bd402fd22f8c",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c53-9e13-7453-8d09-7a56419f254b",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposed canonical `Customer` model should not be adopted as a shared domain model. `Customer` already means three different things, and the shared `active` flag is especially unsafe because it collapses three incompatible business decisions into one boolean.\n\nSmallest decisions needed:\n1. Keep `BillingCustomer`, `Subject`, and `Recipient` as separate concepts in separate bounded contexts. Do not share a domain class named `Customer` across Billing, Identity, and Fulfillment.\n2. Ban the unqualified words `customer`, `active`, `status`, and `id` at cross-team boundaries unless they are explicitly prefixed or translated. Each context should own its own language:\n   - Billing: `BillingCustomer` or `BillingAccountParty`, `invoiceable` or `billing_enabled`, `billing_account_id`\n   - Identity: `Subject` or `AuthenticatedParty`, `login_enabled`, `subject_id`\n   - Fulfillment: `Recipient`, `deliverable` or `delivery_instructions_usable`, `recipient_id`\n3. Replace the \"canonical Customer\" with either:\n   - no shared model at all, only translations between contexts, or\n   - a very small published interchange record with neutral meaning, such as `PartyReference` or `CustomerCorrelation`, whose job is correlation only, not business behavior.\n\nA safe shared record would look more like:\n- `party_ref_id` or correlation id\n- `billing_account_id?`\n- `subject_id?`\n- `recipient_id?`\n\nIt should not contain `active` or `status`, because those values are context-specific and require translation.\n\nHow information should cross boundaries:\n- Cross-context traffic should use explicit integration contracts, not reused internal models.\n- Each producing context publishes facts in its own language, for example `BillingCustomerInvoiceabilityChanged`, `SubjectLoginEnabledChanged`, `RecipientDeliveryInstructionsUpdated`.\n- Each consuming context translates those facts through an anticorruption layer into its own terms and decides whether they matter locally.\n- If a shared API or event schema is needed for many consumers, publish a neutral language contract focused on identity correlation and explicit capability fields, not one overloaded `Customer` aggregate.\n\nPractical implication for the current proposal:\n- `id` is ambiguous: keep per-context identities and use a separate correlation identity if needed.\n- `active` must be split into distinct fields owned by each context, or omitted from shared interchange.\n- `status` must not be canonical unless there is a single agreed business meaning, which the example does not show.\n\nIn short: separate the bounded contexts, rename the concepts to match local meaning, and let data cross boundaries through translated contracts or a neutral correlation record rather than a shared canonical `Customer` model.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:33:55.470019Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c53-9e13-7453-8d09-7a56419f254b.1783960411668120000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

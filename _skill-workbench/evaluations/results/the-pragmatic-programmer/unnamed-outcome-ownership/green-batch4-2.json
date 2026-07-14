@@ -1,0 +1,66 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/unnamed-outcome-ownership.md",
+  "case_sha256": "d869553f51c12d27bb19473b82db8448dc7c3c58408000fcda992863b5071a60",
+  "mode": "green",
+  "run": "green-batch4-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dcb-925c-7763-a6fb-914440fb132a",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The delivery manager\u2019s framing is wrong. This is not three unrelated issues owned by three teams; it is one export outcome with three symptoms of missing ownership.\n\nThe export team, or one explicitly named export DRI inside it, must own the result end to end: rule correctness, vendor boundary, and release repeatability. Entry-point teams can own adapters, but they cannot each own the eligibility rule. The duplicated calculation in API, nightly job, and admin preview is one piece of business knowledge and needs one authority. Likewise, the vendor format is not a domain concept; writing it directly into domain records turns a volatile integration detail into core model debt.\n\nA thin, reviewable first slice should be:\n1. Extract one canonical `eligibility` decision module with tests and explicit reasons.\n2. Introduce one canonical export model owned by the export flow, not by the vendor format.\n3. Add one vendor formatter at the edge that maps canonical export data to the new vendor file.\n4. Wire exactly one real production path first, preferably the nightly job, through that shared core.\n5. Make admin preview call the same shared core for the same sample entity set, so humans can inspect the exact output without reimplementing rules.\n6. Replace the six undocumented release commands with one scripted verification command that generates output and compares it against checked-in fixtures or golden samples.\n\nThat slice is thin because it proves the risky architecture now: one rule authority, one integration boundary, one reproducible verification path. It is reviewable because reviewers can inspect a single rule module, a single formatter, and a single scripted check instead of three drifting copies and an oral release ritual.\n\nThe commitments that should remain reversible are the vendor-specific ones. Keep vendor field names, file shape, and quirks inside the formatter/adapter. Keep the domain model and the eligibility logic vendor-agnostic. If the vendor changes format in a week, you want to replace one translator, not rewrite domain records and three entry points.\n\nFeedback cannot wait until all three entry points are complete. It should arrive immediately from:\n1. Focused tests around the shared eligibility module.\n2. Golden-file comparisons for vendor output.\n3. A single scripted end-to-end run from source records to exported artifact.\n4. Side-by-side comparison of old vs new output on a representative sample set, done mechanically rather than by eye.\n\nThe ten-day plan should optimize for learning, not parallel copy/paste:\n1. Days 1-2: shared eligibility module, canonical export model, sample fixtures.\n2. Days 3-4: nightly job through shared core, scripted verification, golden diffs.\n3. Days 5-6: admin preview reusing the same core, reviewer signoff on sample outputs.\n4. Days 7-8: API reuses the same core.\n5. Days 9-10: hardening, release rehearsal, removal of remaining duplicated logic.\n\nThe key review conclusion is simple: the existing style is the defect, not the constraint. Shipping in ten days requires owning the export as one system, centralizing the knowledge that must not drift, keeping vendor coupling at the edge, and getting automated end-to-end feedback before the deadline instead of after three separate implementations are already expensive to unwind.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer",
+      "a-philosophy-of-software-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/the-pragmatic-programmer/references/index.md",
+      ".agents/skills/the-pragmatic-programmer/references/full.md",
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/a-philosophy-of-software-design/references/index.md",
+      ".agents/skills/a-philosophy-of-software-design/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "the-pragmatic-programmer",
+        "sections": [
+          "DRY Rules",
+          "Orthogonality Rules",
+          "Tracer Bullets and Iterative Delivery",
+          "Reversibility, Domain Languages, and Requirements",
+          "Prototyping Rules",
+          "Automation Rules",
+          "Feedback Loop Rules",
+          "Project and Team Rules"
+        ]
+      },
+      {
+        "skill": "a-philosophy-of-software-design",
+        "sections": [
+          "Information Hiding Rules",
+          "Interface Design Rules",
+          "Strategic Programming over Tactical Programming",
+          "General-Purpose vs Special-Purpose Modules",
+          "Error Handling and Exception Elimination",
+          "Pull Complexity Downward"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:25:20.243189Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dcb-925c-7763-a6fb-914440fb132a.1783985050205049000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

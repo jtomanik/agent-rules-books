@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/manual-focused-bounded.md",
+  "case_sha256": "b6d2aacd1293d2ee198c43fa4a0c84a78a96e93f09cd1fb1d102eb475734ad51",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5893-6367-7560-ae55-d6dc31cf1fe0",
+  "exit_code": 0,
+  "result": {
+    "answer": "The contract should be: `read-your-writes` is guaranteed only when the client presents a session commit position and the serving node proves it has applied at least that position before answering.\n\nA five-second replica lag target is not sufficient. It is only an SLO on observed delay, not a correctness condition. It does not protect against:\n- a replica that is still behind the session write,\n- a failover that promotes a node missing that write,\n- stale or delayed lag measurements caused by the network.\n\nThe minimal design is:\n1. When the profile update commits, return a session token such as `LSN`, `GTID`, or `term/index`.\n2. On the next read, send that token with the request.\n3. A replica may serve the read only if it can directly establish `applied_position >= session_token`.\n4. If it cannot establish that quickly, it must either wait for catch-up up to a bounded timeout or forward the read to the current leader/primary.\n5. If the timeout expires, fail closed for consistency: either route to the leader or return an explicit retry/please-refresh path. Do not silently serve from a maybe-stale replica.\n\nFailover adds a second requirement: the acknowledged write must survive promotion. That means the write path cannot acknowledge success based only on the old primary\u2019s local state if failover may promote a node that never received it. To preserve read-your-writes across failover, acknowledge the write only after it is durable on a failover-safe quorum, or otherwise weaken the contract and admit that a completed write can disappear after failover.\n\nSo the resolution is:\n- Use per-session commit-position tracking for reads.\n- Use quorum-backed durability for writes if the guarantee must survive failover.\n- Treat lag telemetry as advisory only, never as proof of safety.\n- On uncertainty, prefer leader reads or bounded waiting, not stale replica reads.\n\nWith those rules, catch-up and failover are both covered. Without them, a five-second lag target is operationally useful but logically insufficient for a read-your-writes contract.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:05:42.657445Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5893-6367-7560-ae55-d6dc31cf1fe0.1783897482088136000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

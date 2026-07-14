@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/ordinary-local-hygiene.md",
+  "case_sha256": "f6282cfcb4fb88d1c1e4906b027e6c02e877c4e4d44f3784e5489e34a8c4e92e",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5363-51e0-7382-aa18-2073ae347bd7",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest readable rewrite is to normalize the three trimmed values once, then express the two output shapes directly.\n\n```ts\ntype PersonName = {\n  first: string;\n  last: string;\n  nickname?: string;\n};\n\nexport function makeLabel(p: PersonName, short: boolean): string {\n  const first = p.first.trim();\n  const last = p.last.trim();\n  const nickname = p.nickname?.trim() || \"\";\n\n  if (short) {\n    return nickname || `${first} ${last}`;\n  }\n\n  return nickname ? `${last}, ${first} (${nickname})` : `${last}, ${first}`;\n}\n```\n\nCleanup boundary: keep it strictly local to value normalization and branch shaping. Trim `first` and `last` exactly when used, collapse missing or whitespace-only `nickname` to `\"\"`, and do not change the exported signature or output formats. No broader refactor is justified here because the helper is already fully specified, pure, and stable.\n\nConcise tests:\n- returns trimmed nickname for `short === true`\n- returns `\"<first> <last>\"` for `short === true` when nickname is absent\n- returns `\"<first> <last>\"` for `short === true` when nickname is empty or whitespace-only\n- returns `\"<last>, <first>\"` for `short === false` when nickname is absent\n- returns `\"<last>, <first>\"` for `short === false` when nickname is empty or whitespace-only\n- returns `\"<last>, <first> (<nickname>)\"` for `short === false` with a nickname\n- trims surrounding whitespace from `first`, `last`, and `nickname` without altering the exact final string format\n\nI did not edit files. The workspace appears empty, so this analysis is based on the supplied helper and behavior only.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "stderr": ""
+}

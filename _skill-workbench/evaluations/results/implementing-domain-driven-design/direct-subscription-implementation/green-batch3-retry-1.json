@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/implementing-domain-driven-design/direct-subscription-implementation.md",
+  "case_sha256": "764dfa6f65d2d27d613a86611892b42632439daa0ce126d79ad379f5059e61e7",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c4b-370b-7320-8655-368005806043",
+  "exit_code": 1,
+  "result": null,
+  "integrity_errors": [],
+  "required_project_skills": [
+    "implementing-domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

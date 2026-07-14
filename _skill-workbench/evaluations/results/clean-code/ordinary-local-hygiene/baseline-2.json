@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/ordinary-local-hygiene.md",
+  "case_sha256": "f6282cfcb4fb88d1c1e4906b027e6c02e877c4e4d44f3784e5489e34a8c4e92e",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5362-cc54-7d70-8bf6-2b8576eae0d9",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest readable rewrite is to normalize the three trimmed values once, then branch directly on `short`.\n\n```ts\ntype PersonName = {\n  first: string;\n  last: string;\n  nickname?: string;\n};\n\nexport function makeLabel(p: PersonName, short: boolean): string {\n  const first = p.first.trim();\n  const last = p.last.trim();\n  const nickname = p.nickname?.trim() || \"\";\n\n  if (short) {\n    return nickname || `${first} ${last}`;\n  }\n\n  return nickname ? `${last}, ${first} (${nickname})` : `${last}, ${first}`;\n}\n```\n\nCleanup boundary: keep all cleanup local to this helper and limited to string normalization. That means trimming `first`, `last`, and `nickname` exactly when building the label, collapsing absent/empty/whitespace-only `nickname` to `\"\"`, and not changing the exported signature or any output format.\n\nConcise tests:\n- `short=true` with nickname: returns trimmed nickname.\n- `short=true` without nickname: returns `\"<trimmed first> <trimmed last>\"`.\n- `short=true` with whitespace-only nickname: falls back to first/last.\n- `short=false` without nickname: returns `\"<trimmed last>, <trimmed first>\"`.\n- `short=false` with nickname: appends `\" (<trimmed nickname>)\"`.\n- `short=false` with whitespace-only nickname: does not append nickname.\n- inputs with surrounding spaces on all fields preserve the exact trimmed output strings.\n\nI did not edit files. The workspace appears empty, and no repository `.agents/skills` package was present to consult.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "stderr": "2026-07-11T22:53:55.967035Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5362-cc54-7d70-8bf6-2b8576eae0d9.1783810411604472000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

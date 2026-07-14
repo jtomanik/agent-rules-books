@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/direct-evans-pricing-brief.md",
+  "case_sha256": "5ec5dbf71bcf410bb48239216f6a5b7d65ae6e8c614df5e8874e4479da3141fb",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c4e-c76c-7ac0-ad71-3e52360d4e96",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current plan is settling implementation shape before settling the model. Under an Evans DDD lens, the first issue is not `shared_types` or a shared library; it is that `Quote` and `Customer` already mean different things in `sales`, `pricing`, and `billing`. That is a direct signal that these are different Bounded Contexts, not one shared model.\n\nThe main decisions to settle before implementation are:\n\n1. Bounded Contexts and language.\n- Decide whether `sales`, `pricing`, and `billing` remain separate contexts. The brief strongly suggests they should.\n- Stop assuming `Customer`, `Quote`, and `PriceAdjustment` are shared domain types. Those names need context-specific meanings or explicit translations.\n- Define the Ubiquitous Language inside each context, especially for `quote`, `customer`, `discount`, `eligibility`, `expiry`, `commitment`, and `segment`.\n\n2. Lifecycle and handoff semantics.\n- Settle the state change where a sales commercial proposal becomes a pricing-valid priced offer, and where that in turn becomes a billing commitment.\n- The open question `when a commercial proposal becomes a billing commitment` is not a minor rule; it is a boundary-defining domain event or transition.\n- Decide whether those are the same concept moving through states, or different context objects connected by translation and handoff.\n\n3. Pricing invariants owned by the Pricing context.\n- `whether negotiated discounts may stack`\n- `whether a quote remains valid after a segment change`\nThese are model-defining rules, not implementation details. They determine whether Pricing needs concepts such as stacking policy, quote eligibility snapshot, segment lock, repricing trigger, or expiry recalculation.\n\n4. Context relationships and integration style.\n- `direct database access among all three applications` is the wrong default because it collapses context boundaries and lets foreign models leak into each other.\n- Decide explicit relationships instead: likely Sales -> Pricing as Customer/Supplier or via an Open Host Service, and Billing consuming a translated accepted result from upstream.\n- If Billing must preserve its immutable commitment model, it likely needs an Anticorruption Layer rather than conforming to Sales or Pricing terminology.\n\n5. Core Domain focus.\n- Since the initiative is `differentiating`, the negotiated pricing policy model is the likely Core Domain.\n- That means Pricing should not be reduced to a shared utility library. It needs its own model with explicit rules, terms, and invariants.\n\nRecommended smallest useful next modeling step:\n\nRun one focused event-storming or domain workshop around a single scenario: `sales proposes a negotiable quote, pricing evaluates and approves it, customer segment changes, and billing may or may not commit it`.\n\nThe concrete output should be very small:\n- a first context map for `sales`, `pricing`, and `billing`\n- a glossary showing `quote` and `customer` per context\n- one lifecycle timeline naming the handoff events and decision points\n- explicit answers, or at least candidate policies, for discount stacking and segment-change validity\n\nThat is the minimum useful next step because it resolves the current ambiguity at the model and boundary level without prematurely designing shared code or shared storage.",
+    "selected_project_skills": [
+      "domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:28:37.565201Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=failed to send remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list: error sending request for url (https://chatgpt.com/backend-api/ps/plugins/list?scope=GLOBAL&limit=200&pageToken=eyJzY29wZSI6IkdMT0JBTCIsIndvcmtzcGFjZV9pZCI6bnVsbCwiY3JlYXRvcl9hY2NvdW50X3VzZXJfaWQiOm51bGwsImNvbGxlY3Rpb24iOm51bGwsImluY2x1ZGVfcmVzdHJpY3RlZF9wbHVnaW5zIjp0cnVlLCJlbGlnaWJsZV9wbGFuX3R5cGUiOiJwcm8iLCJlbmZvcmNlX3BsYW5fZWxpZ2liaWxpdHkiOnRydWUsInJhbmtfYnlfcG9wdWxhcml0eSI6dHJ1ZSwiY29udGludWF0aW9uIjp7ImRlcGxveW1lbnRfdHlwZSI6InByaW1hcnkiLCJxdWVyeV9pZCI6InJzNDpiMWFlN2E0NS02MzlhLTQ4MzYtOWU3ZS00NWM4NzNiOWY4NDQ6UHltUjNpRTowOmxlYWYtNjExMzRlMmEtN2NlZi00YmIxLWFhMmEtY2M0MDNmY2E0Nzc2IiwiY3Vyc29yIjoiWkg2OWRYQzRnTHZ2ZUhMcGhKVUs2ZmppMk5HalBOUzBHc1ZDcEpWWmdfdlVOZUVGY1o1Y2RqUzRDSmdwUlpaZ3lOR0tFdnJUV2ZYaHM4S3NLNDFQSENkdWcxVFhlQ0tkc2RxNmlINEg3QTdZRXVhS2F5MFBVQnkxZFdqQ2JkTGdXSW9HU0lEZlBMVVVEOVZrd3RndGFfbXdhc0JOVGhQYzJnUkpIdEh2c0MxT0ZnY1dnRnJYMGlvU3Z4a0NmT2c4UVYtVVVsdjE3VzQ9In19)"
+}

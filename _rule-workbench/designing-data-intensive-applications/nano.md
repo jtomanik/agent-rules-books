@@ -15,15 +15,15 @@ Hidden data contracts are still contracts.
 - Treat caches, indexes, projections, search copies, denormalized data, and materialized views as derived data with staleness, lag visibility, repair, and rebuild paths.
 - Make retried, replayed, queued, batch, stream, and event-driven work idempotent or transactional; reject casual exactly-once claims.
 - Treat schemas, encodings, service APIs, messages, logs, and events as versioned contracts that must survive old code, old data, rolling upgrades, and in-flight messages.
-- Assume distributed uncertainty: crashes, partial writes, timeouts, duplicate messages, reordered events, stale replicas, lag, clock error, pauses, stale leaders, and unknown success.
+- Assume distributed uncertainty: crashes, partial writes, timeouts, duplicate messages, reordered events, stale replicas, lag, clock error, pauses, and unknown success.
 - Match replication, partitioning, isolation, transactions, and coordination to the invariant; do not rely on follower freshness, quorum formulas, weak isolation, wall-clock order, or ad hoc leadership without proof.
 
 ## Trigger rules
 
 - When adding retries, jobs, consumers, queues, CDC, event sourcing, or stream processing, prove duplicate, replay, ordering, side-effect, and recovery safety.
-- When changing schemas, APIs, messages, events, enum values, or status meanings, plan backward and forward compatibility plus migration, bootstrap, or rebuild paths.
-- When reading from replicas or partitioning data, define staleness, routing, hot-key, ordering, rebalancing, and cross-partition behavior.
-- When using locks, leases, timestamps, leadership, majorities, or coordination services, define the fault model, quorum/session semantics, stale-authority behavior, and fencing.
+- When changing schemas, APIs, messages, events, enum values, or status meanings, plan backward and forward compatibility plus migration or rebuild paths.
+- When reading from replicas, define required staleness and ordering guarantees; when partitioning data, define locality, hot-key, and cross-partition behavior.
+- When using locks, leases, timestamps, leadership, majorities, or coordination services, define the clock assumption, fault model, quorum behavior, and membership or coordination-service dependencies.
 
 ## Final checklist
 

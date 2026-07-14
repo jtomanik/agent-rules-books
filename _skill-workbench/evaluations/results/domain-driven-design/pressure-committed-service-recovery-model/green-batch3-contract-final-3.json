@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/pressure-committed-service-recovery-model.md",
+  "case_sha256": "78e2d20e22daf05a1c210e784f73ee798cb540168b436cbded7b37a5c17aad3a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5ccf-60b5-7fc0-8c7f-bcdedd426ec1",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "**Model**\n\nThe Friday slice should stop treating `vip_override` as an exception type and start treating it as a decision inside the `Service Recovery` bounded context.\n\nUse this local language and responsibility split:\n\n- `Disruption`: observed failure threatening one or more service commitments. It is a fact, not a remedy.\n- `AffectedCommitment`: the specific customer commitment currently being recovered.\n- `RecoveryOption`: a feasible response for that commitment. Examples: delay accommodation, reroute, alternate fulfillment. It is not yet promised.\n- `RecoveryPromise`: the accepted response for one affected commitment. A promise may satisfy recovery if its chosen option does.\n- `GoodwillCredit`: acknowledgement of harm. It may accompany a promise or stand alone, but by itself never satisfies recovery.\n\nA good aggregate boundary for the slice is one `CommitmentRecovery` per affected commitment, with references to `DisruptionId` and `CustomerCommitmentId`.\n\nInside that aggregate:\n\n- available `RecoveryOption`s are scoped to the affected commitment\n- zero or one active `RecoveryPromise` exists for the Friday slice\n- zero or more `GoodwillCredit`s may be issued\n- satisfaction is derived from the accepted promise, never from credit\n- `vip_override` becomes a domain operation like `choosePriorityRecovery(...)`, which selects among available options under the customer-specific commitment rules\n\nThat gives explicit invariants instead of procedural branching:\n\n- only a feasible `RecoveryOption` can become a `RecoveryPromise`\n- a `GoodwillCredit` cannot transition a commitment to recovered\n- rerouting may satisfy a promise; credit alone cannot\n- VIP handling cannot bypass options and directly mutate recovery state\n\n**Expert Scenarios**\n\nThese are the scenarios that should prove or disprove the model:\n\n1. `Disruption creates options but no promise`\nA disruption against a commitment yields feasible recovery options, and the case remains unrecovered until one option is accepted.\n\n2. `Reroute promise satisfies commitment`\nGiven a reroute option for the affected commitment, accepting it creates a `RecoveryPromise` and marks the commitment recovered.\n\n3. `Credit acknowledges harm without recovery`\nIssuing a `GoodwillCredit` alone records harm but leaves the commitment unrecovered.\n\n4. `Promise plus credit keeps meanings separate`\nA satisfying reroute promise may be combined with a goodwill credit; the promise recovers service, the credit does not.\n\n5. `VIP selection chooses among options, not around them`\nFor a premium customer commitment, `choosePriorityRecovery(...)` prefers among feasible options according to commitment rules; it does not invent a recovery outside the option set.\n\n6. `Unavailable option cannot be promised`\nAttempting to promise an option not feasible for that commitment is rejected.\n\n7. `Credit cannot masquerade as recovery`\nAny attempt to close recovery on the strength of a credit alone is rejected.\n\n8. `One commitment, one active promise`\nAccepting a new promise for the same commitment requires explicit replacement/cancellation semantics rather than silent overwrite.\n\nThose scenarios should be written as executable domain tests in the recovery language, not as generic type-dispatch tests.\n\n**Bounded Incremental Path**\n\nDo not rewrite the engine. Put an anticorruption layer in front of it and move one vertical slice: `vip_override`.\n\nFriday path:\n\n1. Introduce a small `Service Recovery` module with the domain types above and an application service such as `handleVipRecoverySelection`.\n2. Translate the legacy `state` into a `CommitmentRecovery` snapshot plus customer commitment facts needed for VIP selection.\n3. Implement `vip_override` by:\n- deriving feasible `RecoveryOption`s from the same operational facts the old handlers already use\n- running `choosePriorityRecovery(...)`\n- materializing the selected outcome back through existing concrete handlers such as `applyReroute`, `applyDelay`, and `applyCredit`\n4. Keep `delay`, `reroute`, and `credit` branches operationally unchanged for Friday.\n5. Replace only the `vip_override` branch so it no longer behaves as a generic bypass; it becomes a domain-driven selector over options.\n\nThat preserves current delivery because the outward state mutation can still be produced by the old concrete handlers. The change is that `vip_override` stops being its own ad hoc exception and becomes the first use case driven by the committed recovery model.\n\nA minimal shape is:\n\n```ts\nhandleVipRecoverySelection(legacyState): LegacyState {\n  const recovery = CommitmentRecovery.reconstitute(translateState(legacyState));\n  const decision = recovery.choosePriorityRecovery(customerCommitmentPolicy);\n  return applySelectedOutcome(decision, legacyState);\n}\n```\n\nThis is the right slice because it attacks the exact pressure point being used to reintroduce generic branching, while keeping the rest of the engine stable for the deadline.",
+    "selected_project_skills": [
+      "domain-driven-design",
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T18:49:50.405048Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5ccf-60b5-7fc0-8c7f-bcdedd426ec1.1783968522421587000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

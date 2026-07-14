@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/outbound-provider.md",
+  "case_sha256": "420500ae5fd787a2e9919b3b0bbbb67e620f27ac56b3631d066e7d74b79028c2",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5354-5dde-7281-a89b-275898f1909e",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Findings**\n1. The integration can block request workers indefinitely. `ProviderClient.post` is called without `requestSignal`, both provider timeouts are effectively infinite (`0`), and `Semaphore.acquire` also waits forever. When the provider stalls, requests never stop waiting, slots never free, and checkout workers pile up until the service is saturated.\n2. The code holds a database transaction across the remote call and every retry. That turns a slow provider into a DB-connection leak under load and widens the blast radius beyond checkout-to-provider traffic.\n3. Retry policy is amplified and unsafe as configured. The SDK already retries transport errors and `429`/`5xx`; the outer `for` loop retries again. That creates nested retries, extra latency, and more pressure on an already unhealthy provider. With fixed 100 ms sleeps and no jitter, retries also synchronize.\n4. The fallback buffer is unbounded. `pendingAuthorizations` grows without limit, and `PENDING_AUTHORIZATION_CAPACITY=0` means there is no overload boundary. If the provider is degraded for long enough, memory growth replaces one outage with another.\n5. A malformed `200` response is not handled as a first-class provider failure. An HTML error page will fail at `response.json()`, be retried as though it were transient, and may keep consuming request-path time without any contract validation.\n\n**Smallest production-ready changes before 100% traffic**\n1. Put a hard deadline on the request-path dependency call and slot acquisition. Pass an abort signal into `provider.post`, and bound the wait for `paymentSlots.acquire()` as well. The provider attempt, retries, and semaphore wait must fit inside `CHECKOUT_REQUEST_TIMEOUT_MS`; no infinite waits anywhere.\n2. Remove nested retries. Keep exactly one retry layer, with a small bounded budget and jitter, or set request-path retries to zero and rely on the existing `pending` fallback. For this authorization path, the conservative change is to disable SDK retries (`PAYMENT_SDK_RETRIES=0`) and do at most one timed attempt before degrading to `pending`, unless the provider contract explicitly guarantees idempotent authorization retries.\n3. Do not open the DB transaction until after a valid provider response is received. The request path should spend remote-wait time without holding a DB transaction/connection.\n4. Bound the pending queue. `PENDING_AUTHORIZATION_CAPACITY` must be finite, and when the queue is full the code must fail fast with an explicit temporary-unavailable result instead of accepting more work.\n5. Validate the provider response before writing state: require success status, JSON content type, and required fields such as `authorization_id` and `state`. Treat invalid `200` HTML as provider failure, not success.\n6. Reduce `PAYMENT_MAX_IN_FLIGHT` to a true bulkhead instead of `400`. It must be sized so this integration cannot consume all checkout worker capacity during a provider incident. `400` should not ship as-is.\n\n**Required behavior by failure mode**\n- Slow or stalled provider: wait only up to the configured checkout budget, then abort the call, release the slot, avoid opening or holding a DB transaction, and return `pending` if the bounded queue has capacity; otherwise fail fast.\n- Overloaded provider (`429`/`5xx`): use at most one bounded retry strategy layer. If the retry budget is exhausted, stop sending traffic, release resources, and degrade to `pending` or explicit temporary failure if the pending queue is full.\n- Unavailable provider (connect/transport failure): same as overload. No infinite connect timeout, no indefinite semaphore wait, no repeated request-path hammering.\n- Malformed response (`200` with HTML or bad JSON/schema): classify it as provider failure immediately, record it, do not insert authorization state, and take the same bounded degrade/fail-fast path.\n\n**Minimum config direction**\n- `PAYMENT_CONNECT_TIMEOUT_MS`: set to a small finite value.\n- `PAYMENT_RESPONSE_TIMEOUT_MS`: set to a finite value that leaves room inside the 2500 ms checkout deadline.\n- `PAYMENT_SDK_RETRIES`: `0` unless idempotent retries are explicitly guaranteed.\n- `PAYMENT_MAX_IN_FLIGHT`: lower to a conservative bulkhead value derived from worker capacity, not `400`.\n- `PENDING_AUTHORIZATION_CAPACITY`: set to a finite limit; `0` is not acceptable.\n\n**Operational minimums**\nBefore rollout, add metrics for timeout count, provider failure count by class (`429`/`5xx`/transport/malformed), in-flight slot saturation, and pending-queue depth/full events. Today only success is counted, which is not enough to run this safely at 100% traffic.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:37:46.042620Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5354-30bd-7783-ba33-16ae5cef9ede.1783809454269436000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:38:54.622461Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5354-5dde-7281-a89b-275898f1909e.1783809465822699000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

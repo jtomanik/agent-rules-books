@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b1-be1e-7201-b36f-da56df6f8498",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n\n1. High: snippet line 7 can wait forever on the semaphore, which breaks the checkout budget and defeats the optional-quote fallback. `Semaphore.acquire()` is explicitly unbounded, so once 32 in-flight calls are occupied this path can stall until the outer request dies, instead of returning `{ kind: \"unavailable\" }` promptly. Smallest pre-merge change: bound acquisition by the remaining checkout budget or `requestSignal`, and return `unavailable` if a slot cannot be obtained in time.\n\n2. High: snippet line 10 does not pass `requestSignal`, and `timeoutMs` does not cover connection setup. A DNS/TCP/TLS stall can therefore outlive both `CARRIER_RESPONSE_TIMEOUT_MS=2000` and the checkout request budget. Smallest pre-merge change: pass an abort signal to `carrierClient.post()` and derive it from both the checkout signal and a carrier-specific timeout shorter than the remaining checkout time.\n\n3. Medium: lines 10-24 and 26-28 treat every failure mode as the same generic unavailability, with no response validation. That hides request/contract bugs (`4xx`), malformed `200` responses, and bad payloads as if they were transient provider outages. Per the stated contract, the code should distinguish: only `429`, `5xx`, timeout, and transport failure are normal quote-unavailable cases; `4xx` and invalid `200` bodies are contract/request failures. Smallest pre-merge change: check for HTTP `200`, JSON content, and `{ amount, currency, expires_at }` validity before returning `available`; classify `4xx` and malformed `200` separately in logs/metrics, while still degrading checkout to `unavailable` if product policy is to keep checkout moving.\n\nWhat is already correct:\n\n- `CARRIER_RETRIES=0` matches the no-retry requirement.\n- The semaphore is the right bulkhead shape; it just needs a bounded wait to become safe under saturation.\n- Returning `{ kind: \"unavailable\" }` on timeout/transport/provider overload is the correct degradation mode.\n\nRecommended minimum before merge:\n\n1. Make slot acquisition abortable/deadline-bounded.\n2. Pass an abort signal into the HTTP client so connect establishment is also bounded.\n3. Validate and classify provider responses instead of collapsing all outcomes into one catch-all path.\n\nI would not block this merge on adding a circuit breaker or broader resilience machinery yet; the three changes above are the smallest ones that close the real production-failure gaps in this routine integration.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T09:39:54.529025Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55b1-be1e-7201-b36f-da56df6f8498.1783849139758877000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

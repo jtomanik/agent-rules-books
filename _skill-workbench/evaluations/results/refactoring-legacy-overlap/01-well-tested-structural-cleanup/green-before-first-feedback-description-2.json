@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5365-3609-7662-9b76-de86ec3a152c",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small-step refactoring sequence, with tests run after every step and no intentional result changes.\n\n1. Extract subtotal calculation first. Move the item loop into a private `calculateSubtotalCents(order)` method. This is the safest split because it has no branching and no dependency on later phases.\n\n2. Extract discount calculation next. Create `calculateDiscountCents(order, subtotalCents)`. Keep the current threshold and rounding exactly where they are. Do not rename the business rule yet and do not generalize tiers or discount policies.\n\n3. Extract shipping calculation as a separate phase. Create `calculateShippingCents(order, subtotalCents, discountCents)`. Preserve the current dependency on `subtotalCents - discountCents` for domestic free shipping eligibility, and keep international shipping as an overriding branch. That ordering is observable and already protected by the focused tests.\n\n4. Extract tax calculation from the assembled taxable amount. First introduce a local `taxableCents` value in the main method if it is not already explicit enough, then move tax computation into `calculateTaxCents(taxableCents)`. Keep the `Math.floor(... * 0.2)` behavior unchanged.\n\n5. Leave result assembly in `price()` until the end. Once the phases above exist, make `price()` read top-down as orchestration only: subtotal, discount, shipping, taxable amount, tax, return object. This is the structural target for the cleanup.\n\n6. Stop there unless a specific next feature still feels awkward. The class is small, the public API is stable, and the current rules are simple. Do not introduce strategy objects, policy classes, enums, value objects, or configuration tables during this cleanup. Those would be speculative abstractions without current pressure.\n\nA reviewable end state looks like this:\n- `price()` remains the only public entry point.\n- Each extracted helper is private and single-purpose.\n- Data flow stays explicit through primitive values already present in the code.\n- No test expectations change.\n\nBoundaries for the cleanup:\n- Do not change field names, return shape, rounding behavior, thresholds, or branch order.\n- Do not merge pricing phases into a reusable rules engine.\n- Do not replace the module wholesale or move logic across files unless the team explicitly wants a second cleanup pass.\n- Do not refactor beyond the current friction point once `price()` is an easy-to-read orchestration method.\n\nIf the team wants the safest patch breakdown for code review, split it into 3 PR-sized commits:\n1. Extract subtotal and discount helpers.\n2. Extract shipping and tax helpers.\n3. Flatten `price()` into orchestration-only form and do any strictly local renaming needed for clarity.\n\nThat sequence stays inside behavior-preserving refactoring, removes the current mixed-responsibility smell, and stops before the cleanup turns into redesign.",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:56:09.892700Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5364-d8a2-7113-8e28-aa5f189f2c8d.1783810545827411000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:56:38.602439Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5365-3609-7662-9b76-de86ec3a152c.1783810569737658000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

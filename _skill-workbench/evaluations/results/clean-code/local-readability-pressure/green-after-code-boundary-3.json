@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58aa-ff50-7c91-8004-cd671429e63c",
+  "exit_code": 0,
+  "result": {
+    "answer": "Assumption: \"Preserve all behavior outside that rule\" means the existing `i.total > 1_000` surcharge-to-discount rule still applies for `partner` accounts. That yields `15%` for `partner` invoices from `500` through `1000`, and `20%` for `partner` invoices above `1000`. The old `> 1000` boundary stays exclusive, so exactly `1000` gets `15%`, not `20%`.\n\nPatch plan:\n1. Add characterization tests for the new rule before touching logic.\n2. Keep the change inside `InvoiceService` only, ideally by extracting discount calculation into a small helper so `finalize` keeps its current side-effect flow.\n3. Replace the inline `d` branch with explicit `discount` logic for `vip` and `partner`, then keep the existing `> 1_000` increment unchanged.\n4. Leave persistence, email, audit, `lastInvoiceId`, preview behavior, and method signatures unchanged.\n5. Run the existing suite plus the new focused tests; ship only if all remain green.\n\nExact scope boundary:\n- In scope: discount calculation in `InvoiceService` and tests for the new `partner` behavior.\n- Out of scope: new discount abstractions, interface changes to `AccountRepository`/`Mailer`/`AuditLog`, rounding changes, money-type refactors, renaming unrelated flags, or restructuring side effects.\n\nRevised function sketch:\n```ts\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(account: Account, invoice: Invoice): number {\n    let discount = 0;\n\n    if (account.segment === \"vip\") {\n      discount = 0.1;\n    } else if (account.segment === \"partner\" && invoice.total >= 500) {\n      discount = 0.15;\n    }\n\n    if (invoice.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n\n  finalize(account: Account, invoice: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.discountFor(account, invoice);\n    const amount = invoice.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    account.balance -= amount;\n    this.accounts.save(account);\n    this.lastInvoiceId = invoice.id;\n\n    if (sendEmail) {\n      this.mailer.send(account.id, invoice.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: account.id,\n      invoiceId: invoice.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\nTests required before shipping:\n- `partner` with `total = 499.99`: no partner discount; result matches prior non-vip behavior.\n- `partner` with `total = 500` in preview mode: returns `discount = 0.15`, discounted amount, `changed = false`, and no calls to `save`/`send`/`record`.\n- `partner` with `total = 1000`: still `discount = 0.15` to lock the inclusive `500` threshold and existing exclusive `> 1000` threshold.\n- `partner` with `total = 1500`: `discount = 0.20`, `accounts.save` gets the reduced balance, and `mailer.send`/`audit.record` receive the discounted amount.\n- Existing regression suite remains green for `standard` and `vip` flows.\n\nUnder the stated time pressure, this is the smallest safe change that adds the rule without deepening the existing control-flow mess inside `finalize`.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

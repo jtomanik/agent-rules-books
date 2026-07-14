@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/schedule-pressure-controller-policy.md",
+  "case_sha256": "3e1c3b18559a931bfec0d088407244283c234057a6b9abd1efe272398953dd25",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5857-4af6-7982-a48f-4088a238e16b",
+  "exit_code": 0,
+  "result": {
+    "answer": "Reject the shortcut.\n\nThe proposed controller change places refund policy in the HTTP adapter, which is the wrong dependency direction for a rule that already belongs to the `RefundPurchase` application behavior. It creates two policy paths:\n\n- VIP refunds are decided in the controller.\n- Non-VIP refunds are decided in the use case.\n\nThat fragments the specification, bypasses the existing fast tests around `RefundPurchase`, and makes the controller responsible for business knowledge it should not own. The fact that the HTTP contract and schema stay the same is a strong signal that the rule belongs behind the existing use-case boundary, not in front of it.\n\nThe smallest shippable placement is to add the VIP exception inside `RefundPurchase`, or in a tiny domain policy/helper called by it if that keeps the code clearer. Keep the controller exactly as it is. The use case should continue to:\n\n- load the purchase,\n- evaluate the refund window based on customer tier,\n- perform the refund,\n- return the same accepted/rejected result.\n\nIn practice, the rule becomes:\n\n- `VIP` => refund allowed through 30 days after purchase.\n- everyone else => existing 14-day rule.\n\nThat is the minimum change that preserves policy locality, keeps transport thin, reuses the current test seam, and ships without changing the response contract or persistence shape.\n\nIf schedule pressure is the argument, the fastest safe move is: update the use-case tests, then update `RefundPurchase` implementation to branch on `customerTier`. Controller tests likely do not need to change.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T21:59:39.975521Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5857-4af6-7982-a48f-4088a238e16b.1783893543670509000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/ordinary-pricing-policy-model.md",
+  "case_sha256": "02bc9472a80849f036e0b51a2fc25eabf261d5254a997bca805ebeaa6aff4f1f",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c54-ac35-7eb3-9619-38b108504a66",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Findings:\n1. The core pricing concepts are implicit. `ruleType`, `customerStatus`, and `metadata` strings are standing in for domain concepts that pricing specialists actually reason about: eligibility, expiry, and stacking. That makes the policy hard to discuss and impossible to test in the business language.\n2. Stacking is especially under-modeled. `stackable !== \"true\"` currently means \"cap this adjustment at 12% of subtotal,\" which is not the same as \"this rule cannot be combined with others.\" That is a policy decision hidden in arithmetic.\n3. Expiry ownership is ambiguous. `expiresAt` lives in `order.metadata` and zeroes the whole adjustment, which suggests rule validity is being modeled as order data rather than as part of the pricing rule.\n\nSmallest bounded redesign:\nKeep the same local boundary, but replace the procedural branch logic with an explicit `PricingRule` model plus a tiny evaluator. The important change is naming the policy concepts, not adding layers.\n\n```ts\ntype CustomerStatus = \"GOLD\" | \"...\";\ntype RuleKind = \"LOYALTY\" | \"CAMPAIGN\" | \"...\";\n\ntype Order = {\n  subtotal: number;\n  createdAt: Date;\n  campaign?: string;\n};\n\ntype Eligibility = {\n  isSatisfiedBy(order: Order, customerStatus: CustomerStatus): boolean;\n};\n\ntype ExpiryPolicy = {\n  isExpiredAt(createdAt: Date): boolean;\n};\n\ntype StackingPolicy = \"STACKABLE\" | \"NON_STACKABLE_CAPPED\";\n\ntype PricingRule = {\n  kind: RuleKind;\n  rate: number;\n  eligibility: Eligibility;\n  expiry: ExpiryPolicy;\n  stacking: StackingPolicy;\n};\n\nexport function calculateAdjustment(\n  rule: PricingRule,\n  customerStatus: CustomerStatus,\n  order: Order,\n): number {\n  if (!rule.eligibility.isSatisfiedBy(order, customerStatus)) return 0;\n  if (rule.expiry.isExpiredAt(order.createdAt)) return 0;\n\n  const rawAdjustment = order.subtotal * rule.rate;\n\n  if (rule.stacking === \"NON_STACKABLE_CAPPED\") {\n    return Math.min(rawAdjustment, order.subtotal * 0.12);\n  }\n\n  return rawAdjustment;\n}\n```\n\nWhy this is the smallest useful improvement:\n- It keeps calculation local and preserves the existing entrypoint shape conceptually.\n- It makes new rule kinds additive: add a new `PricingRule` definition instead of another `if` branch.\n- It lets tests name policy concepts directly: eligibility, expiry, stacking.\n- It creates a shared vocabulary pricing specialists can validate with developers.\n\nFeedback needed to confirm the model:\n1. Confirm whether expiry belongs to the rule, not the order. The current code suggests a leak from transport or storage shape.\n2. Confirm the real meaning of non-stackable. Is it truly \"cannot combine with other rules,\" or is the intended rule actually \"cap at 12%\"?\n3. Confirm whether `12%` is a campaign-specific cap, a global non-stackable cap, or just an accidental coupling to the current `CAMPAIGN` rule.\n4. Confirm whether eligibility should be rule-specific examples such as \"Gold customer\" and \"Summer campaign,\" or whether specialists expect composed eligibility conditions.\n5. Confirm how pricing specialists want example validation expressed: scenario tables usually work best.\n\nMinimum test feedback loop:\nWrite scenario tests in business language, for example:\n- `eligible loyalty rule for gold customer returns 8%`\n- `ineligible loyalty rule returns 0`\n- `expired rule returns 0 even when otherwise eligible`\n- `non-stackable rule is capped at 12%`\n- `stackable rule is not capped`\n\nBefore coding further, I would ask the pricing specialist and developer to walk through 5-10 concrete examples and agree on expected outcomes. If those examples expose multiple meanings of stacking or expiry, the model still needs refinement.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/domain-driven-design-distilled/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [
+    "required project skill not selected: domain-driven-design"
+  ],
+  "stderr": "2026-07-13T16:35:29.382376Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c54-ac35-7eb3-9619-38b108504a66.1783960480821895000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

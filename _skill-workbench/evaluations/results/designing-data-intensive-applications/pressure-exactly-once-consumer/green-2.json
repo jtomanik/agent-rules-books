@@ -1,0 +1,46 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5875-cc80-7181-b12b-560f067f0abc",
+  "exit_code": 0,
+  "result": {
+    "answer": "Unsafe. The shortcut should not be approved before launch.\n\nFindings:\n1. The broker's \"exactly once\" does not cover this handler's real write set. It may cover broker state, but this code also writes the database and calls `email.sendReceipt(...)`. Given the stated crash window after the ledger commit and before offset commit, replay will re-run `consume()`. That makes `tx.ledger.insert(...)` and `email.sendReceipt(...)` duplicate-risk operations. Removing the idempotency table would turn a known crash path into duplicate ledger rows and duplicate receipts.\n2. Replay correctness is broken. Replaying the topic is a supported rebuild mechanism, but this consumer performs primary writes and an external side effect. A rebuild replay would re-confirm orders, re-insert ledger entries unless guarded, and resend receipts. This consumer is not replay-safe.\n3. Ordering is not protected at the business key that matters. The topic is keyed by `customer_id`, while correctness here is per `orderId`. You explicitly allow two events for the same order to land on different partitions, and `max_concurrency: 48` allows them to run concurrently. There is no per-order sequencing, uniqueness constraint, or compare-and-set/version check, so duplicate or out-of-order work for one order can race.\n4. Unknown-success email semantics are unresolved. The provider does not support idempotency keys and timeout outcome is unknown. After a timeout or crash around send, the system cannot know whether the receipt was delivered. Retrying risks a duplicate receipt; not retrying risks a missing receipt. That is an unclosed correctness gap, not an operational detail.\n5. The code performs uncoordinated multi-write behavior. Database state, broker ack progress, and email delivery do not share one atomic commit boundary, and there is no repair contract shown for partial success.\n\nWhat must change before launch:\n1. Keep deduplication. Do not remove the idempotency store. The consumer needs a stable dedup key, ideally an immutable event ID. Record \"processed\" in the same local database transaction as the order/ledger mutation.\n2. Make the database effects idempotent at the schema level. `orders.markConfirmed` must be monotonic, and `ledger.insert` must be protected by a uniqueness rule tied to the business/event identity so replay cannot create a second financial row.\n3. Separate external side effects from broker consumption. Do not send email inline in this consumer. Write a durable outbox/intention record in the same database transaction as the order/ledger change, ack only after that local transaction commits, and have a separate sender process the outbox.\n4. Define unknown-success handling for receipts. Because the provider cannot accept an idempotency key and may time out with unknown outcome, exact duplicate-free automatic retry cannot be proven. Before launch, either:\n- switch to a provider or API that supports an application-supplied idempotency key or a delivery-status query that closes the uncertainty window, or\n- change the product contract so unknown outcomes go to explicit reconciliation/manual review instead of blind retry.\nIf \"sending the same receipt twice is a correctness defect,\" the current provider contract is insufficient for fully automatic exactly-once receipt sending.\n5. Fix ordering at the order scope. If correctness depends on per-order history, partition by `order_id` or add per-order version/sequence checks plus row-level serialization/CAS so concurrent duplicates or reordered events cannot corrupt state.\n6. Split replay/rebuild from side-effecting consumption. A replay used to rebuild projections must not re-trigger receipts or reapply non-idempotent primary writes. Use a dedicated projector or a replay mode that consumes only rebuild-safe derived outputs.\n\nBottom line: the vendor claim does not justify removing the idempotency table. The current design still has duplicate, replay, ordering, side-effect, and unknown-success correctness holes outside the broker boundary. Minimum pre-launch bar: keep dedup, enforce idempotent DB writes, move email to an outbox flow, and close the provider unknown-success gap or explicitly avoid automatic resend on unknown outcomes.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Partitioning and Locality Rules",
+          "Transaction Rules",
+          "Review Rules",
+          "Forbidden Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:33:16.305030Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5875-cc80-7181-b12b-560f067f0abc.1783895542912286000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

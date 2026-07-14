@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/direct-accountable-delivery.md",
+  "case_sha256": "f417b32d5bf76be34dc02066185cc491faa87283bdc43f5ae7afb83bb9808fa6",
+  "mode": "green",
+  "run": "green-batch4-integrity-replacement-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc9-20d9-7e43-9867-4325302db284",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Findings:\n- `proposal.validation.ui/api/batch: copied_tax_rules` creates three owners for the same policy. That guarantees drift and makes every tax change a scavenger hunt instead of a bounded edit.\n- `proposal.vendor.format: hard_coded_into_domain_objects` is an irreversible commitment to a vendor contract before you have delivery feedback, and the `14_days` notice is longer than the `12_days` deadline. Embedding that format in domain types turns a scheduling risk into permanent coupling.\n- `proposal.verification.local: manual_spreadsheet_check` with `ci: none` means the only proof path is slow, human, and non-repeatable. That is prototype-grade verification becoming the production process.\n- `proposal.rollout.steps: tribal_knowledge` and `owner: unclear` means nobody owns the outcome end to end. If the export is wrong or rollout stalls, there is no explicit accountable path.\n\nSmallest correction that still fits the deadline:\n- Deliver a thin vertical slice with one authoritative tax-rules source, one export adapter, one scripted verification path, and one named rollout owner.\n- Put regional tax rules in a single inspectable source owned once, then have UI/API/batch read or derive from it. Do not copy rules into three implementations.\n- Keep the vendor file shape out of domain objects. Add a narrow exporter/mapper at the boundary so the domain stays stable if the vendor changes terms or you need a fallback format.\n- Replace the spreadsheet ritual with one golden-file style automated check in CI plus the same script runnable locally. That gives fast feedback without building a large test suite.\n- Write the rollout steps into a checked-in runbook and assign one delivery owner.\n\nMinimal acceptable re-scope for 12 days:\n- Days 1-3: create the single tax-rules source and wire one end-to-end export path.\n- Days 4-6: add the vendor boundary mapper and one representative contract fixture.\n- Days 7-8: add automated local + CI verification against expected export output.\n- Days 9-12: document rollout/runbook, assign owner, and do a tracer rollout rehearsal.\n\nThis is the smallest pragmatic fix because it removes permanent copied knowledge, delays vendor lock-in to an adapter, and turns manual checking into reusable feedback, without asking for a broad redesign.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

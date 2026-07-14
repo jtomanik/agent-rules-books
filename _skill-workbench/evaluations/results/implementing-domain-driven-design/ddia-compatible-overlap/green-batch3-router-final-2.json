@@ -1,0 +1,86 @@
+{
+  "case": "_skill-workbench/evaluations/cases/implementing-domain-driven-design/ddia-compatible-overlap.md",
+  "case_sha256": "7667de0a361a4be83bd3f5560d811240b24c6d6ed4c707de4fb05d7ad07985bd",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5cb6-d85f-7401-8016-c1e7499fac3a",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current runtime shape is not durable enough for this projection. `duplicate_detection: false`, `checkpoint: memory`, `schema_version: omitted`, `unknown_fields: reject`, and `full_rebuild: none` together mean duplicate delivery, reordering, rolling upgrades, and reindex recovery will eventually corrupt or strand the Elasticsearch view.\n\n**Boundary Design**\n`Order` stays the Ordering aggregate root. Confirming it should produce a domain event `OrderPlaced` inside the domain model with only Ordering terms: stable order/customer/merchant identities, confirmed commercial facts, aggregate version, and event occurrence metadata. No Elasticsearch shape or vendor types belong here.\n\nThe application service owns the use case boundary:\n1. Load `Order`.\n2. Invoke `confirm(...)` on the aggregate.\n3. Persist aggregate state.\n4. Persist an outbox record in the same Postgres transaction.\n5. Commit.\n\nPublication to the broker is not the domain's job and not the application service's synchronous side effect. A relay publishes committed outbox rows from `ordering-postgres.transaction_outbox`.\n\n**Event Contract**\nUse a transport envelope around the domain event. Minimum fields:\n- `event_id`: globally unique, stable across retries.\n- `event_type`: `OrderPlaced`.\n- `event_schema_version`: explicit integer.\n- `aggregate_type`: `Order`.\n- `order_id`: partition key.\n- `aggregate_version`: monotonic per `order_id`.\n- `occurred_at`.\n- `producer`: `ordering`.\n- `payload`: confirmed commercial facts.\n\n`aggregate_version` is the key ordering contract. Do not use wall-clock order for correctness.\n\n**Subscriber Boundary**\nThe Elasticsearch consumer should have three layers:\n- Inbound adapter: broker message parsing, validation, envelope decoding.\n- Projection application service: `ProjectOrderHistoryEvent` use case that knows projection rules and ordering/idempotency policy.\n- Outbound adapter: Elasticsearch writer.\n\nThe application service should depend on an abstract port such as `OrderHistoryProjectionStore`; the Elasticsearch adapter implements it. Ordering code must not import Elasticsearch types.\n\n**Projection Translation**\nTreat Elasticsearch as a disposable read model. Translate `OrderPlaced` into an `OrderHistoryDocument` owned by Ordering but separate from the aggregate and event classes. That document should include business fields plus projection control metadata, for example:\n- `orderId`\n- business search/display fields\n- `lastAppliedAggregateVersion`\n- `lastAppliedEventId`\n- `projectionSchemaVersion`\n- `projectedAt`\n\nThat translation belongs in the projection application layer or a dedicated mapper there, not in the domain model.\n\n**Idempotency and Ordering Contract**\nBecause delivery is at-least-once and duplicate delivery is observed, the consumer must be idempotent.\n\nRequired rule per `order_id`:\n- If `incoming.aggregate_version < stored.lastAppliedAggregateVersion`: ack and no-op.\n- If equal: compare `event_id`; if same, ack and no-op; if different, treat as invariant violation and send to DLQ/quarantine.\n- If `incoming.aggregate_version == stored.lastAppliedAggregateVersion + 1`: apply.\n- If greater than `+1`: do not apply; mark as gap/out-of-order and retry after the missing version arrives or replay fills it.\n\nThis is necessary because out-of-order delivery after repartition has already been observed. Broker partition order is not sufficient as the correctness mechanism.\n\n**Durable Consumer State**\n`checkpoint: memory` is not acceptable. Make consumer progress durable.\n\nYou need durable state for two separate things:\n- Source progress checkpoint: last safely processed broker offset/position per partition.\n- Per-order high-water mark: last applied `aggregate_version` and `event_id`.\n\nDo not rely on Elasticsearch alone for the only copy of this control state, because bad mappings may require reindex. Store checkpoint/high-water metadata durably outside the index, typically in Postgres in projection-control tables.\n\nA practical shape is:\n- `order_history_projection_checkpoint(partition, offset, updated_at)`\n- `order_history_projection_state(order_id, last_applied_version, last_event_id, updated_at)`\n- optional `order_history_projection_gaps(order_id, expected_version, seen_version, event_id, first_seen_at)`\n\nThen advance the source checkpoint only after the Elasticsearch write and projection-state update are both durably recorded.\n\n**Schema Evolution**\n`schema_version: omitted` must change to explicit versioning. `unknown_fields: reject` should also change for additive evolution.\n\nRecommended policy:\n- Additive payload fields: old consumers ignore unknown fields.\n- Breaking semantic changes: publish a new `event_schema_version` or new event type.\n- Consumer owns upcasters/translators from older event versions into the current projection input model.\n- Elasticsearch documents carry `projectionSchemaVersion` independently from event schema version.\n\nDo not reuse existing fields with new meanings.\n\n**Lag Visibility**\nWith `acceptable_lag_seconds: 60`, expose at least:\n- age of oldest committed outbox row not yet projected\n- broker lag by partition\n- end-to-end projection lag: `now - occurred_at` for latest applied event\n- gap queue count and oldest gap age\n- duplicate/no-op count\n- projection failure/DLQ count\n- reindex catch-up lag when rebuilding\n\nAlert when p95 or max lag exceeds 60 seconds, and separately when gaps prevent forward progress for a key.\n\n**Rebuild and Reindex Procedure**\n`full_rebuild: none` is incompatible with a disposable search model and with `bad_mapping_requires_reindex: possible`.\n\nYou need a real rebuild path. Because broker retention is only 7 days, the rebuild source cannot be the broker alone. Use a durable replay source in Ordering storage: either retain the transaction outbox long enough for rebuilds, or copy published events into an append-only event log/archive owned by Ordering.\n\nRebuild procedure:\n1. Create a new index version, for example `order-history-v3`.\n2. Replay all relevant Ordering events from the durable replay source, not from live broker retention.\n3. Project into the new index using the same idempotency and ordering rules.\n4. Catch up from the live stream until lag is zero or within cutover tolerance.\n5. Validate document counts and targeted business invariants.\n6. Atomically switch the read alias to the new index.\n7. Retire the old index later.\n\nIf order-history will eventually include more than placement facts, Ordering must publish every domain event needed to reconstruct that read model, not only `OrderPlaced`.\n\n**Implementation Path**\n1. Define `OrderPlaced` domain event and make `Order.confirm()` emit it with stable IDs and confirmed facts.\n2. Add aggregate-versioned outbox records written atomically with the order confirmation transaction.\n3. Define a versioned transport envelope.\n4. Build a projection consumer with explicit application-service and Elasticsearch-adapter boundaries.\n5. Add durable projection checkpoint/high-water tables.\n6. Implement version-based idempotency and gap detection.\n7. Change consumer compatibility policy from `unknown_fields: reject` to version-aware tolerant reading.\n8. Add lag, duplicate, gap, and failure metrics/alerts.\n9. Add a durable replay source and alias-based reindex rebuild flow.\n10. Test duplicate delivery, replay, out-of-order arrival, consumer crash after ES write/before checkpoint, schema-version skew, and full rebuild.\n\nThe key architectural line is: Ordering owns facts and event meaning; the projection service owns translation, idempotent application, lag observability, and rebuildability; Elasticsearch remains replaceable derived storage.",
+    "selected_project_skills": [
+      "clean-architecture",
+      "implementing-domain-driven-design",
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-architecture/references/index.md",
+      ".agents/skills/clean-architecture/references/full.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/references/index.md",
+      ".agents/skills/implementing-domain-driven-design/references/full.md",
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "clean-architecture",
+        "sections": [
+          "Required Layer Responsibilities"
+        ]
+      },
+      {
+        "skill": "implementing-domain-driven-design",
+        "sections": [
+          "Domain Event Rules",
+          "Application Service Rules",
+          "Module and Package Rules",
+          "Context Integration Rules",
+          "Client Representation and Scope Discipline"
+        ]
+      },
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Scalability and Maintainability Rules",
+          "Data Model and Storage Rules",
+          "Query Model and Data Shape Rules",
+          "Storage Engine and Indexing Rules",
+          "Consistency Rules",
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Schema Evolution Rules",
+          "Derived Data Rules",
+          "Distributed Fault, Clock, and Consensus Rules",
+          "Batch and Stream Processing Rules",
+          "API and Service Boundary Rules",
+          "Review Rules",
+          "Forbidden Patterns",
+          "Code Generation Rules",
+          "Testing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "designing-data-intensive-applications",
+    "implementing-domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

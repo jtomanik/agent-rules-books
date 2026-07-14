@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b9-db21-7db3-a74f-0ab6f61be572",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Safest Bounded Change**\n\nTreat this as a legacy change, not a cleanup. The smallest safe implementation is:\n\n1. Add a narrow seam for `now` and the billing store so the due-decision can be tested without the real database.\n2. Keep `chargeIfDue()` control flow, transaction scope, return values, and exception propagation unchanged.\n3. Change only the due predicate from `nextChargeAt <= now` to `nextChargeAt [+ grace period] ? now`, with the 48-hour offset computed in one extracted policy function.\n4. Do not fold in timestamp-format cleanup, constructor refactoring, retry logic, or transaction redesign in the same patch.\n\nA bounded shape is an extracted pure function such as `isChargeDue(nextChargeAt, now, gracePeriod)` plus optional constructor-injected `clock` / `database` collaborators for tests. That isolates the semantic change while preserving the current write path.\n\n**Verification Plan**\n\nBefore changing behavior, add characterization tests for current behavior:\n\n- Past timestamp charges.\n- Future timestamp does not charge.\n- Exact-boundary case at `nextChargeAt == now` captures current inclusive/exclusive behavior.\n- The same `now` value is used for both `chargedAt` and `markCharged(...)`.\n- Exceptions from the transaction body still propagate unchanged.\n- The transaction wrapper is still used for the two writes.\n\nThen add new-behavior tests for the grace period:\n\n- `nextChargeAt + 47h59m59s` is not due.\n- `nextChargeAt + 48h` boundary behavior, once product decides inclusive vs exclusive.\n- `nextChargeAt + more than 48h` is due.\n- A timestamp with an explicit UTC offset still behaves consistently under the extracted policy.\n\nBecause staging is slow and shared, do not use it as the primary proof. Use fast tests with a fake database and fixed clock first. After that, do only a minimal manual verification:\n\n- Read-only data check of real `nextChargeAt` formats from staging or production-like data.\n- Optional smoke test only if an isolated disposable account exists; otherwise avoid shared-fixture writes.\n\n**Product Decisions That Must Be Resolved**\n\nDo not infer these from the code:\n\n- Whether charging exactly at the cutoff is intended. The current code uses `<=`, but that does not prove product intent. The same question exists at `nextChargeAt + 48h`.\n- What timezone semantics `nextChargeAt` is supposed to have. If stored values are mixed between `Z`, explicit offsets, and local-time strings, adding 48 hours on top of ambiguous parsing is not a safe semantic assumption.\n- Whether the grace period is exactly 48 elapsed hours or \u201c2 calendar days\u201d in some business timezone.\n- Whether all overdue accounts get the grace period uniformly, or whether some account states are excluded.\n\nIf timestamp storage is not already normalized, the safest path is: first confirm the real stored formats and intended timezone rule, then ship only the grace-period predicate change under those confirmed rules.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/legacy-control-neighbor.md",
+  "case_sha256": "723f771d5cf18ba69b606205f5882d931fd067cd5ec41564cf0c84ad0f8bc05a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585d-2916-7fd2-849d-69694f413a34",
+  "exit_code": 0,
+  "result": {
+    "answer": "The right order is: gain control of instantiation, gain control of time, characterize current behavior at the `run(accountId)` boundary, then change the rule.\n\nWhat must be characterized before the behavior change:\n- Missing account: returns `false`, does not update.\n- Already suspended account: returns `false`, does not update.\n- Unsuspended account with `due_at` strictly before \"now\": returns `true`, performs the suspension update.\n- Unsuspended account with `due_at` equal to \"now\": currently returns `false` because the code uses strict `isBefore(...)`. This boundary matters because the grace-period rule should preserve or intentionally change that strictness.\n- Unsuspended account with `due_at` after \"now\": returns `false`, does not update.\n- Exception behavior that callers may rely on: constructor can fail opening the database, and `run` can propagate SQL errors. If `due_at` can be null in production, current null handling should also be characterized before changing semantics.\n\nThe smallest useful seam is not broad cleanup; it is just enough substitution to make feedback trustworthy:\n- Split construction from use so tests do not open the real database. The minimal version is a seam for persistence supplied from outside instead of always doing `DriverManager.getConnection(...)` in the constructor.\n- Inject time as an explicit dependency (`Clock`, `InstantSource`, or equivalent) so the cutoff can be tested deterministically.\n\nGiven JDBC\u2019s large interfaces, the practical smallest seam is usually a very narrow persistence collaborator for exactly these two operations: load `due_at` and `suspended` for an account, and mark the account suspended. Keep the current constructor as production wiring if needed, but test through the narrow seam plus injected time.\n\nRecommended work order:\n1. State the intended delta precisely: only the eligibility cutoff changes from `due_at < now` to `due_at + 3 days < now` unless characterization proves some other contract must also move.\n2. Introduce the minimal seam for persistence and time, with no naming/formatting/architecture cleanup around it.\n3. Add focused characterization tests for today\u2019s behavior at the `run` boundary, especially the strict time boundary and update/no-update cases.\n4. Add new tests for the requested rule using the same seam: before grace expires, exactly at the grace boundary, and after grace expires.\n5. Only then change the rule.\n\nIf one thing must happen first, it is breaking the constructor/database and ambient-time dependencies. Without that, any feedback is slow, nondeterministic, and tied to real production-like state rather than the behavior slice you are trying to preserve.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:05:28.548244Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585c-957a-7e22-bdb4-c5038eb20bbe.1783893890426483000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:05:28.694034Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585c-958d-7681-a23b-f3dad8bf6f35.1783893890446135000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:24.808653Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-2916-7fd2-849d-69694f413a34.1783893928215706000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

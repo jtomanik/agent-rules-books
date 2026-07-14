@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/manual-focused.md",
+  "case_sha256": "85fe064fd4e09fac7d4d4bde889ec036ade958a9ba7c116060e1b8334c87508b",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5882-6070-78b1-92d5-59f8bd921915",
+  "exit_code": 0,
+  "result": {
+    "answer": "The use case should not import an interface declared in `infrastructure/sql-customer-store.ts`.\n\nReason: in Clean Architecture, dependency direction is determined by ownership of the abstraction, not by whether the method signatures are \u201cclean\u201d or whether the concrete SQL class implements it. If the interface is declared in `infrastructure/...`, then it is infrastructure-owned. An application-owned use case importing it means the inner layer now depends on an outer-layer declaration, which violates the dependency rule.\n\nThe fact that the interface only returns plain strings is not decisive. SQL-free types can still be packaged in the wrong layer. What matters is: who defines the port, and which layer is allowed to know about which declarations.\n\nThe correct interpretation is:\n- If the use case needs a storage abstraction, that abstraction must be declared in the application/domain side as an input/output port owned by the use case layer.\n- Infrastructure may implement that port in `sql-customer-store.ts`.\n- Declaring the interface in infrastructure and having the use case import it reverses the intended ownership, even if the interface looks generic.\n\nSo the reviewers\u2019 dispute resolves as follows: implementation compatibility does not grant import permission. The interface\u2019s file/layer location establishes ownership, and an application use case must not depend on an infrastructure-owned abstraction.\n\nI did not find an accessible repository `.agents/skills/clean-architecture` package in this workspace, so this conclusion is based on the standard Clean Architecture dependency rule rather than project-book text.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:47:39.801108Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5882-6070-78b1-92d5-59f8bd921915.1783896367217134000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55ad-1d0d-7dc0-8e99-87abb284fbfa",
+  "exit_code": 0,
+  "result": {
+    "answer": "1. Merge blocker: `carrierSlots.acquire()` can wait forever, so this optional dependency can still consume the entire checkout request budget before the HTTP call even starts. The stated behavior is to continue checkout with `{ kind: \"unavailable\" }` when the carrier cannot answer within budget, but semaphore saturation currently has no deadline and does not observe `requestSignal`. Smallest fix: bound slot acquisition by the checkout/request deadline or `requestSignal`, and return `{ kind: \"unavailable\" }` on acquisition timeout/cancellation.\n\n2. Merge blocker: the outbound call is not tied to the checkout deadline. `carrierClient.post()` is called without `requestSignal`, and `timeoutMs` only covers response waiting, not connection establishment. A slow DNS/TCP/TLS connect can therefore run past `CHECKOUT_REQUEST_TIMEOUT_MS` while holding one of the 32 carrier slots. Smallest fix: pass an abort signal derived from the checkout request budget into the client call, and make that deadline cover the full operation, including connect time.\n\n3. High: the integration does not enforce the provider contract before returning `kind: \"available\"`. It accepts any JSON body from any status, without checking `200`, content type, finite non-negative `amount`, three-letter `currency`, or ISO-8601 `expires_at`. That can turn contract failures or malformed dependency output into a bogus quote instead of degradation. Smallest fix: validate status/content type/body shape explicitly, return `available` only for a valid `200` response, and otherwise classify outcomes as follows: `429`/`5xx`/timeout/transport failure => `{ kind: \"unavailable\" }`; `4xx` => contract/request failure path with distinct logging/metric tagging so it is visible before release.\n\n4. Medium: failure diagnosis is too collapsed for first release. Everything currently becomes one warning log line, which hides whether the problem was semaphore saturation, caller cancellation, connect timeout, provider `429`, provider `4xx`, malformed `200`, or transport failure. Smallest fix: keep the fallback behavior, but add structured outcome fields (for example `outcome`, `httpStatus`, `timedOut`, `acquireTimedOut`) and counters/timers for carrier latency and unavailable reasons. That is enough to tell whether the protection is working without expanding the scope into a broader audit.\n\nI would block merge on the first two items, and strongly recommend fixing the third in the same change because it is part of the published provider contract for what counts as a valid quote.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

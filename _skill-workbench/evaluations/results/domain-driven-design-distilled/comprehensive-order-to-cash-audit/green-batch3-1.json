@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/comprehensive-order-to-cash-audit.md",
+  "case_sha256": "5af61604bf76006c4352096a5755f3f5f6033161feba5b1c5398c4b7caa509b8",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c58-ccbb-79e0-bc87-b0ae2d85111b",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposal is not viable under a Distilled DDD review. It spends too little effort on the real differentiator, too much ceremony on low-value areas, and collapses multiple meanings into one model.\n\nMost important findings:\n1. `one_enterprise_model` is the main strategic failure. Commerce and Finance already disagree on `Customer` and `posted`, so a single model and glossary are invalid. Split at least these bounded contexts: `Pricing`, `Ordering`, `Billing/Invoicing`, and `Notifications`. Keep each context\u2019s language local.\n2. `ownership: architecture_team` is wrong for bounded contexts. Contexts need product/team ownership: Commerce should own Pricing and Ordering, Finance should own Billing, Customer Platform can own notification plumbing or customer-profile concerns. Architecture can govern standards, not own the model.\n3. `shared_package: commerce-domain`, `shared_tables`, `shared_Order`, and vendor DTO reuse all leak models across boundaries. Replace them with explicit contracts and translation. Finance must not consume Commerce\u2019s `Order` object directly, and provider DTOs must stop at anticorruption layers.\n4. `tactical_DDD_for_every_subdomain: true` is over-modeling. Distilled DDD says to invest most in `dynamic_pricing`, keep `email_notifications` as straightforward CRUD/template delivery, and use only the lightest tactical patterns that pay off in supporting areas.\n5. `CommerceAccount` is an oversized aggregate and a direct tactical anti-pattern. One aggregate holding `Customer, Orders, Invoices, Payments, Addresses` in one DB transaction guarantees contention, weak boundaries, and accidental coupling. Split by real invariants. In the first release, likely separate `Order` and `Invoice` aggregates at minimum; `Payments` probably should not be central yet at all.\n6. `OrderController: validates_prices_and_credit_then_updates_all_objects` means the service layer owns the business. That is service-centric fake DDD. Application services should orchestrate; pricing decisions, order state transitions, and billing rules should live in their own model concepts.\n7. `CommerceRepository: returns_complete_object_graph` reinforces the bad aggregate boundary. Repositories should load only the aggregate needed for the use case, not a whole commerce graph.\n8. `Money: mutable_amount_and_currency_fields` is wrong. `Money` should be an immutable value object with validation and arithmetic semantics. Mutable money invites invalid state and hidden side effects.\n9. `events: named_after_database_rows` is not domain language. Events should be meaningful past-tense business facts such as `QuotePriced`, `OrderConfirmed`, `InvoiceIssued`, `ReceiptEmailed`.\n10. `modeling_sessions: none` and `feedback: design_review_after_code_complete` are delivery risks. With known language conflict and integration risk, you need short event storming or scenario modeling early, not after the code is already fixed in place.\n\nA proportionate target design for the 8-week release:\n- `Pricing` as the Core Domain. Isolate weekly-changing pricing strategy here. Give it the strongest modeling effort, tests, and language.\n- `Ordering` as a Supporting context. It should request or consume pricing outcomes, create quotes/orders, and keep its own language. Do not embed pricing internals here.\n- `Billing/Invoicing` as a Supporting context owned by Finance. It should translate order information into invoice concepts and keep Finance meanings of `Customer` and `posted` local.\n- `Notifications` as a Generic context. Keep it simple: templates, channels, delivery records.\n\nRecommended context relationships and integrations:\n- `Pricing -> Ordering`: no shared tables. Use an explicit pricing contract. If Pricing language would pollute Ordering, add translation; if multiple consumers will use pricing, expose a stable published contract.\n- `Ordering -> Billing`: avoid synchronous RPC with shared `Order`. Prefer async integration from a business event such as `OrderConfirmed`, or a thin application contract that maps into Billing\u2019s own model.\n- `Billing -> Notifications`: async is the better default. `InvoiceIssued` should trigger email receipt/notification work without making invoicing depend on mail latency.\n- `Tax provider` and `payment provider`: wrap both in anticorruption layers. Their DTOs should not enter Finance or Commerce models.\n\nTactical guidance by subdomain:\n- `dynamic_pricing`: richer model justified. Use value objects and entities where pricing policies, effective periods, eligibility, and monetary rules matter.\n- `order_capture`: moderate modeling. Focus on quote/order lifecycle and invariants, not a giant account object.\n- `invoicing`: moderate modeling around invoice issuance and posting semantics, but keep it lean for release one.\n- `email_notifications`: no full tactical DDD unless complexity appears later.\n\nWhat to defer or simplify for release one:\n- Defer broad `Payments` modeling unless the first release truly needs payment lifecycle behavior. External providers are controlled elsewhere and the stated release scope is quote, order confirmation, invoice issue, and email receipt.\n- Keep customer identity/reference translation explicit instead of solving enterprise-wide `Customer` unification now.\n- Do not build a shared kernel unless there is a very small, stable overlap with real joint ownership and tests.\n\nMinimal next steps before implementation:\n1. Run a short event-storming session for quote-to-order-to-invoice-to-email, including Commerce and Finance.\n2. Define the bounded contexts and publish a context map with translations for `Customer` and `posted`.\n3. Reduce the initial model to the release scope and remove shared object graphs.\n4. Define business events and integration contracts before coding adapters.\n5. Add acceptance scenarios and translation tests early, especially around pricing output and invoice issuance.\n\nBottom line: keep DDD serious in `Pricing`, explicit at context boundaries, and intentionally light everywhere else. The current proposal does the opposite.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/domain-driven-design-distilled/references/index.md",
+      ".agents/skills/domain-driven-design-distilled/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "domain-driven-design-distilled",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:40:17.712923Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c58-ccbb-79e0-bc87-b0ae2d85111b.1783960751292325000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

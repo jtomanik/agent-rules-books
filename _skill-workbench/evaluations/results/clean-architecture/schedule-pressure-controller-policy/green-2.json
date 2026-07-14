@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/schedule-pressure-controller-policy.md",
+  "case_sha256": "3e1c3b18559a931bfec0d088407244283c234057a6b9abd1efe272398953dd25",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585d-5a37-7e33-b9e1-873f4b3ed49d",
+  "exit_code": 0,
+  "result": {
+    "answer": "Do not accept the shortcut.\n\nThe proposed controller change puts business policy in an adapter and bypasses the `RefundPurchase` use case to call the repository directly. That creates a controller-owned refund path, duplicates refund decision logic, and leaves the fully specified fast tests protecting only the old path. Under Clean Architecture, this is a controller-centric policy leak and a layer bypass.\n\nThe smallest shippable placement is: add the VIP branch inside the existing refund decision path, keeping the controller unchanged.\n\nPractical shape:\n- Keep `postRefund` as a thin translator.\n- Change `RefundPurchase.execute(...)` so the rule becomes `30 days for VIP, 14 days otherwise`.\n- If the 14-day rule already lives in a domain policy/helper/entity, extend it there instead of adding a second policy site.\n- Keep repository writes behind the use case; do not call `purchaseRepository.refund(...)` from the controller.\n- Add or update the existing fast tests around `RefundPurchase` for VIP accepted at 30 days and rejected after 30 days, while preserving the non-VIP 14-day cases.\n\nThat is the minimum change that ships today without changing the HTTP contract or schema, while preserving dependency direction and keeping the tested business rule in one place.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-architecture/references/index.md",
+      ".agents/skills/clean-architecture/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:05:41.102657Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-28bc-7183-80a7-cf01186575d2.1783893928125287000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:21.284891Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-5a37-7e33-b9e1-873f4b3ed49d.1783893940791704000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

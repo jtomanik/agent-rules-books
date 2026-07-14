@@ -1,0 +1,7 @@
+interface:
+  display_name: "Clean Architecture"
+  short_description: "Keep business policy independent of details"
+  default_prompt: "Use $clean-architecture to review this design for policy independence and inward dependencies."
+
+policy:
+  allow_implicit_invocation: true

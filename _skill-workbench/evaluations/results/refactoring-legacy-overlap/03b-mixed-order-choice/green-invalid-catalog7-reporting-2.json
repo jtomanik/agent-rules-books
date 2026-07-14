@@ -1,0 +1,70 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5874-3e10-7051-b09f-681f51e00bff",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is:\n\n1. Gain deterministic control first.\n2. Add a shared eligibility owner as a behavior-preserving refactor.\n3. Add the 60-day introductory-subscription rule in that shared owner.\n\nThat order is safer because the current class is legacy-risk code by the evidence given: no focused tests, hidden database construction, direct clock reads, and only one slow happy-path test. Changing semantics or extracting ownership before creating a seam leaves you in edit-and-pray territory. The first barrier is not duplication; it is lack of control.\n\nAfter control exists, extraction is safer before the semantic change. The new rule must apply identically to `previewCredit()` and `applyCredit()`, and the current duplication is exactly where drift can happen. If you add the 60-day rule in two places first, you create two opportunities for mismatch and make review harder because behavioral and structural concerns are already mixed. With focused characterization tests in place, a small extraction to one owner becomes a reviewable refactor, and then the rule change is a single semantic edit.\n\nThe order I would recommend in practice is:\n\n1. Patch 1: deterministic seams and focused tests.\nIntroduce the smallest durable seams that unblock observation and substitution:\n- inject a database dependency, defaulting to the current `new SubscriptionDatabase(process.env.SUBSCRIPTION_DSN!)`\n- inject a clock, e.g. `() => new Date()` by default\n\nThen add focused worker-level tests that characterize current behavior for both methods. At minimum, cover:\n- eligible active subscription: `previewCredit()` returns preview result, `applyCredit()` returns `\"applied\"` and writes expected records\n- inactive, negative balance, manual hold: `previewCredit()` returns `null`, `applyCredit()` returns `\"skipped\"`, no writes\n- confirm `previewCredit()` and `applyCredit()` are aligned on the shared preconditions that exist today\n\nThis patch should preserve behavior completely.\n\n2. Patch 2: consolidate eligibility ownership only.\nExtract the duplicated predicate into one clear owner, for example:\n- a private method on `PromotionWorker`, if you want the smallest patch\n- a small policy/function object, if the team wants a reusable domain owner\n\nGiven the evidence, the smaller move is better first: one owner close to the current code, no abstraction hunt. This patch should not change behavior. Its review question is simple: do both methods still behave exactly as before, now via one predicate?\n\n3. Patch 3: add the new 60-day rule.\nExtend the shared owner so introductory subscriptions older than 60 days are ineligible. Add boundary-focused tests around the clarified rule and verify both `previewCredit()` and `applyCredit()` follow it identically.\n\nDecisions that need clarification before patch 3:\n- Exact boundary: is \u201colder than 60 days\u201d strictly `> 60 days`, or `>= 60 days` at the moment the worker runs?\n- Time semantics: rolling 60 times 24 hours, or calendar-day logic?\n- Timezone source: compare instants only, or any business timezone/date truncation?\n- `startedAt: null` for introductory subscriptions: ineligible, eligible, or invalid data that should skip?\n- Parsing failures or malformed timestamps: skip, error, or treat as ineligible?\n- Scope: should this rule affect both `previewCredit()` and `applyCredit()` identically? The prompt strongly suggests yes, but it is worth making explicit.\n- Output contract for ineligible preview: remain `null` rather than a zero amount or different reason code?\n- Whether `database.credits.preview(subscription.kind, now)` already embeds any introductory-subscription logic that now needs to move or stay separate.\n\nReviewable patch boundaries:\n- Patch 1 is infrastructure-for-test only: seams plus characterization tests, no business-rule change.\n- Patch 2 is behavior-preserving refactoring only: one eligibility owner, no rule change.\n- Patch 3 is semantic change only: 60-day rule plus new/updated tests.\n\nWhy the alternatives are less safe:\n- Rule first in both methods: fastest to type, worst for drift and review clarity.\n- Extraction first with no tests: still risky, because you cannot prove the refactor preserved behavior.\n- Rule and extraction in one patch after adding seams: workable, but less reviewable than separating ownership from semantics.\n- Broad redesign of worker/database/policy structure first: unjustified in a weakly tested area.\n\nSo the evidence supports: control first, shared owner second, semantic rule third.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "working-effectively-with-legacy-code",
+        "sections": [
+          "Primary Directive",
+          "Non-Negotiable Rules",
+          "Default Workflow for Legacy Changes",
+          "Testing Strategy Rules",
+          "Seam Rules",
+          "Dependency Breaking Rules",
+          "Handling Risky Areas",
+          "Review Rules",
+          "Forbidden Patterns"
+        ]
+      },
+      {
+        "skill": "refactoring",
+        "sections": [
+          "Primary Directive",
+          "What Counts as Refactoring",
+          "Non-Negotiable Rules",
+          "Safety Rules"
+        ]
+      },
+      {
+        "skill": "clean-code",
+        "sections": [
+          "[]"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [
+    "consulted_reference_sections must exactly match skills whose full.md was read: sections=['clean-code', 'refactoring', 'working-effectively-with-legacy-code'], full=['refactoring', 'working-effectively-with-legacy-code']"
+  ],
+  "stderr": "2026-07-12T22:30:41.192936Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-2404-7530-8752-9f9227f87026.1783895434245023000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:31:48.441438Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-3e10-7051-b09f-681f51e00bff.1783895440913181000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

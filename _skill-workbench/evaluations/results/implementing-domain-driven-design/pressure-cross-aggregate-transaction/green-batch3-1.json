@@ -1,0 +1,66 @@
+{
+  "case": "_skill-workbench/evaluations/cases/implementing-domain-driven-design/pressure-cross-aggregate-transaction.md",
+  "case_sha256": "0dd792df09684c2bb2b5dff43a1bfa9bfd6ee3445d43ce21fa4923e60eca5490",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c8b-0d67-75f0-8a3f-52421162a8ed",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Use a local `Order` transaction plus an outbox, and stop treating `Customer` and `InventoryItem` as part of the same commit unit.\n\nSmallest safe change today:\n\n1. Keep `confirmOrder(orderId)` as the application-service entrypoint.\n2. Change the repository call from `loadGraph/saveGraph` semantics to `loadOrder/saveOrderAndOutbox` semantics, even if you keep the existing fa\u00e7ade name to avoid broad churn.\n3. Load only the `Order` aggregate. Inside Ordering, store `customerId` and `inventoryItemId` references plus any translated snapshots you already need, not foreign aggregates.\n4. In one local Ordering transaction, execute `order.requestConfirmation()` or similar. That method should only change local Order state, for example:\n   - `order.status = \"CONFIRMATION_PENDING\"`\n   - each line `status = \"ALLOCATION_REQUESTED\"`\n   - record domain event `OrderConfirmationRequested`\n5. In that same transaction, persist the Order and append integration messages to an outbox.\n\nThat preserves the Order invariant atomically: Ordering is either still unchanged, or it is in one coherent \"pending external completion\" state. It is never half-confirmed because Customer and Inventory writes are no longer in the same unit of work.\n\nTransaction scope:\n- One database transaction for `Order` and outbox only.\n- No distributed transaction across Ordering, Customer, and Inventory.\n- If the outbox write commits, the external work is guaranteed to be attempted later.\n\nReferences:\n- `Order` keeps `customerId` and `inventoryItemId` only.\n- Any copied customer or inventory data inside Ordering must be a translated snapshot, not a live foreign entity.\n- Remove direct mutation like `order.customer.status = ...` and `line.inventoryItem.available -= ...` from Ordering code.\n\nApplication coordination:\n- `confirmOrder` stays an application service.\n- It coordinates local state change plus outbox creation.\n- A lightweight process manager / handler can be added after commit to fan out messages, but you do not need a full saga rewrite today.\n\nIntegration messages:\n- Emit either one fact event from Ordering, `OrderConfirmationRequested`, with `orderId`, `customerId`, and line allocation requests.\n- Or emit two explicit integration commands from the outbox:\n  - `ActivateCustomerForOrder`\n  - `AllocateInventoryForOrderLine`\n- Customer and Inventory handle their own aggregates in their own local transactions.\n- They publish result facts back, for example:\n  - `CustomerActivatedForOrder` or `CustomerActivationRejected`\n  - `InventoryAllocatedForOrderLine` or `InventoryAllocationRejected`\n- Ordering completes when all required success facts arrive, or moves to `CONFIRMATION_FAILED` / `ON_HOLD` and triggers compensation if partial downstream work succeeded.\n\nForeign `status` value:\n- `ACTIVE` belongs to Customer context. Ordering must not set or depend on that enum directly.\n- Ordering should express only its own local concept, such as `customerActivationState = REQUESTED|SUCCEEDED|FAILED`, or just rely on result events.\n- Any mapping to Customer\u2019s internal status values belongs in the Customer context or an anticorruption translator, not in Ordering.\n\nA minimal shape looks like this:\n\n```ts\nexport async function confirmOrder(orderId: string): Promise<void> {\n  await orderingUnitOfWork.execute(async (tx) => {\n    const order = await orderRepository.load(orderId, tx);\n\n    const event = order.requestConfirmation();\n\n    await orderRepository.save(order, tx);\n    await outbox.append([\n      toActivateCustomer(event),\n      ...toAllocateInventory(event),\n    ], tx);\n  });\n}\n```\n\nThis is the smallest boundary-correct change because it preserves the current use case entrypoint, avoids a repo-wide rewrite, removes the illegal cross-context object graph, keeps the only synchronous invariant inside `Order`, and moves cross-context completion to explicit asynchronous coordination with compensation.",
+    "selected_project_skills": [
+      "implementing-domain-driven-design",
+      "domain-driven-design-distilled",
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/implementing-domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/references/index.md",
+      ".agents/skills/implementing-domain-driven-design/references/full.md",
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "implementing-domain-driven-design",
+        "sections": [
+          "Aggregate Rules of Thumb",
+          "Domain Event Rules",
+          "Application Service Rules",
+          "Context Integration Rules",
+          "Final Instruction"
+        ]
+      },
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Consistency Rules",
+          "Idempotency and Replay Rules",
+          "Event, Log, and Stream Rules",
+          "Transaction Rules",
+          "API and Service Boundary Rules",
+          "Schema Evolution Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "implementing-domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

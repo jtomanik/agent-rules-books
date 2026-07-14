@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58be-eeb7-7621-b257-c3d7debb3fb9",
+  "exit_code": 0,
+  "result": {
+    "answer": "Primary findings:\n1. `createInvoice` collapses transport, application policy, and persistence into one function ([snippet lines 1-4, 6-21]). The approval rule and invoice-creation action now depend on `NextRequest`, `NextResponse`, Prisma, and Prisma models, so the core behavior is not independently testable or replaceable.\n2. The use case boundary is using detail-owned models ([lines 3, 7, 17]). `Order` and `Invoice` are imported from Prisma, which gives the database layer ownership of application data shapes. The use case should own its request/response models and the repository ports it needs.\n3. Translation is happening in the wrong place ([lines 7-8, 21]). Query-string parsing and HTTP response construction belong in the Next.js adapter; mapping between database rows and use-case data belongs in the Prisma adapter. The use case should receive plain data and return plain data.\n\nSmallest production design:\n\n```ts\n// application/create-invoice.ts\nexport type CreateInvoiceCommand = {\n  orderId: string;\n};\n\nexport type CreateInvoiceResult = {\n  invoiceId: string;\n  totalCents: number;\n};\n\nexport type ApprovedOrderForInvoicing = {\n  id: string;\n  status: \"APPROVED\" | \"PENDING\" | \"REJECTED\";\n  lines: Array<{ amountCents: number }>;\n};\n\nexport interface LoadOrderForInvoicing {\n  byId(orderId: string): Promise<ApprovedOrderForInvoicing | null>;\n}\n\nexport interface SaveInvoice {\n  save(invoice: { orderId: string; totalCents: number }): Promise<{ id: string }>;\n}\n\nexport class OrderNotApprovedError extends Error {}\nexport class OrderNotFoundError extends Error {}\n\nexport class CreateInvoice {\n  constructor(\n    private readonly loadOrder: LoadOrderForInvoicing,\n    private readonly saveInvoice: SaveInvoice,\n  ) {}\n\n  async execute(command: CreateInvoiceCommand): Promise<CreateInvoiceResult> {\n    const order = await this.loadOrder.byId(command.orderId);\n    if (!order) throw new OrderNotFoundError();\n    if (order.status !== \"APPROVED\") throw new OrderNotApprovedError();\n\n    const totalCents = order.lines.reduce((sum, line) => sum + line.amountCents, 0);\n    const invoice = await this.saveInvoice.save({ orderId: order.id, totalCents });\n\n    return { invoiceId: invoice.id, totalCents };\n  }\n}\n```\n\nOwnership and translation:\n- Application layer owns `CreateInvoiceCommand`, `CreateInvoiceResult`, `ApprovedOrderForInvoicing`, and the `LoadOrderForInvoicing` / `SaveInvoice` interfaces.\n- Next.js adapter owns parsing `orderId` from `NextRequest`, calling `useCase.execute({ orderId })`, mapping domain/application errors to HTTP status codes, and building `NextResponse`.\n- Prisma adapter owns Prisma queries and mapping Prisma records into `ApprovedOrderForInvoicing`, plus persisting `{ orderId, totalCents }` and returning `{ id }`.\n\nConcrete wiring belongs in the outer layer, for example a Next.js route module that constructs `new CreateInvoice(new PrismaOrderGateway(prisma), new PrismaInvoiceGateway(prisma))` and then invokes it. That keeps the approval rule and invoice action independent from both Next.js and Prisma while staying minimal.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

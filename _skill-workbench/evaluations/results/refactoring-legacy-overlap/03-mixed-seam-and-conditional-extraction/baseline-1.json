@@ -1,0 +1,56 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5338-588e-75c0-8cd5-622babcdf13e",
+  "exit_code": 0,
+  "result": {
+    "answer": "The workspace is empty, so this is necessarily a source-snippet analysis rather than a repository-grounded one.\n\n**Work Order**\n1. Lock down current behavior before semantic edits.\n   - Add focused unit tests around `quote()` and `renew()` for the existing shared eligibility outcomes: `closed`, `paused`, negative balance, and an eligible non-trial account.\n   - Add one test that proves `quote()` and `renew()` currently agree on eligibility for the same account shape. This is the guard against divergence during refactoring.\n   - Introduce seams for time and database construction before changing business rules, because the new rule depends on account age and the class currently hard-codes both `new RenewalDatabase(...)` and `new Date()`.\n\n2. Add controllable seams with no intended behavior change.\n   - Inject a database dependency or a small factory/provider so tests can supply a fake `RenewalDatabase`.\n   - Inject a clock, such as `() => Date` or a `Clock` interface with `now(): Date`.\n   - Keep constructor defaults wired to the current production behavior: same DSN source, same system clock, same database API usage.\n   - During this step, do not move or rewrite the duplicated eligibility conditional yet beyond replacing raw `new Date()` and internal DB construction with the injected seams.\n\n3. Add focused tests for the new trial-age rule.\n   - Cover trial accounts at these boundaries: less than 30 days old, exactly 30 days old, and older than 30 days.\n   - Decide and document the exact boundary semantics before coding: product says \"older than 30 days\", which normally means `> 30 days` is ineligible and exactly `30 days` remains eligible.\n   - Add at least one test for malformed or null `trialStartedAt` handling if that case is possible in the real code path; this must be clarified before semantic edits.\n\n4. Introduce a single eligibility owner and apply the new rule there.\n   - Extract a single function or policy object, for example `isEligibleForAutomaticRenewal(account, now)`.\n   - Make `quote()` and `renew()` both call that owner.\n   - Preserve all existing non-trial outcomes: `closed`, `paused`, and negative balance must behave exactly as before.\n   - Then add the trial-age check inside that owner: if `plan === \"trial\"` and `trialStartedAt` is more than 30 days before `now`, return ineligible.\n\n5. Verify structural preservation after consolidation.\n   - Re-run the pre-existing focused tests plus the slow end-to-end test.\n   - Confirm that only the intended delta changed: trial accounts older than 30 days now skip renewal and return no quote; all other observed outcomes remain unchanged.\n\n**Patch Boundaries**\n- Patch 1: test harness/seams only.\n  - Add injectable database and clock dependencies.\n  - Add focused unit tests for current behavior.\n  - No business-rule changes allowed.\n\n- Patch 2: new rule under test.\n  - Add trial-age test cases.\n  - Implement the rule in the existing duplicated conditional if necessary for a minimal semantic patch.\n  - Keep duplication temporarily if that makes the semantic diff smaller and easier to review.\n\n- Patch 3: structural consolidation only.\n  - Extract the shared eligibility owner.\n  - Replace both duplicated conditionals with calls to it.\n  - No intended behavior changes relative to Patch 2.\n\nThis split is safer than combining the rule change and refactor in one patch because it isolates the only intended behavior delta from the mechanical deduplication.\n\n**What Must Be Learned Or Controlled Before Semantic Edits**\n- Boundary definition for \"older than 30 days\": confirm that exactly 30 days old is still eligible.\n- Time basis: use UTC-safe comparisons and a single captured `now` per method invocation.\n- Validity expectations for `trialStartedAt` on trial accounts: can it be `null`, malformed, or timezone-naive in persisted data?\n- Whether quoting and renewing are intentionally required to share identical eligibility semantics. The supplied code strongly suggests yes, so that should be treated as an invariant and tested.\n- Whether any existing callers instantiate `RenewalWorker` directly and would be affected by constructor signature changes. Defaulted dependency injection avoids breaking them.\n\n**Behavior-Preservation Rules During Structural Work**\n- Do not change DSN lookup behavior in production defaults.\n- Do not change transaction boundaries or the order of renewal writes.\n- Do not introduce a second `now` read inside a single method; keep one timestamp per call.\n- Do not alter pricing lookup inputs except to reuse the injected `now`.\n- Do not broaden or narrow any non-trial eligibility path.\n- Do not fold parsing fallbacks or data repair logic into the refactor unless separately required; keep the consolidation narrowly about ownership of the boolean decision.\n\n**Suggested Shape**\nA low-risk end state is:\n- constructor accepts optional `{ database, clock }` dependencies with production defaults.\n- a private helper or separate policy function owns `isEligibleForAutomaticRenewal(account, now)`.\n- `quote()` and `renew()` each load the account, capture `now`, call the shared owner, and then proceed exactly as they do today.\n\nThat gives you focused tests, deterministic time, controllable persistence, one eligibility owner, and a review history where the semantic change is isolated from the refactor.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Add focused unit tests for `quote()` and `renew()` before changing logic, because the current snippet shows duplicated eligibility logic and only a slow end-to-end path is described.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Introduce dependency injection for the database client and system clock as a behavior-preserving preparatory patch, with production defaults matching current construction and `new Date()` behavior.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Treat the trial-age rule as a separate semantic patch from the later deduplication patch so the review can isolate the intended behavior change from the mechanical refactor.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Define and test the exact boundary for \"older than 30 days\" before implementation; default interpretation should be that strictly more than 30 days is ineligible while exactly 30 days is still eligible.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Consolidate eligibility into one clear owner only after tests cover both methods and the new trial rule, and preserve transaction/order/pricing behavior during that structural step.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:07:09.623187Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-e63b-7072-a051-53b7cb20df50.1783807600187424000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:08:04.146933Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5338-588e-75c0-8cd5-622babcdf13e.1783807629455328000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

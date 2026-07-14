@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/ordinary-derived-projection.md",
+  "case_sha256": "30b6a09a3b8e39fdbc3f5f2b22f4640691b695e28825d764bf858f2b5ae608dd",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5859-6eed-78b3-94ce-7369c0a8231e",
+  "exit_code": 0,
+  "result": {
+    "answer": "The direct dual-write is not acceptable as the correctness mechanism under these facts.\n\n`products` in PostgreSQL is the authority, the rename API is successful at PostgreSQL commit, and search is explicitly allowed to lag. That means search is a derived projection, not part of the rename transaction boundary. In the current code, the direct `search.documents.update(...)` is only a best-effort side effect, but today it is also the only normal propagation path and the only repair path until some later edit happens. Because the index has no durable checkpoint and no rebuild command, a failed search write can leave the projection permanently wrong. That is the real defect.\n\nThe smallest design correction is:\n\n1. Move search propagation ownership to a CDC-driven projector from PostgreSQL.\n2. Treat the in-request search update as optional at most, not authoritative.\n3. Add a durable projection checkpoint plus replay/reindex capability.\n\nMinimum contract needed:\n\n- Propagation: after the PostgreSQL commit, a CDC record for the product rename must be consumed by an idempotent search projector that upserts `productId -> name`. Per-product ordering must be preserved, or versioning must reject older updates.\n- Lag visibility: operators need a measurable freshness signal for the projection, such as projector checkpoint position and `now - last_applied_change_time`, with a clear breach when lag exceeds ten minutes.\n- Rebuild: the search index must be recreatable from PostgreSQL authority alone. Minimum requirement is a full reindex path plus a durable checkpoint so the projector can resume and replay safely.\n- Repair: failures must be retried independently of future product edits. Minimum requirement is durable failed-work retention with replay, plus targeted reproject of one product or replay from checkpoint.\n\nIf you want the absolute minimum code-path change, keep the API success point exactly where it is, remove the direct search write from the correctness story, and let CDC own convergence. The direct write can remain only as a latency optimization if the CDC projector still guarantees eventual repair and overwrite.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:01:50.385395Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-6eed-78b3-94ce-7369c0a8231e.1783893683950034000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

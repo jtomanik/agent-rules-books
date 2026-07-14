@@ -1,0 +1,64 @@
+{
+  "case": "_skill-workbench/evaluations/cases/patterns-of-enterprise-application-architecture/compatible-distributed-order-flow.md",
+  "case_sha256": "f31a34fcc9b0b7cda31b78996189a927003c9951c33b54d470e6c3dc130383a1",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dcd-f0e3-7fd0-977c-2729b22c0b41",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current flow has three correctness defects and one placement defect.\n\n1. The controller owns persistence, messaging, and a remote call. That is controller-centric workflow with unclear transaction ownership.\n2. `orders` commit and broker publish are separate writes, so `POST /orders` can lose the event after commit or publish an event for a request whose HTTP response failed.\n3. client retries can create duplicate orders unless the write path is idempotent.\n4. one global projection offset is the wrong ordering model because the broker only preserves order within a partition, not globally.\n\nRedesign the flow around one application operation: `SubmitOrder`.\n\n- HTTP controller responsibility: validate transport fields, require an `Idempotency-Key`, map JSON into `SubmitOrderCommand`, call the application service, return a DTO. It does not write tables, publish to the broker, or call Inventory.\n- Business-logic shape: use a Service Layer operation plus a small Order domain model. This is not a generic CRUD create. The order has identity and lifecycle states such as `PENDING_RESERVATION`, `RESERVED`, and `REJECTED`.\n- Application service responsibility: `SubmitOrder` owns orchestration and the local transaction boundary.\n- Persistence shape: replace `GenericRepository` with an `OrderRepository` in domain terms and explicit mapping code. Keep the mapper separate from the domain object. Add an outbox store for integration messages.\n- Transaction ownership: one local database transaction writes the authoritative order row and the outbox rows together. No broker publish and no Inventory call happen inside that transaction.\n\nSuggested submission flow:\n\n1. Controller validates HTTP payload and `Idempotency-Key`.\n2. `SubmitOrder` checks for an existing submission by `(client_id, idempotency_key)`.\n3. If found and the normalized request matches, return the existing order DTO.\n4. If found and the request differs, return `409 Conflict`.\n5. If new, create `order_id`, persist the order as `PENDING_RESERVATION`, and persist outbox records in the same transaction.\n6. Commit.\n7. Return `201 Created` with the order DTO, including status `PENDING_RESERVATION`.\n8. An outbox relay publishes integration messages after commit.\n\nRemote boundary and DTOs:\n\n- `POST /orders` request/response objects are DTOs only.\n- Broker messages are integration DTOs only, not domain objects.\n- Use coarse events and commands at the boundary. Prefer `OrderSubmitted` for downstream readers and `InventoryReservationRequested` for Inventory, rather than exposing the internal order row shape.\n- Include stable metadata on every message: `event_id`, `order_id`, `aggregate_version`, `schema_version`, `idempotency_key`, `occurred_at`, and correlation/causation ids.\n\nAuthoritative records:\n\n- `orders` table in the order service is authoritative for order submission intent and the order service's current order state.\n- Inventory is authoritative for stock and reservation outcome.\n- `order_search` is derived data only.\n- The broker is a delivery mechanism, not the source of truth for the order.\n- The outbox table is the authoritative local record of messages that must be delivered after the order commit.\n\nInventory interaction:\n\n- Do not call `Inventory.reserve(orderJson)` inline from the controller.\n- After commit, publish `InventoryReservationRequested(order_id, items, ...)`.\n- Inventory replies asynchronously with `InventoryReserved` or `InventoryRejected`.\n- The order service updates the order state accordingly and emits a new order event for projections.\n\nThis settles partial success honestly: a successful `POST /orders` means the order request was durably accepted by the order service, not that inventory was reserved and not that projections are updated. Inventory rejection after commit is a valid business outcome, represented by an order state transition to `REJECTED`, not an inconsistency.\n\nIdempotency keys:\n\n- Require a client-supplied `Idempotency-Key` per logical submission attempt.\n- Enforce a unique constraint on `(client_id, idempotency_key)`.\n- Store a hash of the canonical request payload with that key to reject key reuse with different content.\n- Reuse the same `order_id` on retries.\n- Use a separate unique `event_id` per outbox message.\n- Consumers deduplicate by `event_id` or by `(order_id, aggregate_version)`.\n\nOrdering scope:\n\n- Do not use one global offset.\n- Partition broker messages by `order_id` so all events for one order stay in one partition.\n- Require ordering only per `order_id`, not globally across all orders.\n- Put `aggregate_version` on each order event.\n- Projection updates must be monotonic: apply only if the incoming version is newer than the stored version, and ignore duplicates or older events.\n- Checkpoint consumption per broker partition after the projection write commits.\n\nSchema evolution:\n\n- Treat message schemas as versioned contracts.\n- New producers may add optional fields; old consumers must ignore unknown fields.\n- Do not remove required fields or change field meaning without a versioned rollout.\n- Do not reuse enum values or statuses with new semantics.\n- Keep internal domain refactors separate from public message contract changes.\n\nProjection delivery and rebuild:\n\n- `order_search` is rebuildable derived state.\n- The projection worker consumes order lifecycle events and upserts `order_search` by `order_id` plus `last_applied_version`.\n- Because `order_search` may be dropped, do not rely on the broker alone as the only rebuild source unless retention guarantees full replay.\n- Rebuild from authoritative order data, then catch up from the event/outbox stream from a recorded watermark.\n- The rebuild process must be safe under replay and duplicate events.\n- Projection lag is acceptable and must be observable; search can be stale temporarily.\n\nRepository and transaction details:\n\n- `OrderRepository` loads and stores orders in domain terms.\n- A mapper translates between aggregate state and relational rows.\n- The application service owns the Unit of Work for the order write plus outbox append.\n- External gateways such as broker publisher and Inventory client sit outside that transaction and consume durable outbox work.\n\nMeaning of success states:\n\n- `201 Created`: order durably recorded in the order service with `PENDING_RESERVATION`.\n- Later `RESERVED`: inventory accepted.\n- Later `REJECTED`: inventory rejected.\n- Search visibility is not part of submission success; it is eventual derived-data delivery.\n\nIf you want the submitted order to mean inventory is already guaranteed, then the operation itself must change shape: Inventory would need to issue a reservation token first and order creation would consume that token. With the current ownership facts, pretending the existing synchronous controller flow is atomic is the wrong design.",
+    "selected_project_skills": [
+      "patterns-of-enterprise-application-architecture",
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md",
+      ".agents/skills/patterns-of-enterprise-application-architecture/references/index.md",
+      ".agents/skills/patterns-of-enterprise-application-architecture/references/full.md",
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "patterns-of-enterprise-application-architecture",
+        "sections": [
+          "Choosing the Business Logic Pattern",
+          "Application Workflow Rules",
+          "Persistence Pattern Rules",
+          "Identity, Caching, and Unit-of-Work Rules",
+          "Offline and Integration Rules",
+          "Session State and Base Pattern Index",
+          "Distribution Rules",
+          "Forbidden Patterns",
+          "Testing Rules",
+          "Review Checklist",
+          "Final Instruction"
+        ]
+      },
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "designing-data-intensive-applications",
+    "patterns-of-enterprise-application-architecture"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:28:41.075037Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dcd-f0e3-7fd0-977c-2729b22c0b41.1783985205476453000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

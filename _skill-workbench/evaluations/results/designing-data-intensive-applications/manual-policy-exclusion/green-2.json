@@ -1,0 +1,46 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f588b-a600-78c1-8c9e-e9a3bf9525d4",
+  "exit_code": 0,
+  "result": {
+    "answer": "Unsafe. The shortcut should not be approved, and the idempotency table should not be removed.\n\nFindings:\n1. Replay after partial success will duplicate durable effects. The stated crash window is enough: `database.transaction(...)` can commit `orders.markConfirmed(...)` and `ledger.insert(...)`, then the process can die before `message.ack()`. Broker transactions do not roll back the database commit, so replay will run the handler again. Unless the database layer already enforces a uniqueness invariant for this event, `ledger.insert(...)` is duplicate-prone.\n2. Broker exactly-once does not cover external side effects here. `email.sendReceipt(...)` is outside the database transaction and the provider has `idempotency_key: unsupported` plus `timeout_outcome: unknown`. If the send succeeds but returns timeout/unknown, replay can send the same receipt again. Since duplicate receipts are explicitly a correctness defect, the current design fails the requirement.\n3. Replay is a first-class operating mode, not an edge case. You explicitly rebuild downstream projections by replaying the topic. Removing consumer-side dedup means historical reprocessing can reapply the same order confirmation and ledger write. That makes the consumer non-replay-safe.\n4. Ordering for the same order is not guaranteed. The topic key is `customer_id`, and you state events for the same order can arrive on different partitions. With `max_concurrency: 48`, those events can be processed concurrently and out of order. Any correctness that depends on per-order ordering is unsound unless the writes are guarded by per-order/event invariants.\n5. \"Exactly once\" is being over-applied. Producer idempotence and broker transactions can give strong guarantees for records and committed offsets inside the broker boundary. They do not make a handler with a separate database transaction and a non-idempotent email provider exactly-once end to end.\n\nWhat must change before launch:\n1. Keep a durable dedup/processed-message mechanism. The consumer needs a durable checkpoint keyed by a stable event identity, written in the same database transaction as business-state changes.\n2. Make the database effects idempotent under replay and concurrency. At minimum, enforce uniqueness for the ledger effect on the correct business key/event key and make `markConfirmed` a guarded state transition rather than an unconditional rewrite.\n3. Remove inline email sending from the consume transaction flow. Write a transactional outbox record in the same database transaction as the order/ledger update, then ack only after that durable commit.\n4. Resolve the email unknown-success gap before launch. With a provider that does not support idempotency keys and can return unknown outcomes, you cannot guarantee \"no duplicate receipt\" and \"no missed receipt\" simultaneously by retry alone. To meet the stated correctness bar, either switch to a provider/channel with request idempotency or change the product requirement and recovery procedure explicitly. If duplicate receipts remain unacceptable, the current provider behavior is a launch blocker.\n5. If per-order ordering matters, repartition by `order_id` or add version/sequence checks so out-of-order cross-partition arrivals are rejected or safely ignored.\n\nMinimal safe shape: atomically persist `(business change + processed-event marker + receipt-outbox record)`, then ack. A separate dispatcher may send the receipt, but end-to-end exactly-once receipt delivery still requires provider support or an explicit product compromise. As written, the consumer is not safe for duplicate, replay, ordering, side-effect, or unknown-success correctness.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "release-it",
+        "sections": [
+          "Runtime State and Restart Safety Rules",
+          "API and Contract Rules",
+          "Cache Rules",
+          "Scheduled and Background Work Rules",
+          "Review Rules",
+          "Forbidden Patterns",
+          "Testing Rules",
+          "Review Checklist"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:56:15.299128Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f588b-79b3-7d51-a9d4-087bfd345003.1783896963507890000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

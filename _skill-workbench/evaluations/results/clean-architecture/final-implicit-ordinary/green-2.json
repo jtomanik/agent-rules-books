@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5893-b3bf-72c2-b55f-51e2ab8a5b15",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n1. The proposed `createInvoice` use case depends directly on Next.js and Prisma, so the application action is not independent of delivery and persistence details. `NextRequest`, `NextResponse`, `prisma.order.findUniqueOrThrow`, and `prisma.invoice.create` all sit in the same function as the approval rule and total calculation. That makes the policy harder to test and replace.\n2. Input and output models are owned by framework and ORM choices instead of by the use case. The required behavior is small and stable: `orderId` in, `invoiceId` and `totalCents` out. Those models should belong to the application boundary, not to Next.js URLs or Prisma records.\n3. The persistence boundary is too concrete. The use case needs only two capabilities: load an order with normalized line amounts, and save an invoice. It should not know how either operation is implemented.\n\nSmallest production design:\n\n```ts\n// application/create-invoice.ts\nexport type CreateInvoiceInput = {\n  orderId: string;\n};\n\nexport type CreateInvoiceOutput = {\n  invoiceId: string;\n  totalCents: number;\n};\n\nexport type ApprovedOrderForInvoicing = {\n  id: string;\n  status: \"APPROVED\" | \"PENDING\" | \"CANCELLED\";\n  lines: Array<{ amountCents: number }>;\n};\n\nexport type InvoiceToSave = {\n  orderId: string;\n  totalCents: number;\n};\n\nexport interface OrderReader {\n  getById(orderId: string): Promise<ApprovedOrderForInvoicing | null>;\n}\n\nexport interface InvoiceWriter {\n  save(invoice: InvoiceToSave): Promise<{ id: string }>;\n}\n\nexport class CreateInvoice {\n  constructor(\n    private readonly orders: OrderReader,\n    private readonly invoices: InvoiceWriter,\n  ) {}\n\n  async execute(input: CreateInvoiceInput): Promise<CreateInvoiceOutput> {\n    const order = await this.orders.getById(input.orderId);\n    if (!order) throw new Error(\"order not found\");\n    if (order.status !== \"APPROVED\") throw new Error(\"order not approved\");\n\n    const totalCents = order.lines.reduce((sum, line) => sum + line.amountCents, 0);\n    const saved = await this.invoices.save({ orderId: order.id, totalCents });\n\n    return { invoiceId: saved.id, totalCents };\n  }\n}\n```\n\nOwnership:\n- The application layer owns `CreateInvoiceInput`, `CreateInvoiceOutput`, `OrderReader`, and `InvoiceWriter`.\n- The application layer also owns the minimal order shape it needs: order id, status, and normalized line amounts.\n- Prisma models remain infrastructure details. Next.js request/response objects remain delivery details.\n\nWhere translation happens:\n- Next.js route/controller translates HTTP input to `CreateInvoiceInput`, calls `CreateInvoice.execute`, and translates result/errors back to HTTP.\n- Prisma adapters translate database rows and ORM results into `ApprovedOrderForInvoicing`, and translate `InvoiceToSave` into the ORM create call.\n\nConcrete wiring:\n\n```ts\n// app/api/invoices/route.ts\nimport { NextRequest, NextResponse } from \"next/server\";\nimport { prisma } from \"@/infrastructure/prisma\";\nimport { CreateInvoice } from \"@/application/create-invoice\";\nimport { PrismaOrderReader } from \"@/infrastructure/prisma-order-reader\";\nimport { PrismaInvoiceWriter } from \"@/infrastructure/prisma-invoice-writer\";\n\nexport async function POST(request: NextRequest): Promise<NextResponse> {\n  const useCase = new CreateInvoice(\n    new PrismaOrderReader(prisma),\n    new PrismaInvoiceWriter(prisma),\n  );\n\n  try {\n    const orderId = request.nextUrl.searchParams.get(\"orderId\");\n    if (!orderId) {\n      return NextResponse.json({ error: \"missing orderId\" }, { status: 400 });\n    }\n\n    const result = await useCase.execute({ orderId });\n    return NextResponse.json(result, { status: 201 });\n  } catch (error) {\n    if (error instanceof Error && error.message === \"order not approved\") {\n      return NextResponse.json({ error: \"not approved\" }, { status: 409 });\n    }\n    if (error instanceof Error && error.message === \"order not found\") {\n      return NextResponse.json({ error: \"not found\" }, { status: 404 });\n    }\n    throw error;\n  }\n}\n```\n\nThis is the smallest production shape that preserves the real rule placement:\n- approval check and invoice-total calculation stay in the use case\n- HTTP parsing/rendering stays in the Next.js adapter\n- Prisma queries/inserts stay in infrastructure adapters\n- construction and wiring stay at the outer edge, in the route or a nearby composition module\n\nResidual note: if you want the approval rule itself to become reusable across more than this one action, move it into a domain object or domain function later. For this scope, keeping it in the single use case is the smallest correct design.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:05:50.319325Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5893-b3bf-72c2-b55f-51e2ab8a5b15.1783897502656179000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5364-d8a2-7113-8e28-aa5f189f2c8d",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe change is localize the new pricing rule, not add another ad hoc branch inside the existing mixed function body.\n\nExact scope boundary:\n- Change only discount calculation for `partner` accounts when `invoice.total >= 500`.\n- Preserve `finalize(...)` signature, return shape, side-effect order, mutation behavior, and existing thresholds outside that rule.\n- Do not redesign preview/sendEmail flags, persistence, mail, audit, or `lastInvoiceId` under this release window.\n- Allow only the smallest cleanup that makes the pricing rule readable and testable.\n\nConcrete patch plan:\n1. Extract the discount decision into a pure local helper such as `calculateDiscountRate(account, invoice)`.\n2. Replace short names like `d` with `discountRate` and keep amount calculation in one obvious line.\n3. Add the new `partner` rule in that helper: `0.15` when `segment === \"partner\"` and `total >= 500`.\n4. Preserve the existing high-total surcharge behavior exactly as written: `+0.05` only when `total > 1000`.\n5. Leave all non-pricing control flow unchanged so `preview`, `accounts.save`, `mailer.send`, `audit.record`, and `lastInvoiceId` behave exactly as before.\n6. Ship only after targeted tests prove both the new rule and non-regression paths.\n\nRevised sketch:\n```ts\ntype FinalizeResult = {\n  amount: number;\n  discount: number;\n  changed: boolean;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean): FinalizeResult {\n    const discountRate = this.calculateDiscountRate(a, i);\n    const amount = i.total * (1 - discountRate);\n\n    if (preview) {\n      return { amount, discount: discountRate, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: discountRate, changed: true };\n  }\n\n  private calculateDiscountRate(a: Account, i: Invoice): number {\n    let discountRate = 0;\n\n    if (a.segment === \"vip\") {\n      discountRate = 0.1;\n    } else if (a.segment === \"partner\" && i.total >= 500) {\n      discountRate = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      discountRate += 0.05;\n    }\n\n    return discountRate;\n  }\n}\n```\n\nTests required before shipping:\n- `partner` with `total === 500` gets `discount: 0.15` and discounted amount.\n- `partner` with `total > 500` gets `discount: 0.15`.\n- `partner` with `total < 500` gets no partner discount.\n- `partner` with `total > 1000` gets combined discount `0.20`, confirming the old surcharge still stacks.\n- Existing `vip` behavior remains `0.10`, and `0.15` when `total > 1000`.\n- Existing `standard` behavior remains `0` and `0.05` above `1000`.\n- Preview path for a qualifying partner account returns the discounted amount and still performs no save/send/audit side effects.\n- Non-preview qualifying partner path updates `balance` by the discounted amount and passes that same amount to `accounts.save`, `mailer.send`, and `audit.record`.\n\nShip criterion: all existing tests stay green, plus the new partner-threshold and partner-side-effect assertions pass. Anything beyond extracting the pricing helper is scope creep for this release window.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:56:24.658194Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5364-d8a2-7113-8e28-aa5f189f2c8d.1783810545827411000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

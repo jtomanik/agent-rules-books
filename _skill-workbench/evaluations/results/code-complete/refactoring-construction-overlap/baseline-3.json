@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-construction-overlap.md",
+  "case_sha256": "c6063578900df5f8c905a1e2828420694333b131c657234937f70112fa754348",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5873-fc58-72f3-81ef-57835b0e99e4",
+  "exit_code": 0,
+  "result": {
+    "answer": "No repository files were present in the workspace, so this is a design-only review of how to keep the work split into two reviewable intents.\n\nBehavior-preserving structural change first:\nExtract the nested checks into a parsing/validation pipeline without changing the observable result. Keep `importRows(lines): AcceptedRow[]` as the public API in this step. A clean shape is:\n1. `parseLine(raw: string): string[]`.\n2. `validateFields(fields): ValidationResult<AcceptedRow>` where validation stops at the first failure in the current precedence order: `field-count`, `missing-id`, `kind`, `score`, `status`.\n3. `toAcceptedRow(fields): AcceptedRow` only after validation passes.\n4. `importRows` continues to iterate with the same line handling and only pushes accepted rows.\n\nThat structural step should be covered by unchanged green tests plus, ideally, one characterization test asserting rejection precedence on malformed rows if that precedence is not already locked down. The point of this commit is only to expose the validation boundary and isolate row construction from control flow.\n\nSubstantial import change second:\nIntroduce the new output contract explicitly:\n```ts\ntype RejectReason = \"field-count\" | \"missing-id\" | \"kind\" | \"score\" | \"status\";\n\ntype AcceptedImportResult = {\n  accepted: true;\n  line: number;\n  row: AcceptedRow;\n};\n\ntype RejectedImportResult = {\n  accepted: false;\n  line: number;\n  reason: RejectReason;\n};\n\ntype ImportResult = AcceptedImportResult | RejectedImportResult;\n```\nUse a row-level routine such as `importLine(raw: string, line: number): ImportResult`. That becomes the validation boundary: one source line in, one typed result out. Then `importRows(lines): ImportResult[]` is just `lines.map(importLine)`.\n\nRecommended internal routine shape:\n```ts\nfunction importLine(raw: string, line: number): ImportResult {\n  const fields = raw.split(\",\");\n  const validated = validateFields(fields);\n\n  if (!validated.ok) {\n    return { accepted: false, line, reason: validated.reason };\n  }\n\n  return {\n    accepted: true,\n    line,\n    row: toAcceptedRow(validated.fields),\n  };\n}\n```\n`validateFields` should return either validated fields or a typed rejection reason. Keep it deterministic and first-failure based so tests remain simple and stable.\n\nTest plan for the second commit:\n- One accepted-row test proving the success shape includes `accepted: true`, original `line`, and parsed `row`.\n- One test each for `field-count`, `missing-id`, `kind`, `score`, and `status`.\n- One mixed-input test asserting output length equals input length and preserves order.\n- In that mixed test, include at least one accepted row between rejections to prove no filtering occurs.\n- One line-number test with multiple rows to confirm line numbers are source indices, likely zero-based to preserve current loop semantics.\n- If product cares about precedence, one test with a row failing multiple checks to confirm the chosen first rejection reason.\n\nExample mixed test expectation:\n```ts\nexpect(importRows([\n  \"a1,person,10,active\",\n  \",person,10,active\",\n  \"b2,robot,10,active\",\n  \"c3,company,nope,active\",\n  \"d4,company,20,paused\",\n])).toEqual([\n  { accepted: true, line: 0, row: { id: \"a1\", kind: \"person\", score: 10, status: \"active\" } },\n  { accepted: false, line: 1, reason: \"missing-id\" },\n  { accepted: false, line: 2, reason: \"kind\" },\n  { accepted: false, line: 3, reason: \"score\" },\n  { accepted: false, line: 4, reason: \"status\" },\n]);\n```\n\nReviewability split:\n- Commit 1: refactor only, no API change, no changed expectations.\n- Commit 2: change return type to `ImportResult[]`, add rejection objects, update tests to assert full per-line outcomes.\n\nMain design constraint: do not combine extraction with behavior change. If both land together, reviewers cannot distinguish accidental logic drift from the intentional contract change.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:31:09.256905Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5873-fc58-72f3-81ef-57835b0e99e4.1783895424153906000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

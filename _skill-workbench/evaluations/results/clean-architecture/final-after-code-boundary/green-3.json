@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58a8-9ab5-7f11-8a1d-202270fbf2ca",
+  "exit_code": 0,
+  "result": {
+    "answer": "The proposed function puts three concerns in one place: HTTP translation, application policy, and Prisma persistence. The smallest production design is to move the approval rule and invoice creation into a use case that owns its own request/response models and ports, then keep Next.js and Prisma as outer adapters.\n\nA minimal shape looks like this:\n\n```ts\n// application/create-invoice.ts\nexport type CreateInvoiceCommand = {\n  orderId: string;\n};\n\nexport type CreateInvoiceResult = {\n  invoiceId: string;\n  totalCents: number;\n};\n\nexport type OrderForInvoicing = {\n  id: string;\n  status: \"APPROVED\" | \"PENDING\" | \"CANCELLED\";\n  lines: Array<{ amountCents: number }>;\n};\n\nexport interface OrderForInvoicingReader {\n  getById(orderId: string): Promise<OrderForInvoicing | null>;\n}\n\nexport interface InvoiceWriter {\n  save(draft: { orderId: string; totalCents: number }): Promise<{ id: string }>;\n}\n\nexport class OrderNotApprovedError extends Error {}\nexport class OrderNotFoundError extends Error {}\n\nexport class CreateInvoice {\n  constructor(\n    private readonly orders: OrderForInvoicingReader,\n    private readonly invoices: InvoiceWriter,\n  ) {}\n\n  async execute(command: CreateInvoiceCommand): Promise<CreateInvoiceResult> {\n    const order = await this.orders.getById(command.orderId);\n    if (!order) throw new OrderNotFoundError();\n    if (order.status !== \"APPROVED\") throw new OrderNotApprovedError();\n\n    const totalCents = order.lines.reduce((sum, line) => sum + line.amountCents, 0);\n    const invoice = await this.invoices.save({ orderId: order.id, totalCents });\n\n    return { invoiceId: invoice.id, totalCents };\n  }\n}\n```\n\nOwnership should be:\n- Application layer owns `CreateInvoiceCommand`, `CreateInvoiceResult`, `OrderForInvoicing`, and the two interfaces. These are the models the use case needs, not Prisma or Next.js shapes.\n- The use case owns the approval check and total calculation.\n- Prisma adapters implement the interfaces and translate between database rows and application models.\n- The Next.js route translates HTTP input into `CreateInvoiceCommand` and translates use-case results/errors back into HTTP responses.\n\nTranslation points:\n- Next.js adapter: `NextRequest -> CreateInvoiceCommand`, and `CreateInvoiceResult/errors -> NextResponse`.\n- Prisma order adapter: Prisma query result -> `OrderForInvoicing`.\n- Prisma invoice adapter: use-case save draft -> Prisma `invoice.create(...)`.\n\nConcrete wiring belongs in the outer layer, for example the route module or a small composition function used by the route:\n\n```ts\nconst useCase = new CreateInvoice(\n  new PrismaOrderForInvoicingReader(prisma),\n  new PrismaInvoiceWriter(prisma),\n);\n```\n\nThat is the smallest clean design because it keeps one application action independent from delivery and persistence details without adding extra layers that do not pay for themselves yet.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

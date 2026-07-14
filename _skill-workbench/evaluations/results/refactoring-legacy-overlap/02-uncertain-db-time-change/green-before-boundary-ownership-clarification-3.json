@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f536c-2acd-76b3-a53a-1442aa83b99a",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest bounded change is to treat this as a legacy-behavior edit, not a billing rewrite.\n\nImplement it in three small steps:\n1. Add the smallest seam for time and persistence so `chargeIfDue()` can be tested without the real database. Keep the public constructor and production defaults unchanged; only introduce an internal clock/database seam for tests.\n2. Add characterization tests for current behavior before changing semantics. At minimum, lock down:\n- `nextChargeAt` before `now` charges.\n- `nextChargeAt` exactly equal to `now` charges or not.\n- `nextChargeAt` after `now` does not charge.\n- charge path still performs inserts/marking inside one `transaction(...)` call.\n- exceptions from `find`, `transaction`, `insert`, or `markCharged` are still propagated the same way and are not swallowed.\n3. After those tests exist, change only the due check to compare against `nextChargeAt + 48h` instead of `nextChargeAt`, leaving constructor behavior, transaction shape, write order, return values, and exception propagation untouched.\n\nThe most conservative implementation is to extract a tiny policy function such as `isChargeDue(nextChargeAt, now, graceMs)` and test it through the public method plus a few direct unit tests for the boundary. Do not mix in constructor cleanup, database refactoring, timezone normalization, or retry logic in the same patch.\n\nVerification plan:\n- Primary verification should be fast local tests with a fake clock and fake billing database. Shared staging fixtures are too slow and too noisy to be the main safety net here.\n- Characterization tests should explicitly cover the old boundary and then the new boundary: before grace expiry, exactly at grace expiry, and after grace expiry.\n- Add at least one test that proves no writes occur during the grace window.\n- Add one interaction test that proves the charge path still uses the same transaction wrapper and write sequence.\n- Add one failure test that proves existing exceptions still escape unchanged.\n- Use staging only for a narrow smoke check if the team can create a unique disposable account row. If they cannot isolate data, skip staging for boundary characterization rather than guessing from shared fixtures.\n\nProduct decisions that must be resolved, not inferred:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h`, or only after that instant has passed?\n- Timestamp interpretation: if stored `nextChargeAt` values are not consistently UTC/offset-qualified, what timezone semantics are correct for old rows? JavaScript `Date` parsing should not define billing policy by accident.\n- Rollout scope: when this ships, should accounts already overdue by more than 48 hours be chargeable immediately, or does the grace period apply only to newly overdue accounts going forward?\n- Data policy for ambiguous timestamps: should ambiguous legacy values be migrated, rejected, or preserved as-is for this change?\n\nIf those product answers are not available, the safe engineering move is to land only the seam plus characterization tests first, then apply the 48-hour rule once the boundary and timestamp policy are explicit.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T23:03:45.844430Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f536a-a887-7480-8213-345e36438600.1783810926728264000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T23:04:37.240170Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f536c-2acd-76b3-a53a-1442aa83b99a.1783811025695875000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

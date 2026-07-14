@@ -1,0 +1,71 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/ddia-compatible-overlap.md",
+  "case_sha256": "61d9f2de85fe4cc134d08ff0ebdec6c0570f0cb4c0db12fb4d25589b36e77cd3",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c58-d4c1-7832-bfca-93087bf3089d",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "**Assessment**\nThe current design is incorrect at both the model boundary and the event-delivery boundary.\n\nAt the model boundary, `OrderUpdated` plus `maps_payload_to_shared_Order_class: true` collapses two bounded contexts into one shared meaning. In Ordering, `CONFIRMED` means commercial acceptance. In Billing, `POSTED` means ledger completion. Those are not one shared `Order.status`; they are separate facts owned by different contexts. Billing should not extend Ordering\u2019s status enum, and Ordering should not publish a generic shared `Order` object for Billing to deserialize directly.\n\nAt the event path, the design has three hard correctness failures:\n1. `commit_then_send` can lose an event if Ordering crashes after DB commit and before publish.\n2. `duplicate_detection: false` can create a second ledger posting after consumer crash/retry.\n3. `order_history` is not rebuildable because its checkpoint is in memory and broker retention is only 3 days.\n\n**Explicit contracts to add**\n- Ownership contract:\n  - Ordering owns commercial order state, e.g. `commercial_status=CONFIRMED`.\n  - Billing owns posting state, e.g. `posting_status=POSTED`.\n  - No shared writable `Order.status` across contexts.\n- Published language contract:\n  - Replace generic `OrderUpdated` with explicit fact events.\n  - Minimum useful split: Ordering publishes `OrderConfirmed`; Billing publishes `LedgerPosted`.\n  - `order_history` builds a timeline from both facts instead of projecting one overloaded status.\n- Translation contract:\n  - Billing consumes an integration DTO, not a shared `Order` class.\n  - Payload should carry only published fields Billing needs, e.g. `order_id`, `event_id`, `occurred_at`, `commercial_status`, `total_amount`, `customer_id` or billing reference.\n  - Avoid embedding foreign domain objects like `customer` unless that exact contract is intentionally owned.\n- Event contract:\n  - Add `event_id`.\n  - Add `schema_version`.\n  - Add per-order monotonic `aggregate_version` or sequence.\n  - State delivery semantics explicitly: at-least-once, duplicates possible, out-of-order possible during replay/repartition.\n- Consumer contract:\n  - Billing must be idempotent.\n  - A duplicate event must be a no-op, enforced by a durable dedupe key and a unique business constraint preventing a second posting.\n  - Out-of-order events must not be blindly accepted; use `aggregate_version` to ignore stale events and detect gaps.\n- Projection contract:\n  - `order_history` is derived data.\n  - It needs a durable checkpoint.\n  - It needs a rebuild source beyond 3-day broker retention: retained outbox/archive/event store, or another durable replay source.\n\n**Smallest safe correction**\nMake these minimal changes together:\n1. Replace `commit_then_send` with a transactional outbox in Ordering.\n   - Write order change and outbox record in one DB transaction.\n   - Publish asynchronously from the outbox.\n   - This removes the lost-event gap.\n2. Replace `OrderUpdated` with `OrderConfirmed` for the Ordering\u2192Billing path.\n   - This is the smallest boundary fix because Billing only needs the confirmation fact, not Ordering\u2019s full mutable order model.\n3. Add `event_id`, `schema_version`, and `aggregate_version` to the event.\n4. Make Billing idempotent with durable duplicate detection and a uniqueness rule on posting.\n   - If Billing crashes after ledger write, replay must not create a second posting.\n5. Make `order_history` replayable.\n   - Persist its checkpoint.\n   - Rebuild from durable retained events/outbox history, not from an in-memory position and a 3-day broker window.\n\n**Resulting shape**\nOrdering event:\n```yaml\nproducer:\n  service: ordering\n  database: orders-postgres\n  publish: transactional_outbox\n  event:\n    type: OrderConfirmed\n    key: order_id\n    schema_version: 1\n    envelope: { event_id, order_id, aggregate_version, occurred_at }\n    payload: { order_id, commercial_status: CONFIRMED, total_amount, customer_id }\n```\n\nBilling consumer rules:\n```yaml\nconsumers:\n  billing:\n    maps_payload_to_shared_Order_class: false\n    duplicate_detection: durable_by_event_id\n    duplicate_business_guard: unique_ledger_posting_per_order_confirmation\n    out_of_order_policy: reject_stale_detect_gaps_by_aggregate_version\n```\n\nOrder history rules:\n```yaml\nconsumers:\n  order_history:\n    projection_store: postgres\n    checkpoint: durable\n    rebuild: from_retained_outbox_or_event_archive\n```\n\n**Bottom line**\nThe main model error is a shared `Order.status` across Ordering and Billing. The main data error is assuming a generic at-least-once event path can safely drive ledger posting without outbox, idempotency, versioning, and replayable projections. The smallest safe correction is: explicit fact events per context, transactional outbox, durable idempotency in Billing, and durable replay for `order_history`.",
+    "selected_project_skills": [
+      "domain-driven-design",
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md",
+      ".agents/skills/domain-driven-design/references/index.md",
+      ".agents/skills/domain-driven-design/references/full.md",
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "domain-driven-design",
+        "sections": [
+          "Bounded Contexts",
+          "Strategic Design",
+          "Model Integrity Patterns",
+          "Translation at Boundaries"
+        ]
+      },
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Scalability and Maintainability Rules",
+          "Data Model and Storage Rules",
+          "Query Model and Data Shape Rules",
+          "Storage Engine and Indexing Rules",
+          "Consistency Rules",
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Schema Evolution Rules",
+          "Partitioning and Locality Rules",
+          "Replication Rules",
+          "Transaction Rules",
+          "Derived Data Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "designing-data-intensive-applications",
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:40:43.327674Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c58-d4c1-7832-bfca-93087bf3089d.1783960753345746000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

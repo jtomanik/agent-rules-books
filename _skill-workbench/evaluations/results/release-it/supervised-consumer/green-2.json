@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55c5-9694-7d22-90c6-c0253e2c1f7f",
+  "exit_code": 0,
+  "result": {
+    "answer": "The crash boundary is the process, not the message. With `prefetch: 100`, `replicas: 6`, unlimited redelivery, no DLQ, and immediate supervisor restart, letting ordinary per-message failures escape turns one bad message into a fleet-wide replay loop. The staging incident already proved that. The opposite extreme, one broad catch that logs, `ack`s, and continues, is also wrong because it converts dependency and database failures into silent data loss.\n\nExact policy:\n\n1. Malformed inbound message: quarantine, do not retry, do not crash.\nInvalid JSON, missing required fields, wrong types, or impossible business shape are poison input. They should be rejected to a quarantine queue or explicitly published there and then acknowledged. They are isolated bad work, not evidence that the worker is unhealthy.\n\n2. Transient dependency failure: retry within a bounded local budget, then pause consumption, do not ack, do not crash.\nThis bucket includes inventory `503`, timeout, and `200` with malformed JSON. That last case is a dependency contract failure, not a poison message. The message may be valid; the dependency is not currently trustworthy. After a small bounded retry budget with backoff and a real timeout, return the message to the broker or leave it unacked only as part of a deliberate process-wide pause/circuit-open state. Because crashing instantly redelivers all in-flight messages, crash is the wrong retry mechanism here.\n\n3. Compromised process state: crash immediately.\nUse crash only when continuing would make acknowledgements or state transitions untrustworthy: impossible internal invariants, corrupted shared client/process state, unrecoverable startup/configuration failure, repeated uncaught programmer bugs outside the classified message/dependency paths, OOM-class failures, or broker/database client state that cannot be safely reset in-process. In that case, fail fast and let supervision replace the process.\n\nMinimal changes needed to make that policy safe and testable:\n\n- Add explicit poison-message quarantine. A `dead_letter_exchange: null` means malformed messages currently have nowhere safe to go. Configure a DLX/quarantine queue and route parse/validation failures there. Do not rely on process crash for poison handling.\n- Split error classification in code. Parse and validate the inbound event separately from dependency and persistence work. Treat downstream malformed JSON as dependency failure, not message poison.\n- Add an explicit dependency timeout. `dependency_timeout_ms: 0` is unsafe because a single call can hang forever and pin consumer capacity.\n- Keep dependency retries bounded and backed off. The current `dependency_retries: 3` is only safe if it has finite total time and jitter, and if broker redelivery is not simultaneously being used as another aggressive retry loop.\n- Introduce a process-wide pause/circuit-breaker state for dependency outages. After the bounded retry budget is exhausted, stop taking new work for a backoff window instead of crashing. Readiness should represent \u201csafe to consume\u201d rather than only `broker_connection_is_open`.\n- Cap restart churn for fatal crashes. `max_restarts_per_minute: 0` makes compromised-state failures spin forever. A restart budget and larger backoff make the crash path observable instead of self-amplifying.\n- Make redelivery safe by testing idempotency explicitly. Since any non-acked message can be replayed, duplicate delivery must not corrupt state. The existing `eventId` write suggests dedupe intent; make that an explicit invariant and test it.\n\nWhat not to do:\n\n- Do not let every exception escape. In this topology, that is not \u201clet it crash\u201d; it is \u201crequeue up to 600 in-flight messages and hammer the same fault again.\u201d\n- Do not use one broad catch that logs and `ack`s. That loses valid messages on dependency/database failures.\n\nTests needed for this policy:\n\n- Invalid JSON or schema failure goes to quarantine, no retry, process stays up.\n- Inventory `503` and timeout perform bounded retries, then open pause/circuit state without acking.\n- Inventory `200` with malformed JSON follows the same dependency-failure path, not quarantine.\n- Unexpected fatal/internal error crashes the process and leaves the message unacked.\n- Duplicate redelivery of the same `eventId` is safe and does not double-apply state.\n\nThe practical decision is: quarantine bad messages, pause on dependency trouble, crash only when the worker itself is no longer trustworthy.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T10:00:40.458188Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f55c5-1ec3-7092-b761-cd88d571af58.1783850409667444000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T10:02:23.517828Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55c5-9694-7d22-90c6-c0253e2c1f7f.1783850440354923000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

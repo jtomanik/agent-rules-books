@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-compatible-overlap.md",
+  "case_sha256": "0a3e3ff43521aba3080389491600f106049111ed627a39db0f6bef653a76e695",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58ba-d582-7ca2-a334-707403f72572",
+  "exit_code": 0,
+  "result": {
+    "answer": "Phase 1 should be a pure preparatory refactor: expose validation as named structure, flatten the nested conditional, and keep `acceptRow` returning `boolean` with identical success/failure behavior and the same push side effect only on success. The review boundary is: no contract change, no new rejection semantics, and existing green tests stay logically unchanged.\n\nA good phase-1 patch shape is:\n\n```ts\ntype RowKind = \"person\" | \"company\";\ntype RowStatus = \"active\" | \"inactive\";\ntype AcceptedRow = {\n  id: string;\n  kind: RowKind;\n  score: number;\n  status: RowStatus;\n};\n\ntype RawAcceptedRow = [id: string, kind: RowKind, scoreText: string, status: RowStatus];\n\nfunction isAcceptedRow(row: string[]): row is RawAcceptedRow {\n  if (row.length !== 4) return false;\n\n  const [id, kind, scoreText, status] = row;\n\n  if (id === \"\") return false;\n  if (kind !== \"person\" && kind !== \"company\") return false;\n  if (!/^\\d+$/.test(scoreText)) return false;\n  if (status !== \"active\" && status !== \"inactive\") return false;\n\n  return true;\n}\n\nfunction toAcceptedRow([id, kind, scoreText, status]: RawAcceptedRow): AcceptedRow {\n  return {\n    id,\n    kind,\n    score: Number(scoreText),\n    status,\n  };\n}\n\nexport function acceptRow(row: string[]): boolean {\n  if (!isAcceptedRow(row)) return false;\n\n  acceptedRows.push(toAcceptedRow(row));\n  return true;\n}\n```\n\nWhy this is the right preparatory cut:\n- Validation is now explicit and isolated.\n- Data meaning is named instead of encoded in `row[0]`, `row[1]`, etc.\n- The boolean contract and observable behavior are preserved.\n- The later feature can change only the validation result shape without reworking mutation or parsing again.\n\nPhase 2 should introduce the new contract and only then change tests to assert typed rejection reasons. Keep the validation order explicit so rejection precedence stays deliberate: `field-count`, then `missing-id`, then `kind`, then `score`, then `status`.\n\nA good phase-2 patch shape is:\n\n```ts\ntype RowKind = \"person\" | \"company\";\ntype RowStatus = \"active\" | \"inactive\";\n\ntype AcceptedRow = {\n  id: string;\n  kind: RowKind;\n  score: number;\n  status: RowStatus;\n};\n\ntype AcceptanceResult =\n  | { accepted: true }\n  | {\n      accepted: false;\n      reason: \"field-count\" | \"missing-id\" | \"kind\" | \"score\" | \"status\";\n    };\n\ntype ValidationResult =\n  | { ok: true; value: AcceptedRow }\n  | {\n      ok: false;\n      reason: \"field-count\" | \"missing-id\" | \"kind\" | \"score\" | \"status\";\n    };\n\nfunction validateRow(row: string[]): ValidationResult {\n  if (row.length !== 4) {\n    return { ok: false, reason: \"field-count\" };\n  }\n\n  const [id, kind, scoreText, status] = row;\n\n  if (id === \"\") {\n    return { ok: false, reason: \"missing-id\" };\n  }\n\n  if (kind !== \"person\" && kind !== \"company\") {\n    return { ok: false, reason: \"kind\" };\n  }\n\n  if (!/^\\d+$/.test(scoreText)) {\n    return { ok: false, reason: \"score\" };\n  }\n\n  if (status !== \"active\" && status !== \"inactive\") {\n    return { ok: false, reason: \"status\" };\n  }\n\n  return {\n    ok: true,\n    value: {\n      id,\n      kind,\n      score: Number(scoreText),\n      status,\n    },\n  };\n}\n\nexport function acceptRow(row: string[]): AcceptanceResult {\n  const validation = validateRow(row);\n\n  if (!validation.ok) {\n    return { accepted: false, reason: validation.reason };\n  }\n\n  acceptedRows.push(validation.value);\n  return { accepted: true };\n}\n```\n\nTest plan:\n- Phase 1: keep existing tests passing without changing expected behavior.\n- Phase 2: update the success test to expect `{ accepted: true }` and add one rejection test per reason.\n- For each rejection case, also assert that no row was pushed.\n\nMinimal rejection matrix:\n\n```ts\nexpect(acceptRow([\"1\", \"person\", \"10\"]))\n  .toEqual({ accepted: false, reason: \"field-count\" });\n\nexpect(acceptRow([\"\", \"person\", \"10\", \"active\"]))\n  .toEqual({ accepted: false, reason: \"missing-id\" });\n\nexpect(acceptRow([\"1\", \"animal\", \"10\", \"active\"]))\n  .toEqual({ accepted: false, reason: \"kind\" });\n\nexpect(acceptRow([\"1\", \"person\", \"10x\", \"active\"]))\n  .toEqual({ accepted: false, reason: \"score\" });\n\nexpect(acceptRow([\"1\", \"person\", \"10\", \"pending\"]))\n  .toEqual({ accepted: false, reason: \"status\" });\n```\n\nThat keeps the two intents reviewable:\n1. preparatory refactoring only\n2. contract change plus new rejection semantics and tests",
+    "selected_project_skills": [
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "refactoring",
+        "sections": [
+          "Primary Directive",
+          "Preferred Refactoring Moves",
+          "Rules for Working with Conditionals",
+          "Data and Mutation Rules",
+          "Testing Rules",
+          "Stopping Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:48:47.592600Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58ba-d582-7ca2-a334-707403f72572.1783900067202400000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

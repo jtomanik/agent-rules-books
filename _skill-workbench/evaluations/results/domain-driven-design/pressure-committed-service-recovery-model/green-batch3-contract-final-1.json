@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/pressure-committed-service-recovery-model.md",
+  "case_sha256": "78e2d20e22daf05a1c210e784f73ee798cb540168b436cbded7b37a5c17aad3a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5ccf-45ad-7961-bf77-a15ba89a8874",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The Friday slice should be driven by a `Service Recovery` bounded context with one implementation-facing aggregate around a single affected commitment, not around a generic exception type.\n\nA workable model is:\n- `Disruption`: an observed service failure with facts about what happened.\n- `CommitmentRecovery` (aggregate root): the recovery state for one affected customer commitment under that disruption.\n- `RecoveryOption`: a feasible operational response being considered. `Delay`, `Reroute`, and similar actions live here as typed options, not string branches.\n- `RecoveryPromise`: the option that was accepted for that one commitment.\n- `GoodwillCredit`: compensation for harm, modeled separately from service recovery.\n- `CustomerCommitmentPolicy` or `RecoveryOptionSelector`: the domain service that chooses among feasible options for this customer\u2019s commitment, including the next `vip_override` behavior.\n\nCore invariants for the model:\n- A `RecoveryPromise` belongs to exactly one affected commitment.\n- Only a `RecoveryOption` that satisfies that commitment can become a `RecoveryPromise`.\n- `GoodwillCredit` may accompany a promise, but never substitutes for one.\n- `vip_override` is not a bypass. It is a stricter selection path that evaluates available `RecoveryOption`s against the customer-specific commitment.\n- A disruption can affect many commitments, but promise acceptance is local to each `CommitmentRecovery`.\n\nThat gives you a deeper model without a rewrite: the old engine becomes a thin boundary adapter, while the new slice makes decisions in terms recovery specialists already use.\n\nExpert scenarios that prove or disprove the model:\n1. `Reroute Becomes Promise`: a feasible reroute satisfies the commitment and is accepted as the `RecoveryPromise`.\n2. `Credit Is Not Recovery`: only a `GoodwillCredit` is available; the case remains unrecovered and no promise is created.\n3. `Credit Plus Promise`: reroute satisfies the commitment and a credit is added for harm; both coexist without conflation.\n4. `Delay Fails Commitment`: delay is feasible operationally but violates the customer commitment, so it remains an option and cannot become the promise.\n5. `Vip Override Chooses Among Options`: for a VIP commitment, the selector ranks available options and chooses the best satisfying one; it does not skip the satisfaction rule.\n6. `Vip Override With No Satisfying Option`: VIP treatment still cannot turn a pure credit into a promise; the outcome is escalation or unrecovered state, not semantic bypass.\n7. `One Disruption, Two Commitments`: the same disruption yields different promises for different commitments because commitment rules differ.\n8. `Promise Replacement Requires Re-evaluation`: replacing an accepted promise requires re-running selection against the current commitment and current options, not mutating a generic status flag.\n\nBounded incremental path for Friday:\n1. Introduce the new domain types beside the existing engine: `Disruption`, `CommitmentRecovery`, `RecoveryOption`, `RecoveryPromise`, `GoodwillCredit`, and `RecoveryOptionSelector`.\n2. Add an anticorruption adapter around the current `type/state` shape. Its job is only translation in and projection back out.\n3. Move exactly one vertical slice first: `vip_override`.\n4. Inside that slice, reuse existing `applyDelay`, `applyReroute`, and `applyCredit` logic only as legacy calculators that produce candidate `RecoveryOption`s or `GoodwillCredit`s.\n5. Let the new selector choose the promise under the customer-specific commitment, then project the result back to the existing state shape so callers see unchanged external behavior.\n6. Lock delivery with scenario tests at the domain level plus contract tests showing the `vip_override` branch still returns the same external state for current cases.\n\nThat preserves the current interface and deadline, but the important change is structural: `vip_override` stops being another exception type and becomes the first committed recovery decision implemented in the actual Service Recovery model.",
+    "selected_project_skills": [
+      "domain-driven-design",
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T18:49:32.399905Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5ccf-45ad-7961-bf77-a15ba89a8874.1783968515719302000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

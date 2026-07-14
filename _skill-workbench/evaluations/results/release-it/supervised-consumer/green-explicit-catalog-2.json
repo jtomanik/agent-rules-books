@@ -1,0 +1,45 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f588b-a600-7e50-966e-06e369cd5074",
+  "exit_code": 0,
+  "result": {
+    "answer": "The correct boundary is neither \u201ccrash on every exception\u201d nor \u201ccatch everything, ack, and continue.\u201d With this broker and supervisor setup, those are the two unsafe extremes.\n\nThe policy should be:\n\n1. Quarantine and ack only for definitively malformed inbound messages.\nInvalid JSON, missing or invalid `id`/`sku`, or other ingress validation failures are poison data. They must not be retried forever, and they must not crash the fleet. Because `dead_letter_exchange: null` and `max_deliveries: 0`, the system cannot safely do this today. Add an explicit quarantine path first, then ack the original only after quarantine succeeds.\n\n2. Retry, then pause consumption, for dependency failure.\n`503`, timeout, and `200` with malformed JSON from `inventoryClient` are not poison messages. They are dependency failures or dependency contract failures. Do not ack them, and do not crash the process on each occurrence. Apply explicit timeout plus bounded retries with backoff/jitter. After that budget is exhausted, stop taking more work and fail readiness until the dependency recovers or operators pause the deployment. Crashing is worse here because exit makes every unacked delivery immediately redeliver across six replicas, which is exactly the staging restart storm you saw.\n\n3. Crash only for compromised process state.\nIf the consumer can no longer trust its own state or classify the failure safely, let it crash so supervision replaces it. Examples: corrupted broker/client state, broken DB/transaction client state, invariant violations in the consumer itself, or an unknown exception outside the classified message/dependency paths. This should be rare and treated as a bug or infrastructure fault, not normal control flow.\n\nThat means the current broad `catch` should become a classifier, not a blanket rethrow and not a blanket ack.\n\nChanges needed to make this safe and testable:\n\n- Add explicit inbound validation before the dependency call. The current `as InventoryEvent` is only a cast; it does not distinguish malformed messages from valid ones.\n- Add quarantine infrastructure. Configure a dead-letter or parking-lot queue and include reason plus original payload. Without this, malformed inbound messages cannot be handled safely.\n- Add explicit dependency timeout and bounded retry with backoff/jitter. `dependency_timeout_ms: 0` is unsafe, and immediate repeated attempts will amplify outages.\n- Add a pause mechanism tied to dependency health. Readiness must reflect ability to process messages, not just `broker_connection_is_open`. When the dependency is unhealthy or a breaker is open, the consumer should go unready and stop pulling more work.\n- Reduce in-flight blast radius. `prefetch: 100` with `replicas: 6` means up to 600 deliveries become immediately eligible for replay on crash. Lower prefetch to a small bound aligned with real processing concurrency.\n- Bound supervisor restart storms. If crashing remains the last-resort policy for compromised state, `max_restarts_per_minute: 0` and 100-1000 ms backoff are too permissive. Add a real cap or much longer backoff so a bad build or invariant bug does not thrash the whole fleet.\n- Make replay safe. Because unacked messages are redelivered on exit, persistence must be idempotent, typically by enforcing `eventId` uniqueness and treating duplicate delivery as success.\n\nMinimal behavior matrix:\n\n- Malformed inbound message: quarantine, then ack.\n- Dependency `503` or timeout: retry locally within budget, then pause/unready with message unacked.\n- Dependency `200` with malformed JSON: classify as dependency contract failure, retry briefly if desired, then pause/unready with message unacked.\n- Unknown/internal invariant failure or compromised runtime state: crash.\n\nTests to add:\n\n- Invalid message is quarantined and acked, with no process crash.\n- Dependency `503` and timeout trigger bounded retry, no ack, and readiness turns false after the retry budget.\n- Dependency malformed JSON is not quarantined as poison input and does not get acked.\n- Unknown internal exception escapes and causes process termination.\n- Duplicate redelivery after crash does not duplicate durable state.\n\nSo the exact decision is: quarantine bad input, pause on dependency trouble, crash only on compromised process state.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "release-it",
+        "sections": [
+          "Dependency Protection Rules",
+          "Data Boundary Rules",
+          "Runtime State and Restart Safety Rules",
+          "Testing Rules",
+          "Operational Visibility Rules",
+          "Load and Capacity Rules",
+          "Forbidden Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

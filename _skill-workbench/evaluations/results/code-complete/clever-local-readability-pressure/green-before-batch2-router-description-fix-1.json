@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/clever-local-readability-pressure.md",
+  "case_sha256": "d4031be584d9d1440a7412df4d178680d97e42683d80ef56034bdaa50dc61809",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585f-1bd1-79d1-b1a9-2d009b768a96",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest worthwhile readability fix is to keep the behavior exactly as-is but replace the flag with a named mode and give the helper a name that says it formats a customer label.\n\nRecommended shape:\n\n```ts\ntype LabelStyle = \"compact\" | \"prefixed\";\n\nexport const formatCustomerLabel = (name: string, style: LabelStyle): string => {\n  const normalizedName = name.trim().toUpperCase();\n  return style === \"compact\" ? normalizedName : `Customer: ${normalizedName}`;\n};\n```\n\nWhy this is the smallest good change:\n- `formatCustomerLabel` is clearer than `label`; it tells the reader this is formatting, not just returning an arbitrary label.\n- `LabelStyle` removes the boolean mode smell. `compact`/`prefixed` reads at the call site without forcing the reader to decode `true` or `false`.\n- `normalizedName` removes duplicated work and makes the expression shape linear instead of packing both branching and transformation into one ternary.\n\nIf the lead will only allow a one-liner-sized change, the fallback is to keep the function compact but still remove the boolean:\n\n```ts\ntype LabelStyle = \"compact\" | \"prefixed\";\nexport const formatCustomerLabel = (name: string, style: LabelStyle): string => style === \"compact\" ? name.trim().toUpperCase() : `Customer: ${name.trim().toUpperCase()}`;\n```\n\nThat is weaker because it keeps duplication, but it still fixes the biggest local readability problem: the unnamed boolean mode.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

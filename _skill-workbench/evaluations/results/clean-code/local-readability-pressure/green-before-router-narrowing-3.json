@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5365-a16d-7663-b5b0-8deef9cc9a49",
+  "exit_code": 0,
+  "result": {
+    "answer": "Patch plan:\n1. Keep `finalize`\u2019s public signature and all collaborator interactions unchanged. Do not introduce new abstractions outside this class.\n2. Extract the discount decision into a small pure helper such as `private discountFor(account: Account, invoice: Invoice): number` so the new rule is isolated from side effects.\n3. Implement the partner rule first in that helper: if `account.segment === \"partner\"` and `invoice.total >= 500`, return `0.15`.\n4. Preserve existing behavior for every other case: VIP starts at `0.1`, invoices with `total > 1_000` add `0.05`, and standard accounts remain `0` unless they cross the existing `> 1_000` threshold.\n5. In `finalize`, rename locals to `account`, `invoice`, and `discount` in the touched code, compute `amount` from the helper, and leave preview/save/email/audit flow exactly as it is.\n\nRevised sketch:\n```ts\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(account: Account, invoice: Invoice): number {\n    if (account.segment === \"partner\" && invoice.total >= 500) {\n      return 0.15;\n    }\n\n    let discount = account.segment === \"vip\" ? 0.1 : 0;\n\n    if (invoice.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n\n  finalize(account: Account, invoice: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.discountFor(account, invoice);\n    const amount = invoice.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    account.balance -= amount;\n    this.accounts.save(account);\n    this.lastInvoiceId = invoice.id;\n\n    if (sendEmail) {\n      this.mailer.send(account.id, invoice.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: account.id,\n      invoiceId: invoice.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\nScope boundary:\n- In scope: the discount decision only, plus the smallest local cleanup needed to make that rule readable and testable inside `InvoiceService`.\n- Out of scope: changing method signatures, removing boolean flags, introducing strategy/policy objects, altering persistence/email/audit sequencing, changing `lastInvoiceId` behavior, changing rounding/money handling, or broad rewrite-driven cleanup.\n\nTests required before shipping:\n- Add a partner-preview test at `total = 500` asserting `{ amount: 425, discount: 0.15, changed: false }` and asserting no calls to `accounts.save`, `mailer.send`, or `audit.record`.\n- Add a partner-finalize test at `total = 500` asserting balance decreases by `425`, `accounts.save` is called with the mutated account, `audit.record` receives `amount: 425`, and `mailer.send` still depends only on `sendEmail`.\n- Add a partner threshold test just below the boundary, for example `total = 499.99`, asserting no new discount.\n- Add a partner high-total test, for example `total = 1001`, asserting the discount is still exactly `0.15`, not `0.20`.\n- Re-run the existing VIP and standard tests unchanged to prove behavior outside the partner rule is preserved.\n\nAssumption to make explicit in review: for eligible partner invoices the discount is a flat 15%, not 15% plus the existing `> 1_000` surcharge rule. That matches the wording \u201creceive a 15% discount\u201d and keeps the change narrowly scoped.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5366-6634-7762-9cfb-b6bae9ce457a",
+  "exit_code": 0,
+  "result": {
+    "answer": "The area should be treated as legacy-change work first, then refactoring. The blocking risks are exactly the ones called out by the code: hidden construction of `RenewalDatabase`, direct reads of `new Date()`, and no focused tests around the decision point. The safe order is: gain control, preserve current behavior under test, centralize the existing eligibility rule with no semantic change, then add the new trial-age rule in that single owner.\n\n**Work Order**\n1. Add focused characterization tests around the current decision surface before changing logic.\n   Capture both `quote()` and `renew()` outcomes for the existing branches: `closed`, `paused`, negative balance, and an eligible non-trial account. For `renew()`, assert the current side effects and timestamps written on the success path; for `quote()`, assert that price lookup happens only when currently eligible.\n2. Introduce the smallest seams needed for repeatable tests, with no behavior change.\n   Make time injectable and make the database substitutable. The lowest-risk shape is usually a constructor overload or dependency parameter that defaults to the current production behavior, so existing callers still get `new RenewalDatabase(process.env.RENEWAL_DSN!)` and the real clock.\n3. Consolidate the duplicated eligibility conditional into one clear owner, still with no behavior change.\n   Extract a single intention-revealing operation such as `isEligibleForAutomaticRenewal(account, now)` or an `EligibilityPolicy`/private method used by both `quote()` and `renew()`. At this stage, every existing test should stay green unchanged.\n4. Add new-behavior tests for the product rule.\n   Cover at least: trial older than 30 days is ineligible; trial exactly 30 days old boundary; trial younger than 30 days remains eligible; paid accounts remain governed only by the pre-existing conditions; `trialStartedAt: null` behavior is explicit and protected rather than guessed.\n5. Apply the semantic edit only in the single owner from step 3.\n   Implement the 30-day trial-age exclusion there and verify that both `quote()` and `renew()` now change together only for the intended cases.\n6. Keep the existing slow end-to-end success-path test as a boundary check, but do not rely on it as the primary safety net.\n\n**What must be learned or controlled before semantic edits**\n- Whether `trialStartedAt` can be `null` for a `trial` account, and what current callers expect in that case.\n- The intended boundary rule for \u201colder than 30 days\u201d: strictly `> 30 days` versus `>= 30 days`, and which timezone/clock basis should define the cutoff.\n- Whether `quote()` and `renew()` are required to share exactly the same eligibility semantics. The current duplication strongly suggests yes, but this should be locked down by tests before extraction.\n- Whether any current callers depend on the worker constructing its own database client. If not, prefer explicit dependency injection with production defaults.\n- The minimum persistence behavior that must remain unchanged on successful renewal: one transaction, same inserts/updates, same timestamp source for both writes.\n\n**Behavior-preserving patch boundaries**\n- Patch 1: tests plus seams only. No logic change, no new rule.\n- Patch 2: extract single eligibility owner and switch both methods to it. No logic change; identical outcomes for all existing cases.\n- Patch 3: add the trial-age rule in that owner plus new focused tests. This is the only semantic patch.\n- Optional Patch 4: naming or small cleanup only if it clearly improves readability after Patch 3 and remains behavior-preserving.\n\n**Review constraints**\n- Do not mix seam creation, conditional consolidation, and rule change in one opaque patch.\n- Do not add more hidden dependencies while fixing the old ones.\n- Keep the ownership local and explicit; this does not justify broad new abstractions unless another real caller exists.\n- Preserve every current outcome outside the new trial-age rule.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/working-effectively-with-legacy-code/references/index.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/working-effectively-with-legacy-code/references/full.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/refactoring/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/refactoring/references/index.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:58:25.987982Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5366-6634-7762-9cfb-b6bae9ce457a.1783810647605374000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

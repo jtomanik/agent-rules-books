@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58a7-4ae2-7c23-a677-3ee6c220274b",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest production design is a single application use case with two policy-owned ports. The current handler collapses transport, persistence, and business rules into one Next.js function, so the approval rule and invoice action are not independently testable or replaceable.\n\nA minimal split looks like this:\n\n```ts\n// application/invoicing/create-invoice.ts\nexport type CreateInvoiceInput = {\n  orderId: string;\n};\n\nexport type CreateInvoiceOutput = {\n  invoiceId: string;\n  totalCents: number;\n};\n\nexport type OrderForInvoicing = {\n  id: string;\n  status: \"APPROVED\" | string;\n  lines: Array<{ amountCents: number }>;\n};\n\nexport interface LoadOrderForInvoicing {\n  byId(orderId: string): Promise<OrderForInvoicing | null>;\n}\n\nexport interface SaveInvoice {\n  save(data: { orderId: string; totalCents: number }): Promise<{ id: string }>;\n}\n\nexport class OrderNotApprovedError extends Error {}\nexport class OrderNotFoundError extends Error {}\n\nexport class CreateInvoice {\n  constructor(\n    private readonly loadOrder: LoadOrderForInvoicing,\n    private readonly saveInvoice: SaveInvoice,\n  ) {}\n\n  async execute(input: CreateInvoiceInput): Promise<CreateInvoiceOutput> {\n    const order = await this.loadOrder.byId(input.orderId);\n    if (!order) throw new OrderNotFoundError();\n    if (order.status !== \"APPROVED\") throw new OrderNotApprovedError();\n\n    const totalCents = order.lines.reduce((sum, line) => sum + line.amountCents, 0);\n    const invoice = await this.saveInvoice.save({ orderId: order.id, totalCents });\n\n    return { invoiceId: invoice.id, totalCents };\n  }\n}\n```\n\nOwnership should stay with the application layer:\n- `CreateInvoiceInput` and `CreateInvoiceOutput` are owned by the use case, not by Next.js.\n- `OrderForInvoicing` is the use case\u2019s read model, not a Prisma model.\n- `LoadOrderForInvoicing` and `SaveInvoice` are interfaces owned by the use case; Prisma implements them outside.\n\nTranslation happens only at the edges:\n- Next.js route translates `NextRequest` query params into `CreateInvoiceInput`, calls the use case, then translates result/errors into `NextResponse`.\n- Prisma adapters translate database rows and relations into `OrderForInvoicing`, and translate the save request into `prisma.invoice.create(...)`.\n\nConcrete wiring belongs in the outer layer:\n- Instantiate Prisma adapters and `CreateInvoice` in the route module or a small composition function imported by the route.\n- Do not import `NextRequest`, `NextResponse`, `prisma`, or `@prisma/client` types into the use case.\n\nThat gives you the required behavior with the lightest boundary that still keeps the approval rule and invoice action independent from both Next.js and Prisma.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

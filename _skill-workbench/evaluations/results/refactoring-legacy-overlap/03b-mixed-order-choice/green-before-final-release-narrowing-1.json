@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5369-4634-7051-bd94-22a1ef0cfdb4",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is:\n\n1. Gain deterministic test control first.\n2. Add focused characterization coverage for current outcomes.\n3. Do a small behavior-preserving extraction so eligibility has one owner.\n4. Add the new 60-day introductory-subscription rule in that owner.\n5. Keep the existing slow end-to-end test as a backstop.\n\nWhy this order is safest:\n\n- The code is legacy for this task: no focused tests, hidden database construction, and direct clock reads. Changing behavior before breaking those dependencies is edit-and-pray.\n- Extracting first, before tests, is also riskier than it looks. Even a tiny extraction can change behavior in unprotected code, and there is no fast feedback if it does.\n- After deterministic control exists, the duplication is the local structural friction blocking the feature. A preparatory extraction is then justified because the new rule must apply identically in `previewCredit()` and `applyCredit()`. Putting the rule into two places first would create a mixed-intent patch, increase drift risk, and make review harder.\n- With the owner extracted first, the semantic patch becomes one small rule change plus focused tests, which is the narrowest review surface.\n\nA concrete safe sequence:\n\n1. Patch 1: dependency seam plus characterization tests, no behavior change.\n   Introduce the smallest seam for the two real barriers: database construction and current time. For example, allow `PromotionWorker` to receive a database and a clock or `now()` function, while preserving the current production construction path by default. Then add focused tests around current behavior of `previewCredit()` and `applyCredit()`.\n\n2. Patch 2: consolidate eligibility ownership, no behavior change.\n   Extract a single eligibility decision that both methods call. Keep it local and explicit, such as a private method or a small policy object if that reads better. This patch should be behavior-preserving and should pass the characterization tests unchanged.\n\n3. Patch 3: add the 60-day rule in the shared owner.\n   Add new tests for introductory subscriptions on each side of the threshold, then implement the rule once in the shared owner. This keeps the behavioral delta isolated and reviewable.\n\nDecisions to clarify before patch 3:\n\n- Threshold semantics: is \u201colder than 60 days\u201d strictly `> 60 days`, or `>= 60 days` at the exact timestamp?\n- Time calculation: exact elapsed duration from `startedAt`, or calendar-day logic?\n- Timezone/parsing contract: are all `startedAt` values guaranteed ISO timestamps with offsets/UTC, and should comparison use absolute instants?\n- `startedAt: null` for `kind: \"introductory\"`: ineligible, error, or impossible state?\n- Scope: does \u201cineligible for automatic credit\u201d apply to both preview and apply, or only apply? The duplicated rule suggests both, but this should be confirmed.\n- Boundary behavior preservation: all existing non-introductory outcomes remain unchanged, including negative balance, manual hold, paused/cancelled, and transaction/write behavior.\n\nReviewable patch boundaries:\n\n- Patch 1 review target: only seams and tests. No eligibility logic changes.\n- Patch 2 review target: only ownership consolidation. No semantic change.\n- Patch 3 review target: only the 60-day rule and its tests.\n\nThat split is safer than the alternatives:\n\n- Behavior change first: too risky because time and database are uncontrolled.\n- Extraction first with no tests: still unsafe in legacy code.\n- Seam, then behavior change in both methods, then extraction: works, but it duplicates the new rule temporarily and mixes feature work with later cleanup. The extracted-owner-first sequence is smaller and less error-prone once tests exist.\n\nRecommended ownership shape:\n\n- Prefer one small eligibility decision close to `PromotionWorker`, unless there is already a subscription-policy concept nearby.\n- Keep time as an explicit input to that decision so the rule is deterministic under test.\n- Keep database/persistence effects outside the eligibility owner; eligibility should stay pure policy if possible.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T23:00:36.268180Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5369-2b6f-78b1-a98e-bc4ffd3d3a00.1783810829168031000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

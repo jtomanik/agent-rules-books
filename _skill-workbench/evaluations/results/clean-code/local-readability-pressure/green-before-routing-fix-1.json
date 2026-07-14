@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5346-5692-7250-8ecd-61e457445646",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest change is a narrow edit to discount calculation only, with the rest of `finalize` left structurally untouched. Under rewrite pressure, I would not broaden this into a pricing redesign. I would first lock current behavior with focused characterization tests, then add the partner rule through a tiny seam so the behavioral delta is isolated and reviewable.\n\nConcrete patch plan:\n1. Add characterization tests for current discount behavior if they do not already exist at the discount boundary: `standard + 400 => 0`, `vip + 400 => 0.1`, `standard + 1200 => 0.05`, `vip + 1200 => 0.15`.\n2. Extract discount computation into a pure helper such as `private discountFor(a: Account, i: Invoice): number` or a file-local function. This is the only structural change, and it is justified because it gives a tight test seam around the new rule.\n3. Add the new partner rule in that helper: if `segment === \"partner\"` and `total >= 500`, base discount is `0.15`.\n4. Preserve the existing high-total behavior exactly: if `total > 1000`, add `0.05` on top of whatever base discount already applies.\n5. Leave balance mutation, `accounts.save`, `mailer.send`, `audit.record`, `lastInvoiceId`, preview behavior, and return shape unchanged.\n\nRevised sketch:\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  private discountFor(a: Account, i: Invoice): number {\n    let d = 0;\n\n    if (a.segment === \"vip\") d = 0.1;\n    if (a.segment === \"partner\" && i.total >= 500) d = 0.15;\n    if (i.total > 1_000) d += 0.05;\n\n    return d;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.discountFor(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount selection logic for `partner` accounts at `invoice.total >= 500`.\n- In scope: preserving the current `> 1000` additive discount behavior for every segment, including `partner`.\n- Out of scope: pricing architecture, new discount abstractions, changing threshold operators for existing rules, changing persistence/email/audit behavior, changing method signature, renaming unrelated code, or touching `lastInvoiceId` handling.\n\nRequired tests before shipping:\n- `partner + 499.99` gets no partner discount.\n- `partner + 500` gets `0.15` discount.\n- `partner + 1000` gets `0.15` discount.\n- `partner + 1000.01` gets `0.20` discount, assuming the existing `> 1000` rule remains additive.\n- Existing segment tests still pass for `standard` and `vip`.\n- One preview-path test proving return value changed but no `save/send/audit` calls were added.\n- One non-preview-path test proving `accounts.save`, optional `mailer.send`, and `audit.record` still receive the same arguments except for the newly discounted `amount` in the partner case.\n\nOne assumption needs to be explicit before merge: this plan interprets the requirement as \"partner gets a 15% base discount at `>= 500`, plus the existing extra 5% when `total > 1000`.\" If product meant \"partner should get exactly 15% and never 20%,\" that is a different rule and should be confirmed because it does not follow naturally from \"preserve all behavior outside that rule.\"",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:23:11.221747Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5346-5692-7250-8ecd-61e457445646.1783808546450578000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

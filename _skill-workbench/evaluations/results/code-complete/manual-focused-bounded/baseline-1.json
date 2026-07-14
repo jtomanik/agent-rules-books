@@ -1,0 +1,43 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/manual-focused-bounded.md",
+  "case_sha256": "09fa15ad53c02ceea82196631c2443388c31052fab474f38855a937948acf1ee",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5894-5110-7f12-b934-517aa9fa572f",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a validated table, not an `if` chain.\n\nFor a stable six-cell mapping from `(zone, service)` to shipping cents, the book\u2019s bounded guidance points the same way twice: the statement/conditional rules say to use table-driven methods when repeated branching is stable and the table can be validated, and the table-driven rules prefer data-driven logic over long repeated condition chains when the mapping is stable and explicit. This case is exactly that shape: a small closed cross-product, no algorithmic behavior beyond lookup, and a representation that can be made complete and obvious.\n\nThe decisive difference is defect surface. An `if` chain duplicates the decision structure in control flow, makes omissions and overlaps easier to miss, and forces readers to re-verify branch ordering and exclusivity. A table collapses that into data, removes unnecessary branching, and makes completeness checkable. The table should only be adopted if it is validated, with the expected six `(zone, service)` combinations represented explicitly and with invalid or missing combinations rejected clearly. If the representation becomes opaque or under-validated, the recommendation would reverse, but that is not the case described here.\n\nRequired tests:\n- Exhaustive lookup tests for all six valid `(zone, service)` pairs, asserting the exact shipping cents.\n- A completeness/invariant test asserting the table contains exactly the allowed cross-product and no extra entries.\n- Validation tests for invalid `zone` values.\n- Validation tests for invalid `service` values.\n- Validation tests for missing combinations if the table is assembled from separate entries or configuration.\n- Validation tests for malformed values such as negative or non-integer cents, if those are representable in the host language.\n\nArbitration against the book\u2019s primary and final directives:\n- Primary Directive: the validated table lowers defect probability, is easier to inspect, reduces control-flow complexity, uses data more clearly, and can protect against invalid states through table validation.\n- Final Instruction: it lowers defect risk, improves readability, simplifies flow, strengthens defensive correctness when validated, and is easier to maintain under review.\n\nFinal recommendation: replace the `if` chain with a small validated lookup table keyed by `(zone, service)`, plus explicit validation and the tests above.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/code-complete/SKILL.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/code-complete/references/index.md",
+      "/Users/jakubtomanik/github/agent-rules-books/.agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "code-complete",
+        "sections": [
+          "Primary Directive",
+          "Statement, Conditional, and Loop Rules",
+          "Table-Driven and Data-Driven Rules",
+          "Testing Rules",
+          "Final Instruction"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:07:26.179199Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5894-5110-7f12-b934-517aa9fa572f.1783897542929129000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

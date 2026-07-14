@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b0-59b4-7892-8192-a1f009c1bd38",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n\n1. `acquire()` can wait forever and the outbound call ignores `requestSignal` (snippet lines 7 and 10). With `CHECKOUT_REQUEST_TIMEOUT_MS=2500` and `CARRIER_RESPONSE_TIMEOUT_MS=2000`, the quote path is not actually bounded end to end: it can sit in the semaphore indefinitely, and connect establishment is also unbounded because `timeoutMs` does not cover it. That violates the required degraded behavior because this optional quote can consume the whole checkout budget instead of returning `{ kind: \"unavailable\" }` in time.\n\n2. All failures are collapsed into `unavailable` and the success path trusts any JSON body (lines 18-29). That misclassifies provider `4xx` contract/request failures, and it can accept malformed `200` payloads as `available`. Per the stated contract, only `429`, `5xx`, timeout, and transport failure should degrade to `unavailable`; `4xx` and invalid `200` bodies are integration faults and should be surfaced distinctly.\n\nSmallest pre-merge changes:\n\n- Put one end-to-end abort budget around the whole quote attempt, including semaphore wait, connect, response, and body read. In practice: create a quote-scoped signal such as `AbortSignal.any([requestSignal, AbortSignal.timeout(Number(env.CARRIER_RESPONSE_TIMEOUT_MS))])`, pass it to `carrierSlots.acquire(...)` and `carrierClient.post(..., { signal, timeoutMs: ... })`, and return `{ kind: \"unavailable\" }` on that abort path.\n- Validate the boundary before returning `available`: require HTTP `200`, JSON content type, and a body with `amount >= 0` and finite, `currency` matching a 3-letter code, and a parseable ISO-8601 `expires_at`.\n- Classify outcomes explicitly:\n  - `429`, `5xx`, timeout, transport failure, semaphore-budget expiry -> warn and return `{ kind: \"unavailable\" }`.\n  - `4xx` or malformed `200` -> log as an integration/contract error and throw (or otherwise surface a non-`unavailable` failure to the caller) so the bug is visible instead of being hidden as carrier unavailability.\n\nWhat does not need change for this review: no retry issue is visible here, because the client does not retry implicitly and the path already intends `CARRIER_RETRIES=0`; the dedicated semaphore is also a reasonable first bulkhead for this optional dependency.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

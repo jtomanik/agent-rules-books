@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/legacy-first-feedback-neighbor.md",
+  "case_sha256": "21216fea1bb61f49968f93ab41de38988ce829fd632334ecb0bc08028d73ef10",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585f-8e62-7521-993a-af712ba5fd85",
+  "exit_code": 0,
+  "result": {
+    "answer": "Treat this as a legacy-change setup problem, not a rule-change problem yet.\n\nThe smallest observation path is one focused characterization harness around `AccountSuspender.suspend(accountId)`, observing only the externally visible effect that matters here:\n- was `markSuspended(accountId, when)` called or not\n- if called, what `when` value was written\n\nTo get deterministic feedback, break only the two barriers that currently prevent repeatable tests:\n- database access: replace direct `new ProductionDatabase(...)` reach-through with a narrow seam that can supply an `accounts` collaborator for `find` and `markSuspended`\n- ambient time: replace direct `new Date()` with a narrow seam that supplies `now`\n\nKeep the public API stable by leaving `suspend(accountId: string): void` unchanged and avoiding the seven-day rule entirely in this step. The seam can be internal or protected and should default to the current production behavior. The point is not better architecture yet; it is cheap instantiation and controlled observation.\n\nA minimal structural preparation looks like this in intent:\n- keep `AccountSuspender` as the entry point\n- introduce a tiny `accounts` port or accessor seam near `this.database.accounts`\n- introduce a tiny clock seam near `new Date()`\n- leave `unknownThreshold()` untouched\n\nThen add characterization tests that drive `suspend` with:\n- a fake account store returning a chosen `lastPaymentAt`\n- a fixed `now`\n- an assertion on whether suspension was recorded\n- an assertion that recorded time equals the supplied `now`\n\nThe first deterministic feedback should be a table of current outcomes, not a guessed replacement rule. Start with a coarse sweep of elapsed times to find the current transition, then add boundary-adjacent cases around the observed cutoff. Important cases:\n- well below the cutoff\n- well above the cutoff\n- exact-boundary/equality behavior, because the code uses `>` not `>=`\n- just under and just over the transition\n- future or same-time payment timestamps if those are possible inputs\n\nSequence the work in two separate patches:\n1. Structural-only patch: add the database and clock seams, plus characterization tests, with no intended behavior change.\n2. Semantic patch later: change the threshold to seven days and update/add tests only for the intended behavioral delta.\n\nThat is the smallest safe route because it gains first feedback exactly at the change point, breaks only the dependencies blocking deterministic tests, preserves the current public entry point, and avoids mixing structural preparation with the later business-rule change.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

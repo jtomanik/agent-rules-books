@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/focused-port-ownership-dispute.md",
+  "case_sha256": "04e9788c9bc435a66f25015110790c17324b5596afdc587187370ed72b4f6ed4",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585c-957a-7e22-bdb4-c5038eb20bbe",
+  "exit_code": 0,
+  "result": {
+    "answer": "Reviewer B is correct.\n\nDependency inversion is not satisfied merely because `GetOrderSummary` imports an `interface` instead of `SqlOrderRepository`. In Clean Architecture, the decisive question is ownership and dependency direction. Here, both `OrderRepository` and `OrderRow` are defined in `infrastructure/sql-order-repository.ts`, so the application layer still depends outward on infrastructure-owned types. That violates the dependency rule, and `OrderRow` also leaks a persistence shape inward.\n\nThe corrected ownership is:\n- The application layer owns the port it needs.\n- The application layer or domain layer owns the data shape that crosses that boundary.\n- Infrastructure implements the port and maps SQL rows into the inward-owned model.\n\nThe type flow should look like this:\n\n```ts\n// application/orders-port.ts\nexport type OrderSummaryRecord = {\n  id: string;\n  status: string;\n  totalCents: number;\n};\n\nexport interface OrderRepository {\n  findById(id: string): Promise<OrderSummaryRecord | null>;\n}\n```\n\n```ts\n// application/get-order-summary.ts\nimport type {\n  OrderRepository,\n  OrderSummaryRecord,\n} from \"./orders-port\";\n\nexport class GetOrderSummary {\n  constructor(private readonly orders: OrderRepository) {}\n\n  async execute(id: string): Promise<OrderSummaryRecord | null> {\n    return this.orders.findById(id);\n  }\n}\n```\n\n```ts\n// infrastructure/sql-order-repository.ts\nimport type { OrderRepository, OrderSummaryRecord } from \"../application/orders-port\";\n\ntype OrderRow = {\n  id: string;\n  status_code: string;\n  total_cents: number;\n};\n\nexport class SqlOrderRepository implements OrderRepository {\n  async findById(id: string): Promise<OrderSummaryRecord | null> {\n    const row: OrderRow | null = await /* SQL */ null;\n    if (!row) return null;\n\n    return {\n      id: row.id,\n      status: row.status_code,\n      totalCents: row.total_cents,\n    };\n  }\n}\n```\n\nIf `status` should be a richer domain concept such as an enum or value object, that type should also be owned inward, with infrastructure translating from `status_code`.\n\nWhich layer defines the port:\n- Usually the application layer, when the use case needs external behavior such as loading an order.\n- Sometimes the domain layer, if the abstraction is truly a domain concept shared across use cases.\n- Not the infrastructure layer. Infrastructure is the implementation side of the boundary, not the owner of the boundary.\n\nSmallest Clean Architecture sections needed to settle this dispute:\n- `Non-Negotiable Rules`: establishes that dependencies point inward, business rules must not read database rows directly, and gateways implement interfaces defined by inner layers.\n- `Required Layer Responsibilities`: states that the application layer contains ports/boundaries and defines required external behavior, while infrastructure implements interfaces owned by inner layers and must not dictate domain shapes.\n- `Forbidden Patterns`: explicitly bans `gateway interfaces defined in infrastructure and consumed by core policy` and `use cases returning table rows or database-bound entities`.\n\n`Preferred Default Shapes` is consistent with the fix, but it is supportive rather than necessary for resolving this specific disagreement.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-architecture/references/index.md",
+      ".agents/skills/clean-architecture/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:05:29.181520Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585c-957a-7e22-bdb4-c5038eb20bbe.1783893890426483000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

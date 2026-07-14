@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/unnamed-outcome-ownership.md",
+  "case_sha256": "d869553f51c12d27bb19473b82db8448dc7c3c58408000fcda992863b5071a60",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dca-d247-7a81-8b64-063fd73680a2",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The delivery manager\u2019s framing is not defensible. This is one delivery problem, not four separate local issues.\n\nThe export outcome needs a single accountable owner for the next ten days: one engineer or lead acting for the export capability end to end, with authority to cut across API, nightly job, admin preview, and release automation. If ownership stays split by entry point, duplicated rules and manual release risk will survive because no team is responsible for the whole result.\n\nThe current position is weak on four points:\n- Duplicated eligibility logic is not an entry-point concern. Eligibility is business policy and needs one authority. API, nightly job, and admin preview should call the same policy, not re-express it.\n- Writing the vendor format directly into domain records is not an unavoidable framework default. It is an architectural choice that hard-codes a volatile external detail into core state.\n- A six-command manual release known by one engineer is not acceptable under a ten-day deadline. It is undocumented, unreviewable, and gives late human-only feedback.\n- Architecture feedback cannot wait until all three entry points are complete. If the boundary is wrong, finishing all three just multiplies rework.\n\nA thin, reviewable first slice should be:\n- Extract one export use case or policy module that owns eligibility calculation and produces a vendor-neutral export model.\n- Add one vendor adapter that maps that neutral model into the new vendor format at the edge.\n- Wire only one entry point first, preferably admin preview, because it gives fast human inspection without waiting for the nightly run.\n- Add fixture-based tests around the shared eligibility policy and golden-file tests for the vendor adapter output.\n- Replace the six undocumented release steps with one checked-in script or task runner command that builds the export, runs the tests, and produces a diffable artifact.\n\nThat first slice is thin because it does not require all three entry points up front. It is reviewable because reviewers can inspect one policy owner, one adapter, one wired entry point, and one automation path.\n\nOne authority for knowledge:\n- Eligibility rules: one policy owner.\n- Vendor serialization/mapping rules: one adapter owner.\n- Release procedure: one scripted workflow in version control.\n\nCommitments that should remain reversible:\n- The vendor format must stay outside domain records. Keep a neutral internal model so the vendor can change without rewriting core business logic or stored state.\n- Do not spread the new export behavior into all entry points before the shared policy and adapter exist.\n- Do not institutionalize the manual release ritual; automate it before it becomes the permanent interface.\n\nFeedback before the deadline should arrive in this order:\n1. Shared policy tests proving eligibility behavior.\n2. Golden-file or snapshot checks proving exact vendor output.\n3. Admin preview wired to the shared path so product or ops can inspect real examples early.\n4. One command that any engineer can run locally or in CI to reproduce the export artifact.\n5. Only then wire nightly job and API to the same shared path.\n\nIf time gets cut, the acceptable compromise is fewer entry points in the first ten days, not duplicated policy or vendor leakage into the domain. The right first milestone is not \u201call three entry points exist\u201d; it is \u201cone shared export path exists, one real entry point proves it, and the release path is reproducible.\u201d",
+    "selected_project_skills": [
+      "the-pragmatic-programmer",
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:23:29.416664Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}"
+}

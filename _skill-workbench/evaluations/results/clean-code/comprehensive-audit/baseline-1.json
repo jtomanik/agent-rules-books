@@ -1,0 +1,62 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/comprehensive-audit.md",
+  "case_sha256": "114e8945371df220dfdc2cd6c705faf344c5fb5585e06a59c2b351aedea4a201",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5339-0b19-75b0-a095-31e980818b78",
+  "exit_code": 0,
+  "result": {
+    "answer": "No repository Clean Code reference was present in this workspace, so I could not satisfy the \u201cconsult the full reference end to end\u201d part from project materials. The audit below applies the standard Clean Code lens using general engineering judgment.\n\n**Prioritized Audit**\n\n1. `Handler` mixes too many responsibilities ([snippet line 1]( /dev/null:1 ), [line 9]( /dev/null:9 ))\nThe class constructs infrastructure, reads from the database, decides business status, persists changes, schedules outbound notification, and formats the HTTP response. This violates single responsibility and makes the code harder to reason about, test, and change safely.\n\n2. `go(req, res, quick, send)` uses weak names and flag arguments ([line 9]( /dev/null:9 ))\n`go`, `x`, `quick`, and `send` hide intent. Two booleans create multiple modes in one function, a classic Clean Code smell. Callers must remember positional meaning instead of reading the API.\n\n3. Type safety is largely disabled with `any` and an undeclared field ([line 2]( /dev/null:2 ), [line 5]( /dev/null:5 ), [line 9]( /dev/null:9 ))\n`last`, `req`, and `res` are `any`, and `db` is assigned without a declared class property. In TypeScript this is either a compile error or a sign the code is bypassing useful static checks. This is a maintainability defect, not just a style issue.\n\n4. Database update uses the entire loaded entity as write input ([line 28]( /dev/null:28 ))\n`data: x` over-writes with a mutated read object instead of an explicit patch. That is risky: it can accidentally persist fields that should not be written, clobber concurrent changes, or fail when the ORM model shape differs between read and update inputs. This is the highest-confidence behavioral defect in the core flow.\n\n5. Background notification is fire-and-forget with no error handling ([line 30]( /dev/null:30 )-[line 36]( /dev/null:36 ))\n`setTimeout(async () => ...)` drops errors on the floor. Failed notifications become invisible, and unhandled rejections are possible depending on runtime settings. The code also gives no contract about whether notification success matters.\n\n6. External URL construction is unsafe ([line 32]( /dev/null:32 ))\nIf `process.env.NOTIFY_URL` is unset, the code posts to `undefined/orders`. That is a concrete defect path and should be treated as one.\n\n7. Mutable shared state `this.last` is misleading and unsafe under concurrency ([line 2]( /dev/null:2 ), [line 27]( /dev/null:27 ))\nPer-request work is being stored on the handler instance. If the instance is reused, concurrent requests can race and overwrite `last`. If it is not reused, the field is dead weight. Either way it weakens the design.\n\n8. The conditional for status selection is harder to read than necessary ([line 17]( /dev/null:17 )-[line 25]( /dev/null:25 ))\nThe nested `else { if ... }` obscures a simple rule. The business rule is small enough to name directly in a dedicated function.\n\n9. Comments explain obvious mechanics instead of intent ([line 8]( /dev/null:8 ), [line 39]( /dev/null:39 ))\nThe comments restate the code instead of documenting a non-obvious rule or contract. Clean Code prefers clearer code over explanatory narration.\n\n10. HTTP and domain return semantics are confused ([line 12]( /dev/null:12 )-[line 14]( /dev/null:14 ), [line 40]( /dev/null:40 ))\nOn not-found, the function returns `null`; on success, it returns whatever `res.send` returns. The comment says it returns the order, but it actually returns the response object in typical Express usage. That mismatch is both a readability issue and a testability problem.\n\n11. The test verifies almost nothing ([line 44]( /dev/null:44 )-[line 46]( /dev/null:46 ))\n`it(\"works\")` and `expect(result).toBeTruthy()` do not check status transitions, persistence shape, 404 behavior, or notification behavior. The test is too weak to protect refactoring.\n\n**Bounded Remediation Plan**\n\n1. Stabilize the contract first.\nIntroduce explicit types for request params, response, order shape, and class fields. Declare `db` and remove `any` where the type is knowable.\n\n2. Separate decision logic from effects.\nExtract a pure `determineOrderStatus(order, options)` function. Preserve current behavior exactly: `quick` still forces `approved`; otherwise `total > 1000` yields `review` and everything else `approved`.\n\n3. Replace flag arguments with a named options object.\nKeep behavior the same but make call sites self-describing, for example `{ quickApproval, notify }`.\n\n4. Narrow the persistence write.\nUpdate only the fields that are intentionally changed, at minimum `status`. This reduces accidental writes and concurrency damage.\n\n5. Remove or isolate mutable instance state.\nDelete `last` if unused. If it is needed for observability, store it in a dedicated, explicitly synchronized mechanism rather than request handler state.\n\n6. Make notification behavior explicit.\nEither await notification and surface failures, or send it to a real background mechanism with logging and retries. At minimum, guard missing `NOTIFY_URL` and catch/log errors.\n\n7. Clarify the method boundary.\nDecide whether this method is an HTTP handler or an application service. If it is an HTTP handler, returning `res.send(...)` is fine but the comment and test should reflect that. If it is a service, it should return domain data and let a controller write the response.\n\n8. Strengthen tests before larger refactors.\nAdd focused tests for not-found, quick approval, high-value review, low-value approval, ORM update payload, and notification enabled/disabled paths.\n\n**Validation Checklist**\n\n- Confirm TypeScript accepts the class without implicit `any` or undeclared-property errors.\n- Verify the status matrix is unchanged:\n  - `quick=true` => `approved`\n  - `quick=false` and `total>1000` => `review`\n  - `quick=false` and `total<=1000` => `approved`\n- Verify 404 behavior is unchanged unless intentionally corrected.\n- Verify the ORM update only writes intended fields.\n- Verify missing `NOTIFY_URL` is handled deterministically.\n- Verify notification failures are observable through logs or test assertions.\n- Verify no shared mutable request state remains on the handler instance.\n- Verify tests assert returned HTTP behavior separately from domain-state changes.\n- Replace truthiness assertions with explicit expectations on status code, response body, persistence call, and notification call count.\n\nThe main recommendation is to treat this as a small handler orchestration problem with one extracted pure rule and one explicit side-effect boundary. That gives the largest Clean Code gain without changing behavior.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Extract the status decision into a small pure function and reduce `Handler` to orchestration only.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Replace positional boolean flags with a named options object to make call sites self-describing.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Stop passing the whole fetched entity into the ORM update; write only the intended fields.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Remove `any` and declare all class fields explicitly, including `db`.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Eliminate `this.last` unless there is a clear, thread-safe consumer for it.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Strengthen tests around rule outcomes, persistence payload, 404 behavior, and notification paths before refactoring further.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:09:33.824782Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5339-0b19-75b0-a095-31e980818b78.1783807675161548000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

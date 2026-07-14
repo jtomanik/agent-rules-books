@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5361-8b3f-77a0-9762-5433af7508fd",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n\n1. High: `carrierSlots.acquire()` can block forever, so optional quote work can outlive the checkout budget and pile up under saturation.\nThe integration currently has no timeout or cancellation on the bulkhead wait, and the implementation facts say `Semaphore.acquire()` waits indefinitely unless given a deadline or signal. That violates the product rule that checkout must continue with `{ kind: \"unavailable\" }` when the carrier cannot answer within budget, and it creates an overload path where queued quote attempts accumulate instead of shedding optional work.\nSmallest pre-merge change: bound the semaphore wait with the checkout/request deadline or `requestSignal`, and on timeout/cancel return `{ kind: \"unavailable\" }` immediately. Also emit a distinct saturation signal for \"bulkhead acquire timed out\".\n\n2. High: the outbound call is not actually constrained by the request budget.\n`carrierClient.post()` is not passed `requestSignal`, and `timeoutMs` does not cover connection establishment. A slow connect/TLS/DNS path can therefore exceed both `CARRIER_RESPONSE_TIMEOUT_MS=2000` and the overall `CHECKOUT_REQUEST_TIMEOUT_MS=2500`, keeping an optional dependency on the critical path longer than allowed.\nSmallest pre-merge change: pass an abort signal/deadline into the client call and make the effective carrier deadline the minimum of remaining checkout budget and the carrier timeout. Treat abort/timeout/transport failure as `{ kind: \"unavailable\" }`.\n\n3. Medium: response validation and failure classification are too loose, so contract bugs get misreported as routine unavailability.\nThe code accepts any JSON body after any HTTP response and maps all thrown failures into the same warning. That misses the stated contract: only HTTP 200 + JSON + valid `{ amount, currency, expires_at }` is a valid quote, while provider `4xx` means request/contract error and `429`/`5xx`/timeout/transport means unavailable. In production, collapsing these together makes a bad request shape or provider contract drift look like ordinary dependency flakiness.\nSmallest pre-merge change: explicitly check status, content type, and body shape before returning `available`. Classify failures into at least:\n- `429`/`5xx`/timeout/transport/acquire-timeout => warn/info + `{ kind: \"unavailable\" }`\n- provider `4xx` or invalid `200` payload => error-level structured log and metric tagged as contract/request failure; if checkout must still proceed, return `{ kind: \"unavailable\" }` only after recording the non-routine failure distinctly.\n\nRecommended minimal patch set before merge:\n- Add bounded cancellation to semaphore acquire.\n- Propagate request abort/deadline into the HTTP client, covering connection establishment as well as response wait.\n- Validate HTTP status, content type, and payload shape before producing `kind: \"available\"`.\n- Split observability for routine unavailability vs contract/request defects vs saturation.\n\nWhat I would not require before first merge:\n- Retries: already correctly disabled for this request path.\n- Circuit breaker: useful later if the carrier proves unstable, but not the smallest necessary change for this ordinary pre-merge review.\n- Broader checkout audit: out of scope for this review.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:52:58.661772Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5361-8b3f-77a0-9762-5433af7508fd.1783810329407871000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

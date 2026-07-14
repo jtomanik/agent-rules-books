@@ -94,6 +94,8 @@ For each source section, classify rules before compressing:
 - Every retained rule in `mini.md` gets an `M*` id in `traceability.md`.
 - Every retained rule in `nano.md` gets an `N*` id in `traceability.md`.
 - Each id must reference the source section names and current line ranges in `full.md`.
+- Reverse-trace every prescriptive mechanism, qualifier, example, and failure mode in each retained rule to explicit support in the cited full sections. A citation to a broadly related section is not enough.
+- Treat plausible domain knowledge, remembered book content, and useful modern techniques as imported guidance when the canonical full rule does not state or clearly entail them. Remove them from the compression or repair the canonical full source through its own authoring workflow; do not hide them behind a loose traceability citation.
 - Record intentional omissions, especially when whole sections are collapsed into one compressed rule.
 - For every omitted or merged source rule or subsection, record one of:
   - `covered by Mx`
@@ -172,6 +174,7 @@ Before considering a book done:
 - removed rules have explicit reasons: verified default, true redundancy, too situational, or preserved only in `full.md`
 - any rule labeled `default` has explicit supporting evidence, not just intuition
 - a full-to-mini gap review has been completed section by section
+- a mini/nano-to-full reverse-trace review has confirmed that every prescriptive detail is supported by the cited full sections
 - post-review book edits are justified by source plus process, not by reviewer preference alone
 - if a review finding would apply as a reusable compression principle across books, it has been written back into `PROCESS.md` before changing book outputs
 - `traceability.md` explains why anything important was removed or merged

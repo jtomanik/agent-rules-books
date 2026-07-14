@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5356-3ef7-7153-9745-f031b11de861",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest 45-minute change is to localize the new rule into discount calculation, not to add more branching directly into the side-effect path.\n\nExact scope boundary: change only how `discount` is computed for `partner` accounts, plus tests for that rule. Do not change `finalize(...)` inputs/outputs, preview semantics, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, `lastInvoiceId`, or the existing VIP and `total > 1_000` behavior outside the new `partner` case.\n\nConcrete patch plan:\n1. Extract discount selection into a small pure helper inside `InvoiceService` or module-local, so the business rule is isolated from persistence/email/audit flow.\n2. Implement the new partner rule first in that helper: if account segment is `partner` and invoice total is at least `500`, return `0.15`.\n3. Keep the existing logic unchanged for every other path.\n4. Rename local variables while touching the code (`d` -> `discount`) and remove the flow-narrating comment if it no longer helps.\n5. Add focused tests around the new boundary and one non-regression test for an unchanged path.\n6. Run the TypeScript test suite before shipping.\n\nRevised sketch:\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\ntype Invoice = {\n  id: string;\n  total: number;\n};\n\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  finalize(account: Account, invoice: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.calculateDiscount(account, invoice);\n    const amount = invoice.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    account.balance -= amount;\n    this.accounts.save(account);\n    this.lastInvoiceId = invoice.id;\n\n    if (sendEmail) {\n      this.mailer.send(account.id, invoice.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: account.id,\n      invoiceId: invoice.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n\n  private calculateDiscount(account: Account, invoice: Invoice): number {\n    if (account.segment === \"partner\" && invoice.total >= 500) {\n      return 0.15;\n    }\n\n    let discount = account.segment === \"vip\" ? 0.1 : 0;\n\n    if (invoice.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n}\n```\n\nTests required before shipping:\n- `partner` at exactly `500` gets `15%`, and the returned amount, saved balance, mailed amount, and audited amount all match that discount.\n- `partner` above `500` still gets `15%` in preview mode, with no save/send/audit calls and no balance mutation.\n- `partner` below `500` keeps old behavior.\n- One unchanged-path regression test, ideally `vip` over `1_000` still gets `15%`.\n- If product means \u201cexactly 15% total\u201d rather than \u201c15% plus existing high-total bonus,\u201d add a test for `partner` at `1_200` asserting `15%`, not `20%`.\n\nOne open point should be resolved immediately with product/EM because it affects a real edge case: for `partner` invoices over `1_000`, should the final discount be exactly `15%`, or should the existing extra `5%` still stack to `20%`? The wording reads as exact `15%`, and I would ship that unless clarified otherwise.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:40:45.239168Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5356-3ef7-7153-9745-f031b11de861.1783809589026770000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

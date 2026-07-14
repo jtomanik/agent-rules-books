@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/direct-accountable-delivery.md",
+  "case_sha256": "f417b32d5bf76be34dc02066185cc491faa87283bdc43f5ae7afb83bb9808fa6",
+  "mode": "green",
+  "run": "green-batch4-description-final-3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dfb-cc42-7543-b44a-6d8b7cf494ef",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Primary findings:\n- `validation.ui/api/batch: copied_tax_rules` is the biggest delivery risk. It creates three owners for the same business knowledge, so any late tax change will fan out across surfaces and drift under deadline pressure. That violates knowledge ownership and orthogonality.\n- `vendor.format: hard_coded_into_domain_objects` makes the vendor contract an irreversible domain commitment. With only `14_days` notice on contract changes, coupling the export format into core objects is the wrong place to absorb volatility.\n- `verification.local: manual_spreadsheet_check` with `ci: none` guarantees slow, human-only feedback at the exact point where format and tax-rule drift need fast detection. That is acceptable for a throwaway probe, but dangerous as the only verification path.\n- `rollout.steps: tribal_knowledge` and `owner: unclear` means nobody explicitly owns the outcome. The feature may ship, but the delivery mechanism is not stand-up-able by the team from repository artifacts alone.\n\nSmallest correction that still fits 12 days:\n1. Replace the three copied rule sets with one authoritative tax-rule representation owned in one module or data file, and have UI/API/batch all call or derive from it.\n2. Move vendor formatting out of domain objects into a thin export adapter/serializer. Keep domain data stable; let the adapter own the vendor-specific mapping.\n3. Add one automated tracer test in CI: given a fixed regional-tax input fixture, generate the export and compare it to a checked-in expected file. Keep the manual spreadsheet check only as temporary spot validation during development, not as the release gate.\n4. Write a short checked-in rollout note with exact steps and assign one named owner for release decisions.\n\nWhy this is the smallest pragmatic correction:\n- It removes permanent copied knowledge without requiring a large redesign.\n- It preserves reversibility by isolating the vendor contract at the edge.\n- It introduces fast feedback with a single end-to-end automated check instead of building a full test matrix.\n- It turns tribal delivery knowledge into a repo artifact with explicit ownership.\n\nIf the team can only afford one structural change, make it: `single tax-rule owner + vendor adapter + one golden-file CI export test`. That is the minimum slice that prevents this proposal from fossilizing manual checks and duplicated knowledge.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:16:59.180444Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}"
+}

@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55ae-8b43-75e1-9882-2af147e493cf",
+  "exit_code": 0,
+  "result": {
+    "answer": "1. High: the integration can wait forever before it even starts the carrier call, which breaks the checkout budget and the required degraded path. `Semaphore.acquire()` is indefinite, and [snippet line 7] has no deadline or signal. With `CARRIER_MAX_IN_FLIGHT=32`, saturation can stall the request past `CHECKOUT_REQUEST_TIMEOUT_MS=2500` without ever producing `{ kind: \"unavailable\" }`. Smallest pre-merge change: make semaphore acquisition abortable/bounded by the checkout request deadline, and on acquisition timeout/cancel return `{ kind: \"unavailable\" }`.\n\n2. High: the outbound call is not actually bounded by the checkout request budget. [Snippet lines 10-18] do not pass `requestSignal`, and the supplied `timeoutMs` only covers response wait, not connection establishment. That means DNS/TCP/TLS/connect hangs can outlive both `CARRIER_RESPONSE_TIMEOUT_MS=2000` and the overall checkout budget. Smallest pre-merge change: pass an abort signal to `carrierClient.post()` and use one overall deadline that covers queue wait, connect, and response. The effective carrier deadline should be `min(remaining checkout time, configured carrier timeout)`.\n\n3. Medium: the catch-all fallback misclassifies provider contract failures as ordinary unavailability. [Snippet lines 27-29] turn every exception and every non-conforming response into `{ kind: \"unavailable\" }`, but your stated contract says only `429`, `5xx`, timeout, and transport failure mean unavailable; provider `4xx` is a request/contract problem. Smallest pre-merge change: branch explicitly on status/failure class. Return unavailable only for timeout/transport/`429`/`5xx`. Treat non-`429` `4xx` as a hard integration error path with elevated logging/metrics rather than the normal degraded path.\n\n4. Medium: a `200` response is trusted without validating the contract, so bad downstream data can be published as `kind: \"available\"`. [Snippet lines 19-25] do not check HTTP status, JSON content type, `amount` finiteness/non-negativity, `currency` format, or `expires_at` timestamp validity. Smallest pre-merge change: validate `200 + JSON + shape` before returning `available`; treat an invalid `200` as a dependency contract failure, not a valid quote.\n\n5. Low: diagnosis will be weak under real failures. The current warning log records the caught error and cart id, but not the failure class, HTTP status, queue-wait timeout vs network timeout, or saturation signal. Smallest pre-merge change: add structured fields for `failureClass`, `httpStatus` when present, and whether the semaphore wait or outbound call timed out; emit counters for unavailable-by-cause and semaphore saturation if metrics already exist in this service.\n\nAssumptions and open point:\n- I am assuming the intended checkout behavior for provider `4xx` is not yet encoded elsewhere. If product explicitly wants checkout to continue even on carrier request/contract bugs, keep that degradation, but still classify it separately from ordinary unavailability and do not mix it with timeout/`5xx` metrics.\n\nMinimal pre-merge shape:\n- Bound semaphore acquisition by the request deadline.\n- Pass an abort signal into the HTTP client so one deadline covers acquire, connect, and response.\n- Classify failures explicitly: unavailable only for timeout/transport/`429`/`5xx`.\n- Validate `200` JSON responses before returning `available`.\n- Add a small amount of structured cause logging/metrics.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

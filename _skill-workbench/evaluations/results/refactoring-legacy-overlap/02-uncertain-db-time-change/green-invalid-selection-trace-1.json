@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55c7-71e4-7540-94fe-f2a4c4749cc2",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded change: do not change transaction flow, exception propagation, constructor side effects, or timestamp parsing behavior as part of the grace-period work. First add test seams for `now` and the database, then characterize current externally visible behavior, then change only the due decision to `nextChargeAt + 48 hours`.\n\nRecommended implementation shape:\n- Extract the due check into a tiny pure function or policy, for example `isChargeDue(nextChargeAt, now)`.\n- Add the smallest seam needed for fast tests: inject `now` via a clock function and inject the database collaborator, while preserving current defaults in production.\n- Keep the existing transaction body and return values unchanged.\n- Compute grace using elapsed time, not calendar arithmetic: parse `nextChargeAt` exactly as today, add `48 * 60 * 60 * 1000`, then compare to `now`.\n- Do not \u201cfix\u201d timezone parsing, constructor `connect()`, or exception handling in the same patch.\n\nThat gives a minimal semantic diff like:\n- old rule: charge when `parsed(nextChargeAt) <= now`\n- new rule: charge when `parsed(nextChargeAt) + 48h <= now`\n\nVerification plan:\n1. Add characterization tests for current behavior before changing logic.\n   - Charges before any grace logic when account is due today under the current code.\n   - Returns `\"not-due\"` before `nextChargeAt`.\n   - Preserves current exception behavior when `insert` or `markCharged` fails.\n   - Preserves transaction usage and observable write behavior.\n2. Add new-behavior tests for the grace period.\n   - `nextChargeAt + 47:59:59.999` => `\"not-due\"`.\n   - Exact grace boundary => depends on product decision below.\n   - After the boundary => `\"charged\"`.\n3. Characterize timestamp parsing with representative real stored values.\n   - Read-only sample query from staging or production replica/logs to identify actual formats: ISO with `Z`, offset timestamps, and any offset-less strings.\n   - Freeze current parsing semantics in tests for the formats that really exist.\n4. Do one bounded integration check only after unit coverage exists.\n   - Prefer a disposable or isolated account fixture if one exists.\n   - Do not rely on shared staging fixtures as the primary safety net.\n\nProduct decisions that must be resolved, not inferred:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h`, or only strictly after that instant?\n- Time meaning: is the requirement truly 48 elapsed hours from the stored timestamp, or \u201c2 local days\u201d in an account/business timezone?\n- Timestamp contract: if stored `nextChargeAt` values ever omit a timezone offset, what timezone are they supposed to mean?\n\nTechnical behavior that should be preserved unless an explicit caller contract says otherwise:\n- Existing transaction shape.\n- Existing exception propagation.\n- Existing parsing behavior for currently stored timestamp formats.\n- Existing `chargedAt` and `markCharged(..., now.toISOString())` write behavior.\n\nIf those product decisions are answered as \u201ccharge at the exact 48-hour instant\u201d and \u201c48 elapsed hours from a real timestamp instant,\u201d this is a small, safe change. If timezone-less stored values are in play and their intended meaning is unknown, that ambiguity is the main blocker; do not silently normalize it in the grace-period patch.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T10:03:41.107829Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55c7-71e4-7540-94fe-f2a4c4749cc2.1783850562020493000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

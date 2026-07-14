@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/clever-local-readability-pressure.md",
+  "case_sha256": "d4031be584d9d1440a7412df4d178680d97e42683d80ef56034bdaa50dc61809",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585a-c8c2-7062-a416-2974089202f6",
+  "exit_code": 0,
+  "result": {
+    "answer": "Keep it local and minimal. The smallest readability improvement is to name the boolean for what it does, split the ternary\u2019s repeated work, and keep the helper otherwise unchanged.\n\n```ts\nexport const label = (name: string, includePrefix: boolean): string => {\n  const normalizedName = name.trim().toUpperCase();\n  return includePrefix ? `Customer: ${normalizedName}` : normalizedName;\n};\n```\n\nWhy this is the right scope:\n- `compact` is indirect; `includePrefix` states the actual mode.\n- `normalizedName` names the transformed value once instead of repeating `name.trim().toUpperCase()`.\n- The return shape is easier to scan than the original one-liner while preserving exact behavior.\n\nIf the lead requires a one-liner specifically, the smallest acceptable version is:\n\n```ts\nexport const label = (name: string, includePrefix: boolean): string =>\n  includePrefix ? `Customer: ${name.trim().toUpperCase()}` : name.trim().toUpperCase();\n```\n\nThat improves naming, but the local `normalizedName` version is the better readability fix under the stated constraints.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:02:52.759617Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585a-5d9f-7283-bbd1-8cde9c8fcf1b.1783893745055977000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:03:21.423172Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585a-c8c2-7062-a416-2974089202f6.1783893772550330000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

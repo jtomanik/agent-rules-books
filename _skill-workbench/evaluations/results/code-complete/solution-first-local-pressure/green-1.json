@@ -1,0 +1,45 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/solution-first-local-pressure.md",
+  "case_sha256": "ee5c773939df1918985c87ff93cdd22a4766d30bc2dc0125f36cb99008949587",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5873-1106-74d2-b38d-1ed7868ff1eb",
+  "exit_code": 0,
+  "result": {
+    "answer": "The smallest decision I would accept is this: do not reuse the single-account happy-path handler as a loop. Add one thin bulk-specific entry point that first converts untrusted JSON into a validated typed request, and only then runs a simple per-account decision pipeline that produces explicit item outcomes.\n\nWhy that is the minimum acceptable bar:\n- The shortcut violates the spec immediately because shape/count/ID errors must reject before any side effects.\n- Catch-all error handling collapses required domain outcomes into transport noise and makes `activated`, `already-active`, `not-found`, and `unauthorized` impossible to report reliably per item.\n- Returning only an attempted count discards the actual contract; summary counts must be derived from item results.\n\nAccepted implementation slice:\n- Define a bulk request parser at the trust boundary: `BulkActivateRequest { account_ids: Vec<AccountId> }`.\n- Validation rules at parse time: body is an object, `accounts` exists, `accounts` is an array, length is 1..100, IDs are individually valid, IDs are distinct.\n- If any of those checks fail, return a request-validation error and do not call authorization, persistence, or audit collaborators.\n- After validation, process each `AccountId` independently with explicit control flow, not exception-driven flow.\n- For each valid ID: authorize first; if unauthorized, emit `unauthorized` and stop work for that ID.\n- If authorized, call the typed collaborator path and map its typed outcomes directly to `activated`, `already-active`, or `not-found`.\n- Build `items` as one result per input ID, preserving input order.\n- Derive `summary` from `items` by counting statuses; do not maintain a separate attempted/success counter in parallel.\n\nA minimal shape is enough:\n\n```text\nrequest:\n  { \"accounts\": [\"a1\", \"a2\", ...] }\n\nresponse:\n  {\n    \"items\": [\n      { \"accountId\": \"a1\", \"result\": \"activated\" },\n      { \"accountId\": \"a2\", \"result\": \"unauthorized\" }\n    ],\n    \"summary\": {\n      \"activated\": 1,\n      \"already-active\": 0,\n      \"not-found\": 0,\n      \"unauthorized\": 1\n    }\n  }\n```\n\nMinimal control flow:\n\n```text\nparse_and_validate(body) -> BulkActivateRequest | RequestError\nfor each account_id in request.account_ids:\n  if !is_authorized(actor, account_id):\n    push unauthorized\n    continue\n\n  outcome = activate_account(account_id)\n  push map(outcome)\n\nreturn response(items, counts_from(items))\n```\n\nFocused tests I would require before accepting it:\n- Rejects non-object body, missing `accounts`, non-array `accounts`, empty array, more than 100 IDs, duplicate IDs, and any invalid ID.\n- Verifies that on every request-validation failure, no authorization/persistence/audit collaborator is called.\n- Verifies per-item authorization is checked, not once for the whole batch.\n- Verifies each typed collaborator outcome maps to exactly one required result status.\n- Verifies mixed batches, for example `[activated, already-active, not-found, unauthorized]`, preserve one result per input and produce summary counts derived from those item results.\n- Verifies unauthorized items do not invoke activation side effects for that ID.\n\nAnything smaller than that is still the happy-path shortcut in disguise.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "code-complete",
+        "sections": [
+          "Primary Directive",
+          "Construction Prerequisites and Decisions",
+          "Control Flow Rules",
+          "Defensive Programming Rules",
+          "Error Handling Rules",
+          "Incremental Construction Rules",
+          "Testing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:29:23.931355Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-edd2-77a0-b697-0bc30ce74ae8.1783895354834918000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:29:23.984180Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-edc7-7612-aaeb-7aa07e1f7b99.1783895354823569000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:29:24.072085Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-edf9-7851-9b9b-e21b23877c56.1783895354874128000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:29:24.112179Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-ee07-77c0-b3fa-994dd774c192.1783895354888190000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:29:24.142657Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-edc7-7ff2-a43a-fc32acf9c703.1783895354823855000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:29:24.219570Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5872-eddc-7b70-b402-cc279d84ebf3.1783895354845396000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:30:16.156862Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5873-1106-74d2-b38d-1ed7868ff1eb.1783895363846586000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

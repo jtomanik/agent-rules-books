@@ -1,0 +1,159 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-guru/comprehensive-structural-catalog-audit.md",
+  "case_sha256": "96d5d4b2338f5d616ada48bacbdcea6af96433ece336583bf77651521df0150a",
+  "mode": "green",
+  "run": "green-final-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "repository",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5fb1-c5b1-7003-9b4f-6ed150beb389",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Current evidence\n\nThis area already has real, non-speculative debt.\n\n1. `ExportService` is a `Middle Man` and likely a `Lazy Class`. It adds no policy, coordination, compatibility shielding, or boundary protection; it only forwards to `OrderExporter`. Preferred treatment: `Remove Middle Man` or `Inline Class`. Keep it only if it is the stable application boundary where authorization, logging, transactions, or transport mapping will actually live.\n\n2. `OrderExporter.export` shows a small but real `Switch Statements` smell, plus early `Divergent Change` pressure. The branch is still simple enough to be acceptable today, but every new format changes this method. Preferred treatment today: isolate format selection first, then choose between a small formatter lookup/factory or `Replace Conditional with Polymorphism` only if format variation becomes the main extension axis. Do not jump straight to a large hierarchy.\n\n3. `OrderExporter.export` also contains a `Message Chain` and mild `Feature Envy` via `order.customer.profile.name`. The exporter knows too much about nested order structure. Preferred treatment: `Hide Delegate`, `Move Method`, or `Preserve Whole Object`, depending on ownership. Best local direction is usually to stop passing disassembled nested data around.\n\n4. The repeated formatter signature `(name, lines, totalCents)` is a `Data Clumps` / mild `Primitive Obsession` smell. Three values travel together as one export concept, and the caller reconstructs them from `Order`. Preferred treatment: `Preserve Whole Object` if formatters naturally format an `Order`, or `Introduce Parameter Object` / `Replace Data Value with Object` if a smaller `OrderExportData` snapshot is the right boundary. Do not introduce a bag object with no behavior.\n\n5. The formatter call site duplicates branch structure and argument extraction. That is small `Duplicate Code`, but not the top problem. Preferred treatment: remove it as part of centralizing formatter selection; not as a standalone abstraction exercise.\n\n6. The separate vendor money workaround duplicated at three call sites is the clearest `Incomplete Library Class` smell in the broader maintenance area. Because the gap is one narrow missing operation and it already appears three times, preferred treatment is `Introduce Foreign Method` now. Escalate to `Introduce Local Extension` only if money-specific missing behavior keeps accumulating.\n\nNot currently supported by evidence\n\n- No `Long Method`, `Large Class`, `Temporary Field`, `Refused Bequest`, `Parallel Inheritance Hierarchies`, `Dead Code`, or `Comments` smell is evidenced in the snippet.\n- No current XML implementation exists, so XML-specific design claims are speculative until requirements exist.\n- Existing characterization tests for CSV and JSON mean this is not primarily a legacy-code first-feedback problem.\n\nPriority and timing\n\n1. Highest priority now: eliminate the duplicated vendor money workaround with `Introduce Foreign Method`. It already hit the Rule of Three and is active debt.\n2. Next: decide whether `ExportService` is a real boundary. If not, remove it.\n3. Then: do a preparatory refactor around export input shape and format selection before adding XML, because XML is a near-term stated release need, not abstract future fantasy.\n4. Only after that: add XML behavior as a separate behavior change.\n\nRecommended preparatory scope before XML\n\n- First refactor structurally without changing CSV/JSON output.\n- Centralize export formatting ownership so one format addition has one main edit site.\n- Replace disassembled primitives with either the whole `Order` or a small export value object.\n- Keep the formatter abstraction minimal.\n\nBest-fit treatment options\n\n1. Conservative option: keep one exporter, introduce a formatter registry/map keyed by format, and standardize formatter contract. This reduces branch churn without committing to a large hierarchy.\n2. More object-oriented option: `Replace Conditional with Polymorphism` using `OrderFormatter` implementations for CSV/JSON/XML. This becomes justified if format-specific behavior keeps growing.\n3. Boundary-first option: `Introduce Parameter Object` such as `OrderExportData` when formatter inputs are a stable projection of `Order` and you want to avoid formatter dependence on the full domain object.\n\nConditions and tradeoffs\n\n- Use `Replace Conditional with Polymorphism` only if format variation is stable and likely to grow beyond one tiny branch.\n- Use `Preserve Whole Object` only if passing `Order` does not create an oversized dependency or hidden expensive traversal.\n- Use `Introduce Parameter Object` only if the grouped values are one real concept, not a random tuple wrapper.\n- Do not `Extract Interface` merely because two formatter classes happen to align today; do it only if the shared contract is real and useful.\n\nExecution safety\n\n- Keep refactoring separate from the XML feature.\n- Preserve current CSV/JSON observable behavior exactly.\n- After each risky move, run existing CSV/JSON characterization tests.\n- If public constructor or service wiring changes, provide a compatibility path or staged migration.\n- For the money helper, verify currency, rounding, locale, and zero/negative edge cases before replacing duplicated workarounds.\n\nCompatibility and verification\n\nCurrent safety net is sufficient for behavior-preserving restructuring of CSV/JSON paths, but insufficient for XML semantics.\n\nBefore XML implementation:\n- keep existing CSV/JSON tests green\n- add focused tests around any new formatter contract or export projection object\n- add dedicated tests for the foreign money-formatting helper\n\nBefore shipping XML:\n- add explicit XML golden-output tests\n- add at least one test proving CSV/JSON outputs did not regress\n\nAnti-patterns to avoid\n\n- Do not do a big-bang rewrite of export flow.\n- Do not hide XML behavior work inside \u201crefactoring\u201d.\n- Do not introduce a plugin system, inheritance tree, or generic factory framework just because XML may arrive.\n- Do not keep `ExportService` purely as ceremonial layering.\n- Do not scatter more vendor money workarounds.\n\nStopping conditions\n\nStop the structural work when:\n- one format addition has one obvious main edit site\n- CSV/JSON behavior remains unchanged under tests\n- the money workaround exists in one owned helper instead of three copies\n- any remaining abstraction beyond that would be speculative\n\nFinal review checklist\n\n- Is each structural step behavior-preserving and separately reviewable?\n- Is XML added later as an explicit feature change?\n- Did we remove an actual smell rather than reshuffle code?\n- Did we reduce edit sites for the next format addition?\n- Did we avoid speculative hierarchy/framework growth?\n- Did we keep or remove `ExportService` for a concrete reason?\n- Did we centralize the vendor money gap with the smallest suitable technique?\n- Are CSV/JSON regression tests still the source of truth for preserved behavior?\n\nBottom line\n\nThe strongest current debts are the duplicated vendor money workaround, the ceremonial forwarding service, and the exporter\u2019s growing ownership/selection pressure. XML justifies a small preparatory refactor now, but not a broad abstraction program. The right target is one clearer ownership boundary, one formatter contract, one main extension site, and tests that prove CSV/JSON stayed unchanged.",
+    "selected_project_skills": [
+      "refactoring",
+      "refactoring-guru"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/refactoring-guru/SKILL.md",
+      ".agents/skills/refactoring-guru/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "refactoring",
+        "sections": [
+          "*"
+        ]
+      },
+      {
+        "skill": "refactoring-guru",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "refactoring-guru"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T08:16:41.705105Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5fb1-c5b1-7003-9b4f-6ed150beb389.1784016913841951000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
+  "evaluation_manifest": {
+    "case": {
+      "path": "_skill-workbench/evaluations/cases/refactoring-guru/comprehensive-structural-catalog-audit.md",
+      "sha256": "96d5d4b2338f5d616ada48bacbdcea6af96433ece336583bf77651521df0150a"
+    },
+    "catalog": {
+      "byte_count": 6789,
+      "entries": [
+        {
+          "description": "A Philosophy of Software Design guidance for deep modules and information hiding. Use when cognitive load, shallow wrappers, leaky caller knowledge, tactical patches, or changes spreading across files make module or API design central. Clean Code owns readability; Code Complete, construction; Clean Architecture, policy direction; Refactoring, behavior-preserving change; Pragmatic Programmer, DRY, reversibility, feedback, and engineering practice. Co-invoke for independently central concerns.",
+          "name": "a-philosophy-of-software-design"
+        },
+        {
+          "description": "Clean Architecture guidance for inward dependencies and policy/detail separation. Use when policy independence is central and policy imports details, adapters own business rules, or core code constructs infrastructure. Layers, adapters, tests, and databases alone are insufficient. Clean Code covers readability; Refactoring, protected structural change; Legacy Code, blocked first feedback; Release It, production failure. Co-invoke only when policy dependence is also central.",
+          "name": "clean-architecture"
+        },
+        {
+          "description": "Clean Code guidance for locally readable, low-surprise implementation. Use when vague names, mixed responsibilities, boolean modes, hidden mutation, flow-narrating comments, schedule/rewrite pressure, or framework/concurrency detail obstructs a scoped change. Do not add it to an explicit refactoring-only audit or legacy-control task unless a separate local-readability decision is requested.",
+          "name": "clean-code"
+        },
+        {
+          "description": "Code Complete guidance for construction in implementation/change, review, debugging, refactoring, and tuning. Use when nontrivial work coordinates several concerns, or when solution-first coding, happy-path-only tests, mixed behavior/refactoring, guess-driven debugging drives code changes, or evidence-free tuning threatens defect control. It owns construction coordination; labels alone are insufficient, and another lens needs its own explicit objective rather than shared construction vocabulary.",
+          "name": "code-complete"
+        },
+        {
+          "description": "Designing Data-Intensive Applications guidance for distributed data correctness. Use when source-of-truth ownership, consistency/durability, replay/order, schema evolution, derived-data repair, replication/partitioning, or cross-system write/side-effect, transaction, or coordination semantics are central. A queue, cache, retry, database, or production failure alone is insufficient; Release It! owns operational survival and Clean Architecture policy direction unless data semantics are central.",
+          "name": "designing-data-intensive-applications"
+        },
+        {
+          "description": "Evans-style Domain-Driven Design guidance for discovering and evolving an implementation-driving domain model. Use when business complexity makes Ubiquitous Language conflicts, missing domain concepts, lifecycle rules, Bounded Context or Context Map decisions, Core Domain focus, or deeper-model pressure from awkward procedural behavior central. DDD Distilled owns the smallest-investment/selectivity gate; Implementing DDD owns post-boundary implementation mechanics.",
+          "name": "domain-driven-design"
+        },
+        {
+          "description": "Domain-Driven Design Distilled guidance for the smallest effective DDD investment and anti-ceremony selectivity. Use when domain complexity, language ambiguity, business differentiation, or integration risk makes subdomain investment, Bounded Context boundaries, Ubiquitous Language meaning, or whether tactical patterns earn their cost central. Domain-Driven Design owns deeper model discovery; Implementing Domain-Driven Design owns detailed mechanics after context and model commitment.",
+          "name": "domain-driven-design-distilled"
+        },
+        {
+          "description": "Implementing Domain-Driven Design guidance for implementation-level DDD after context and model commitment. Use when Aggregate boundaries, Value Objects/Entities, Repositories, Domain or Application Services, Domain Events, modules, translations, projections, or renamed-CRUD/anemic-model correction is central. Distilled owns the DDD investment gate; Domain-Driven Design owns strategic discovery and deeper model development; DDIA co-applies only for central distributed-data semantics.",
+          "name": "implementing-domain-driven-design"
+        },
+        {
+          "description": "Patterns of Enterprise Application Architecture guidance for force-based pattern choice and responsibility placement. Use when choosing business-logic, persistence, transaction, concurrency, session-state, or remote-boundary patterns is central, especially Transaction Script vs Table Module vs Domain Model or Repository/Data Mapper/Gateway/Active Record. DDD owns model discovery; Clean Architecture dependency direction; DDIA distributed-data semantics; Code Complete construction.",
+          "name": "patterns-of-enterprise-application-architecture"
+        },
+        {
+          "description": "Refactoring guidance for behavior-preserving structural change once observable behavior is known or protected. Use when renaming, extracting, moving, splitting, or another current code smell drives a behavior-preserving change. Dependency-seam work whose purpose is to gain first feedback belongs to Legacy Code until control exists.",
+          "name": "refactoring"
+        },
+        {
+          "description": "Refactoring.Guru guidance for code-smell classification and catalog treatment selection. Use when explicit smell classification, choosing between named refactoring techniques and their preconditions or tradeoffs, or a foreign-method-versus-local-extension decision is central after behavior is known or protected. Refactoring owns ordinary behavior-preserving structural change; Clean Code local readability; Legacy Code first feedback.",
+          "name": "refactoring-guru"
+        },
+        {
+          "description": "Use only when production failure behavior is an explicit objective or demonstrated operational problem, such as deciding failure semantics, demand/capacity limits, blast-radius isolation, degraded service, recovery, operability, deployment/startup controls, incident chains, or bounded resilience tests. Do not infer this lens from testability, safe-change work, routine rollout verification, local API design, ordinary errors, in-process concurrency, service/database calls, or money/transactions.",
+          "name": "release-it"
+        },
+        {
+          "description": "The Pragmatic Programmer guidance for accountable, adaptable delivery. Use when outcome ownership, duplicated knowledge, change fan-out, irreversible commitment, prototype fossilization, manual delivery/feedback loops, or blackboard-style coordination are central across a change. Clean Code owns local readability; Code Complete construction; Refactoring behavior-preserving change; Legacy Code blocked first feedback; Release It! production failure; A Philosophy of Software Design module depth.",
+          "name": "the-pragmatic-programmer"
+        },
+        {
+          "description": "Use only when a semantic change is blocked because current behavior is materially unknown, no trustworthy focused tests exist, or a dependency cannot be observed or substituted. The task must require gaining first feedback before changing behavior. Do not use when observable behavior and operational facts are already supplied, or when first feedback is not blocked.",
+          "name": "working-effectively-with-legacy-code"
+        }
+      ],
+      "sha256": "93d0f9b418a7071997419765278f894a5415bc397085f473b265aca678c6fd4a",
+      "skill_count": 14
+    },
+    "contract": {
+      "case_id": "E5b",
+      "evaluation_contract_version": 2,
+      "fixture_sha256": "96d5d4b2338f5d616ada48bacbdcea6af96433ece336583bf77651521df0150a",
+      "mapping": "_skill-workbench/refactoring-guru/mapping.md",
+      "mapping_sha256": "dfedf7cb1e2ffd7f81264b705d191709bc29a654b783ca28e54c14a3ede98b2c",
+      "required_project_skills": [
+        "refactoring-guru"
+      ]
+    },
+    "execution": {
+      "configuration": {
+        "baseline_workspace": "temporary directory without project skills",
+        "ephemeral": true,
+        "green_workspace": "repository",
+        "ignore_user_config": true,
+        "sandbox": "read-only"
+      },
+      "mode": "green",
+      "model": "gpt-5.4",
+      "output": "_skill-workbench/evaluations/results/refactoring-guru/comprehensive-structural-catalog-audit/green-final-1.json",
+      "run": "green-final-1",
+      "runner": {
+        "path": "_skill-workbench/scripts/run_skill_eval.py",
+        "sha256": "42614eceebe328b1812058ac8e5a134f5faefa5c9305ea234262ff0724043ffd"
+      },
+      "schema": {
+        "path": "_skill-workbench/evaluations/result-v2.schema.json",
+        "sha256": "90060cb6fea3e7b529ea5eda9a294bd7f18e1c266412be41d26b7a5365d8038c"
+      },
+      "timeout": 900
+    },
+    "manifest_version": 1,
+    "required_project_skills": [
+      "refactoring-guru"
+    ]
+  },
+  "evaluation_manifest_sha256": "15cfe70943390e7feeb4381247fcbd42d6e50406fd416ea85d66561f705ecd47",
+  "manifest_errors": []
+}

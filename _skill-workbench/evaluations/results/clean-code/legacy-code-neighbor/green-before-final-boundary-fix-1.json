@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/legacy-code-neighbor.md",
+  "case_sha256": "f188119e75f1f1994886544057a92077f18eb9e7dee00e828f17634283bcbf6e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5358-5994-7260-a1f1-e51175e63523",
+  "exit_code": 0,
+  "result": {
+    "answer": "Treat this as a legacy change, not a direct rule edit. The safest order is:\n\n1. State the exact delta and the behavior to preserve.\nCurrent behavior to preserve unless explicitly changed: missing account returns `false`; already-suspended account returns `false`; only `due_at.isBefore(now)` suspends; the public `BillingService()` constructor opens the real DB; SQL/exception behavior stays as-is.\nNew behavior to add later: suspension happens only when `due_at` is more than 7 days before `now`.\n\n2. Learn and control the current behavior before changing semantics.\nYou need explicit observation for the cases most likely to surprise you or external callers: `due_at == now`, `due_at` just before/after now, already suspended, missing row, repeated `process()` calls, null timestamp behavior, and the exact timestamp/timezone mapping coming back from JDBC. Because some callers are outside the repo, also confirm whether anyone relies on the current immediate-suspension timing or exception behavior.\n\n3. Break only the first real barriers to feedback.\nThe smallest dependency intervention is to keep the public constructor untouched and add a non-public seam that lets tests supply:\n- a narrow persistence collaborator for `load account status` and `mark suspended`\n- a controllable time source such as `Clock` or `InstantSource`\n\nThat is smaller and safer than broad DI or redesign, and safer than trying to test through a real constructor plus chained JDBC mocks. The production constructor should delegate to the existing JDBC-backed implementation so external callers are unaffected.\n\n4. Add characterization tests against the current rule before the new rule exists.\nUse the seam to lock down today\u2019s observable behavior first. These tests should describe current outcomes, including suspicious ones, rather than \u201cfixing\u201d them. If some behavior cannot be trusted from code reading alone, add a temporary observation path in a safe environment before changing logic.\n\n5. Do preparatory structural work separately from the rule change.\nPreparatory patch: introduce the seam, isolate the suspension decision from JDBC/time, and add characterization tests. No grace-period logic yet.\nBehavior patch: change only the decision rule from `due_at < now` to `due_at < now minus 7 days`, then add the new tests for the grace-window boundaries.\n\n6. Keep follow-up cleanup out of this change unless it directly reduces risk.\nDo not mix in naming cleanup, SQL rewrites, or architecture work. If you discover issues like injection risk or null handling, record them separately unless they must be addressed to make this change safe.\n\nThe key idea is: first make the code observable and repeatable, then extract just enough policy from persistence/time to test it, then change the rule in isolation.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

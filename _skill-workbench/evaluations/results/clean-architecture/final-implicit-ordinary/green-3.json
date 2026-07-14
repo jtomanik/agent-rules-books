@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md",
+  "case_sha256": "be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5893-b886-7a10-b12b-c2193de0ebc5",
+  "exit_code": 0,
+  "result": {
+    "answer": "The proposed handler puts the use case inside two outer details: `NextRequest`/`NextResponse` and Prisma. That makes the approval rule, invoice calculation, and persistence orchestration harder to test or reuse, and it also leaks ORM shapes into policy. As written, `order: Order` is also the wrong boundary type because the code needs `lines`, which is not part of the plain Prisma `Order` model type.\n\nThe smallest production design is one use case with two policy-owned ports and plain DTOs:\n\n```ts\n// core/invoicing/create-invoice.ts\nexport type CreateInvoiceRequest = {\n  orderId: string;\n};\n\nexport type CreateInvoiceResult = {\n  invoiceId: string;\n  totalCents: number;\n};\n\nexport type OrderForInvoicing = {\n  id: string;\n  status: \"APPROVED\" | \"PENDING\" | \"REJECTED\";\n  lineAmountsCents: number[];\n};\n\nexport type InvoiceDraft = {\n  orderId: string;\n  totalCents: number;\n};\n\nexport interface LoadOrderForInvoicing {\n  load(orderId: string): Promise<OrderForInvoicing | null>;\n}\n\nexport interface SaveInvoice {\n  save(draft: InvoiceDraft): Promise<{ id: string }>;\n}\n\nexport class OrderNotApprovedError extends Error {}\nexport class OrderNotFoundError extends Error {}\n\nexport class CreateInvoice {\n  constructor(\n    private readonly loadOrder: LoadOrderForInvoicing,\n    private readonly saveInvoice: SaveInvoice,\n  ) {}\n\n  async execute(request: CreateInvoiceRequest): Promise<CreateInvoiceResult> {\n    const order = await this.loadOrder.load(request.orderId);\n    if (!order) throw new OrderNotFoundError();\n    if (order.status !== \"APPROVED\") throw new OrderNotApprovedError();\n\n    const totalCents = order.lineAmountsCents.reduce((sum, amount) => sum + amount, 0);\n    const invoice = await this.saveInvoice.save({ orderId: order.id, totalCents });\n\n    return { invoiceId: invoice.id, totalCents };\n  }\n}\n```\n\nOwnership and translation:\n\n- The use case owns `CreateInvoiceRequest`, `CreateInvoiceResult`, `OrderForInvoicing`, `InvoiceDraft`, and the two interfaces.\n- The Next.js route translates HTTP into `CreateInvoiceRequest`, calls the use case, then translates result/errors into `NextResponse`.\n- The Prisma adapters translate database rows into `OrderForInvoicing` and `InvoiceDraft` into Prisma `create` data.\n- Concrete wiring belongs in the outer layer, typically the route module or a small composition function it imports.\n\n```ts\n// infrastructure/prisma/prisma-order-loader.ts\nexport class PrismaOrderLoader implements LoadOrderForInvoicing {\n  async load(orderId: string): Promise<OrderForInvoicing | null> {\n    const row = await prisma.order.findUnique({\n      where: { id: orderId },\n      include: { lines: true },\n    });\n    if (!row) return null;\n\n    return {\n      id: row.id,\n      status: row.status,\n      lineAmountsCents: row.lines.map(line => line.amountCents),\n    };\n  }\n}\n\n// infrastructure/prisma/prisma-invoice-saver.ts\nexport class PrismaInvoiceSaver implements SaveInvoice {\n  async save(draft: InvoiceDraft): Promise<{ id: string }> {\n    const row = await prisma.invoice.create({ data: draft });\n    return { id: row.id };\n  }\n}\n```\n\n```ts\n// app/api/invoices/route.ts\nexport async function POST(request: NextRequest): Promise<NextResponse> {\n  const useCase = new CreateInvoice(\n    new PrismaOrderLoader(),\n    new PrismaInvoiceSaver(),\n  );\n\n  try {\n    const result = await useCase.execute({\n      orderId: request.nextUrl.searchParams.get(\"orderId\") ?? \"\",\n    });\n    return NextResponse.json(\n      { id: result.invoiceId, totalCents: result.totalCents },\n      { status: 201 },\n    );\n  } catch (error) {\n    if (error instanceof OrderNotFoundError) {\n      return NextResponse.json({ error: \"order not found\" }, { status: 404 });\n    }\n    if (error instanceof OrderNotApprovedError) {\n      return NextResponse.json({ error: \"not approved\" }, { status: 409 });\n    }\n    throw error;\n  }\n}\n```\n\nThis is the lightest boundary that keeps the approval rule and application action independent from Next.js and Prisma: one focused use case, policy-owned DTOs/ports, humble adapters, and wiring only at the edge.",
+    "selected_project_skills": [
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T23:05:57.122015Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5893-b886-7a10-b12b-c2193de0ebc5.1783897503878709000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

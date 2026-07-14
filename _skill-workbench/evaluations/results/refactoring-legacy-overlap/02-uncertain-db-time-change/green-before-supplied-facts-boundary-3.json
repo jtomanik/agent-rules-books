@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55bd-d807-7c60-bc12-2dc5414f8cdd",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest bounded change is to preserve everything except the due-time threshold.\n\nImplement it as a narrow seam around time and due calculation, not as a broader scheduler rewrite:\n- Keep constructor-side `connect()`, the single `transaction(...)`, the insert/mark-charged order, and exception propagation exactly as they are.\n- Keep one captured `now` value per call and continue using that same value for both the comparison and persisted timestamps.\n- Extract the due check into a small pure helper and change only the threshold from `nextChargeAt <= now` to `nextChargeAt + gracePeriod <= now` or `>` depending on the product boundary decision below.\n- Add an injected clock and injected database dependency only as optional seams for tests. Default production behavior should still allocate `BillingDatabase`, call `connect()`, and use the real clock exactly as today.\n- Do not \u201cfix\u201d timestamp parsing, transaction shape, retries, idempotency, or constructor behavior in the same patch.\n\nA bounded implementation shape is:\n- `const GRACE_PERIOD_MS = 48 * 60 * 60 * 1000`\n- parse `nextChargeAt` exactly the same way JavaScript does today\n- compute `effectiveDueAt = new Date(new Date(account.nextChargeAt).getTime() + GRACE_PERIOD_MS)`\n- compare `effectiveDueAt` to the single captured `now`\n\nThat preserves current parsing behavior, including the current treatment of malformed timestamps as effectively not due, and avoids silently changing exception or transaction semantics.\n\nVerification should avoid the shared staging database as the primary safety net. The first step is fast characterization tests against a fake database plus fake clock:\n1. Characterize current behavior before changing it:\n- charges when `nextChargeAt` is before `now`\n- does not charge when `nextChargeAt` is after `now`\n- captures one `now` value and uses it for both persisted timestamps\n- wraps `insert` and `markCharged` in one `transaction`\n- lets database exceptions escape unchanged\n2. Then add new-behavior tests for the grace period:\n- not due at `nextChargeAt`\n- not due at `nextChargeAt + 47h 59m 59.999s`\n- boundary behavior at exactly `nextChargeAt + 48h` according to the explicit product decision\n- charged after the boundary\n3. Add one narrow observational check on real data, not a shared-fixture end-to-end test:\n- run a read-only query in staging or production-replica to inspect actual `nextChargeAt` string formats: UTC `Z`, explicit offsets, bare local timestamps, mixed formats, malformed rows\n- if mixed or local-time strings exist, stop and resolve the product/data rule before shipping\n4. After the tests pass, run at most one isolated staging smoke check only if the team can provision a dedicated account record. Do not rely on shared fixtures for correctness.\n\nProduct decisions that must be resolved instead of inferred from the code:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h`, or only after that instant?\n- Time rule: is the grace period an absolute 48 hours from the stored instant, or a local-calendar concept such as \u201c2 days later\u201d in an account timezone?\n- Timestamp interpretation rule: if stored `nextChargeAt` values are bare local timestamps without `Z` or offset, which timezone is authoritative?\n- Invalid-data rule: if `nextChargeAt` is malformed or ambiguous, should the scheduler keep treating it as not due, or should it fail loudly / emit an operational signal?\n\nUntil those decisions are explicit, the safest implementation is: preserve current parsing and operational behavior, add only the 48-hour offset in the due comparison, and prove the unchanged exception and transaction behavior with characterization tests before any semantic change.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

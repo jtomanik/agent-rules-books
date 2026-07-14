@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/clever-local-readability-pressure.md",
+  "case_sha256": "d4031be584d9d1440a7412df4d178680d97e42683d80ef56034bdaa50dc61809",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585f-1b57-7f40-94d8-071755e74012",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small local refactor, not a broader audit. The main readability problem is not the string work, it is the hidden mode switch.\n\nRecommended change:\n\n```ts\nconst normalizedLabelName = (name: string): string => name.trim().toUpperCase();\n\nexport const label = (name: string): string => normalizedLabelName(name);\nexport const customerLabel = (name: string): string => `Customer: ${normalizedLabelName(name)}`;\n```\n\nWhy this is the smallest worthwhile improvement:\n- Naming: `normalizedLabelName` says what the shared helper does; `customerLabel` says when the prefix appears.\n- Boolean mode: replacing `compact: boolean` removes the flag argument, so callers no longer have to remember what `true` or `false` means.\n- Expression shape: the normalization step is named once, and each public function reads as a single clear intent.\n\nIf the lead refuses any API split today, the fallback minimum is to rename the flag to something explicit like `includeCustomerPrefix`, but that is only a partial fix because the boolean mode remains.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:07:59.529109Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585f-1b57-7f40-94d8-071755e74012.1783894055767745000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

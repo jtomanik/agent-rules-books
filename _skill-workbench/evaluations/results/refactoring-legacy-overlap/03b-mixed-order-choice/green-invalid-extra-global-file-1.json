@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55d1-ccf3-7513-9580-3325a883d125",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is:\n\n1. Clarify the missing rule semantics.\n2. Add deterministic test control around the worker.\n3. Under that safety net, extract one shared eligibility owner with no behavior change.\n4. Change that owner to enforce the 60-day introductory-subscription rule.\n\nThat order is safer because this is legacy code by the evidence given: no focused tests, hard-wired database construction, direct clock reads, and only one slow happy-path test. Changing behavior before breaking the `new SubscriptionDatabase(...)` and `new Date()` dependencies would force edit-and-pray work. Extracting first without tests is also unnecessary risk: the duplication is small, so there is no reason to do unprotected structural surgery.\n\nOnce time and database access are controllable, add focused tests at the worker boundary for current outcomes that must stay the same: active paid subscription applies/previews, non-active skips, negative balance skips, manual hold skips. Then do a pure preparatory refactor to centralize the existing predicate into one explicit owner, ideally a small pure function or domain policy that takes `subscription` and `now`. That refactor should not add the 60-day rule yet. After that, the semantic patch is small and obvious: extend the single owner so introductory subscriptions older than 60 days are ineligible in both `previewCredit()` and `applyCredit()`.\n\nThis is safer than the main alternatives:\n- Semantic change first: unsafe because there is no fast deterministic feedback and two call sites must stay aligned.\n- Extraction first: unsafe because behavior-preserving claims are unprotected in a weakly tested area.\n- Extraction and rule in one patch: review becomes mixed-intent, so it is harder to prove whether a failure came from the seam, the refactor, or the new rule.\n- Rule in both methods first, consolidation later: it works, but it creates two semantic edits in legacy code and only removes the duplication after the risky part is already done.\n\nDecisions that should be clarified before the semantic patch:\n- Boundary rule: is \u201colder than 60 days\u201d strictly `> 60 days`, meaning exactly 60 days old is still eligible?\n- `startedAt: null` for an introductory subscription: ineligible, eligible, or data error?\n- Parse/invalid-date behavior for `startedAt`: fail closed and skip, or raise?\n- Ownership target: is a local policy function in the worker acceptable, or is there already a domain type/service that should own credit eligibility?\n- Scope: does the new rule apply only to this automatic-credit worker, or must any other credit entry points match it now?\n\nReviewable patch boundaries:\n- Patch 1: introduce the minimal seam for deterministic control of clock and database creation, and add focused characterization tests for current behavior. No business-rule change.\n- Patch 2: extract one shared eligibility owner and switch both methods to use it. Tests should remain unchanged except for mechanical updates. No behavior change.\n- Patch 3: add the 60-day introductory rule to that owner and add/adjust tests for the new boundary cases. Only this patch changes semantics.\n\nIf product cannot answer the `startedAt` and exact-60-day questions yet, Patch 1 and Patch 2 are still safe to do immediately, and Patch 3 should wait.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      "/Users/jakubtomanik/.codex/RTK.md",
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [
+    "consulted file is outside .agents/skills: /Users/jakubtomanik/.codex/RTK.md"
+  ],
+  "stderr": ""
+}

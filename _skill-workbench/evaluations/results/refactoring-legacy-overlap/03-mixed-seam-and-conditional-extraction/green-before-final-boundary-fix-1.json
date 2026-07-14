@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5355-69db-7020-a3f0-e0f2b4f051f8",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a three-patch sequence.\n\n1. Control the change point before semantics.\nAdd focused unit tests around `RenewalWorker.quote()` and `RenewalWorker.renew()` and introduce the smallest seams needed to make those tests deterministic: inject or parameterize the database dependency and inject a clock or `now()` provider, while keeping the current production constructor behavior as the default. This patch must be behavior-preserving. Its purpose is to replace the current slow end-to-end-only safety net with narrow tests that lock down existing outcomes and side effects.\n\nWhat must be learned or made explicit before semantic edits:\n- Whether `quote()` and `renew()` are intentionally governed by the same eligibility rule. The duplicated conditional strongly suggests yes, but this should be treated as an assumption to confirm.\n- The exact boundary for \u201colder than 30 days\u201d: product wording implies `> 30 days` is ineligible and exactly 30 days remains eligible.\n- What to do with `plan: \"trial\"` plus `trialStartedAt: null`. The type allows it. Do not guess silently; either characterize current tolerated behavior or get a product/data decision.\n- Whether date parsing is already standardized to ISO UTC strings. The new rule depends on stable clock math.\n\nTests to add in this first patch:\n- `quote()` returns a price for currently eligible accounts and `null` for paused, closed, or negative-balance accounts.\n- `renew()` returns `\"renewed\"` only for currently eligible accounts and `\"skipped\"` otherwise.\n- `renew()` writes exactly the current side effects on success and none on skip.\n- Both methods use the controlled clock value so timestamps and price lookup inputs are deterministic.\n\n2. Add the trial-age rule as the only semantic change.\nWith the new tests in place, update eligibility so trial accounts older than 30 days are ineligible for automatic renewal. In this patch, keep the current structure otherwise intact if you want the diff to stay narrowly semantic.\n\nNew tests for this patch:\n- Trial account at 29 days, 30 days, and 30 days plus a small amount.\n- Paid accounts remain unaffected by trial age logic.\n- Existing ineligible cases remain ineligible for their original reasons.\n- `quote()` and `renew()` both skip old trials if shared eligibility is intended.\n\nBehavior that must remain unchanged in this patch:\n- Paused, closed, and negative-balance handling.\n- Paid-account behavior.\n- Renewal transaction contents and timestamp shape.\n- Production wiring through the default constructor.\n\n3. Remove the duplicated conditional in a separate behavior-preserving refactor.\nAfter the rule is protected by tests, extract one clear owner for automatic-renewal eligibility. Make it a small pure function or policy object that takes the inputs the rule actually depends on, for example `account` and `now`. Then have both `quote()` and `renew()` delegate to it.\n\nRecommended ownership shape:\n- `isEligibleForAutomaticRenewal(account, now): boolean` as a pure domain-level function if the rule is still simple.\n- A tiny `RenewalEligibility` policy object only if the codebase already prefers object-based domain policies.\n\nWhy this owner is the right boundary:\n- It centralizes the repeated state/plan/balance/time rule.\n- It keeps construction, database access, and transactions out of policy code.\n- It gives one place for future rule changes without shotgun edits.\n\nWhat must remain behavior-preserving during this structural patch:\n- No rule changes beyond delegating to the shared owner.\n- No constructor contract change for production callers.\n- No movement of transaction semantics, price lookup semantics, or timestamp semantics.\n- No speculative abstraction beyond the single extracted ownership boundary.\n\nSuggested patch boundaries:\n- Patch 1: test seam only. `RenewalWorker` dependency injection/default wiring plus focused tests. No eligibility changes.\n- Patch 2: semantic rule only. Add old-trial ineligibility and the new tests covering that rule.\n- Patch 3: refactor only. Extract shared eligibility owner and switch both call sites to it under the existing test net.\n\nReview checklist:\n- The semantic patch is distinguishable from the refactor patch.\n- The new eligibility owner depends only on explicit inputs, not ambient time or hidden DB state.\n- Focused tests cover both decision outcomes and renewal side effects.\n- Null or malformed `trialStartedAt` handling is explicit, not accidental.\n- No other observable outcome changes besides the new old-trial rule.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:40:12.136518Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5355-69db-7020-a3f0-e0f2b4f051f8.1783809534427339000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

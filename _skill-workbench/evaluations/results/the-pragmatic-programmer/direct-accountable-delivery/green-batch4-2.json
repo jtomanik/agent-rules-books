@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/direct-accountable-delivery.md",
+  "case_sha256": "f417b32d5bf76be34dc02066185cc491faa87283bdc43f5ae7afb83bb9808fa6",
+  "mode": "green",
+  "run": "green-batch4-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc4-9f7d-7280-a064-33f8488402d9",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposal\u2019s main risk is not code quality; it is institutionalizing duplicated knowledge and unverifiable delivery.\n\nThe smallest correction that still fits `12_days` is to replace the copied rules and tribal rollout with one thin, end-to-end tracer path:\n\n1. Make one authoritative tax-rule representation owned in a single place.\n`ui`, `api`, and `batch` should all read the same rule set or the same generated artifact from one source. Do not let `copied_tax_rules` ship as the steady-state design.\n\n2. Move the vendor export format out of domain objects into a boundary mapper.\nKeep domain rules independent from the vendor file shape so the `14_days` notice is a change to one adapter, not a cross-cutting rewrite.\n\n3. Add one automated golden-path verification in CI.\nA fixture input producing a checked export file is enough. Keep the manual spreadsheet check only as temporary release support during the first rollout, not as the primary proof.\n\n4. Write the rollout as a short checked-in runbook with a named owner.\nThat is the minimum needed to remove `tribal_knowledge` and `owner: unclear`.\n\nA deadline-compatible corrected proposal would look like:\n\n```yaml\nfeature: regional-tax-export\ndeadline: 12_days\nproposal:\n  validation:\n    tax_rules_owner: shared_source\n    ui: derives_from_shared_source\n    api: derives_from_shared_source\n    batch: derives_from_shared_source\n  vendor:\n    format: boundary_mapper\n    contract_change_notice: 14_days\n  verification:\n    local: manual_spreadsheet_check_for_first_release_only\n    ci: golden_export_fixture\n  rollout:\n    steps: checked_in_runbook\n    owner: named_engineer\n```\n\nWhy this is the smallest viable correction:\n- It preserves delivery scope; it does not ask for a platform rewrite.\n- It removes permanent copied knowledge now, at the point where it would otherwise spread to three paths.\n- It keeps the vendor commitment reversible by isolating it at the boundary.\n- It creates fast feedback with one automated export check instead of relying on late human inspection.\n- It turns rollout knowledge into an artifact the team owns, instead of folklore.\n\nIf forced to cut further, do not cut the shared rule owner or the CI export fixture. Those are the cheapest controls that prevent tomorrow\u2019s maintenance cost from becoming permanent.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/the-pragmatic-programmer/references/index.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [
+    "reference_mode ordinary requires SKILL.md files and no references"
+  ],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:17:02.759023Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc4-9f7d-7280-a064-33f8488402d9.1783984594814886000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

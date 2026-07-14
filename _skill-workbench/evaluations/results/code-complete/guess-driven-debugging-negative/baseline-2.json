@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/guess-driven-debugging-negative.md",
+  "case_sha256": "c7865c634aeaf84f4188190540d595af587074c4c2dd6a52804567e911750d63",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5859-fc32-70b1-a715-592d3111ae45",
+  "exit_code": 0,
+  "result": {
+    "answer": "Do not add a retry yet. A deterministic failure in a single-session test is weak evidence for a race and stronger evidence for a semantics mismatch: write visibility, cache invalidation/update ordering, session scoping, read-your-own-write guarantees, or test fixture reuse.\n\nNext diagnostic steps should stay narrow and produce proof for one of those hypotheses:\n\n1. Reproduce with instrumentation around exactly this path.\nCapture, for the failing test only, the sequence and timing of:\n- `store.write(\"account:42\", \"active\")` start/end\n- cache set/invalidate operations for `account:42`\n- backing-store write commit/ack\n- `store.read(\"account:42\")` cache hit/miss decision\n- backing-store value actually returned if the read misses cache\n\n2. Check the contract before the implementation.\nConfirm whether `write` is supposed to guarantee read-your-own-write in the same session after its promise resolves. If yes, any stale post-write read is a correctness bug, not something to mask with retries.\n\n3. Identify where the stale value comes from.\nThe minimum useful evidence is: after `write` resolves, does `read` return stale data from\n- an already-populated cache entry,\n- a delayed/asynchronous cache refresh,\n- a replica/secondary read path,\n- a transaction/session boundary mismatch,\n- or shared state left by prior test setup?\n\n4. Prove or eliminate a race.\nA real race needs evidence of nondeterministic ordering between two relevant operations. Since the test is deterministic, look first for a fixed ordering bug such as:\n- cache invalidated after read instead of before\n- cache updated on background task not awaited by `write`\n- read path bypassing session-local state\n- write going to one store, read coming from another consistency level\n\n5. Minimize the reproduction further.\nRun the same test with:\n- cache disabled\n- forced cache miss\n- forced primary/authoritative read\n- isolated fresh store/session per test\nIf one variant stops failing, that isolates the faulty layer.\n\nEvidence needed before changing code:\n- A trace showing the exact stale source after `write` resolves.\n- Confirmation of the intended post-`write` visibility contract.\n- A smallest repro that fails for the identified reason and stops failing when that specific mechanism is bypassed.\n\nThe minimal evidence-supported correction depends on that proof. Typical examples are:\n- await the cache update/invalidation inside `write` if `write` currently resolves too early;\n- update or invalidate the specific cache key synchronously on successful write if stale cache is the source;\n- force same-session reads to the authoritative source if the contract requires read-your-own-write and the normal read path is eventually consistent.\n\nA second retry is only justified if instrumentation shows a genuine transient visibility window and the product contract explicitly tolerates eventual consistency here. Otherwise it hides the bug and weakens the test.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:02:00.251467Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-7ae3-78c3-aaaf-cafeb7c26d96.1783893687012008000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:02:00.488789Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-7af5-76b1-bbf8-18584bb23134.1783893687030276000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:02:33.827045Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-fc32-70b1-a715-592d3111ae45.1783893720115863000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

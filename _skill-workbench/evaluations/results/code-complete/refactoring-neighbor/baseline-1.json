@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-neighbor.md",
+  "case_sha256": "e7ef6def73a3f82ff75f82fc7718cfa86e1e7ad42cfc194946c97056faee9b5d",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5859-0f3f-7d92-9f52-6f43b946a9a6",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use the smallest sequence that removes only the duplicated expedited-charge conditional and does not disturb the observed call sequence inside each branch.\n\n1. `Extract Variable`\n   In the `preferred` branch only, extract `order.expedited() ? Money.cents(700) : Money.cents(500)` into a local like `shipping` and return `base.plus(shipping)`.\n   Safety check: run the full test suite. This is expression-to-variable only, so behavior, exception text, and call order in that branch should remain identical.\n\n2. `Extract Variable`\n   In the non-`preferred` branch, do the same extraction to a local `shipping` and return `base.plus(shipping)`.\n   Safety check: run the full test suite again. Confirm both branches still call `subtotal()` and `expedited()` in the same order as before.\n\n3. `Extract Method`\n   Extract the shared initializer expression into a method such as `shippingFor(Order order)` returning `order.expedited() ? Money.cents(700) : Money.cents(500)`.\n   Replace one branch\u2019s local initializer with `shippingFor(order)`.\n   Safety check: run the full test suite. This verifies that the extraction did not change exception text or message timing and that `expedited()` is still invoked at the same point.\n\n4. `Replace Temp With Query` by reuse of the extracted method\n   Replace the other branch\u2019s duplicated local initializer with `shippingFor(order)`.\n   Safety check: run the full test suite again. This is the point where duplication is actually removed; tests guard observable behavior, including call order.\n\nStop condition: stop as soon as the duplicated conditional `order.expedited() ? Money.cents(700) : Money.cents(500)` exists in exactly one place and both branches otherwise retain their original structure. Do not continue into policy redesign, subtotal refactoring, or branch consolidation, because those risk changing the tested call sequence.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:00:58.594499Z ERROR codex_core_skills::service: failed to install system skills: io error while remove existing system skills dir: Directory not empty (os error 66)\n2026-07-12T22:00:59.532139Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-0eb8-7682-a73b-3a48a049947e.tmp-1783893659321234000\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:01:34.708244Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-0f3f-7d92-9f52-6f43b946a9a6.1783893659455780000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

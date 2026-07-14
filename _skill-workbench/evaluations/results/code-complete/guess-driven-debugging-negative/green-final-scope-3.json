@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/guess-driven-debugging-negative.md",
+  "case_sha256": "c7865c634aeaf84f4188190540d595af587074c4c2dd6a52804567e911750d63",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58cf-cd88-7c62-90e9-bedc76acdd41",
+  "exit_code": 0,
+  "result": {
+    "answer": "The next step is not a retry. A deterministic failure in a same-session read-your-writes test is stronger evidence of a logic, visibility, or test-isolation defect than of a random race.\n\nStart by turning this into a characterization pass:\n1. Confirm whether the failing read is served from cache or backing storage. Capture, for this key, the session/transaction identifier, cache key actually used, cache hit/miss, value in cache before write, value written to storage, and whether the write path updates or invalidates cache.\n2. Prove the ordering. Record timestamps or ordered trace points for `write()` start, storage commit/ack, cache mutation/invalidation, and `read()` lookup. If `write()` resolves before the state needed by `read()` is actually visible, that is the bug.\n3. Check scope mismatches. Verify whether the cache is global while the correctness contract is session-scoped. If the cache key omits session/transaction/snapshot context, a stale global entry can override a same-session read.\n4. Check test isolation. Because the failure is deterministic in one integration test, inspect whether prior test state, shared cache instances, or fixture reuse leaves `account:42` cached before this test runs.\n5. Minimize the repro. Re-run just this test, then run it after explicit cache reset or with cache disabled. That separates cache invalidation defects from broader persistence or session-visibility defects.\n\nEvidence needed before changing code:\n- A trace showing the stale value\u2019s source: cache hit, backing store read, or uncommitted snapshot.\n- Proof of the contract: in this system, \"same session\" is expected to guarantee read-your-writes.\n- One concrete violated invariant, such as:\n  - `write()` returns before commit or cache update is complete.\n  - Cache invalidation/write-through for `account:42` does not happen on this path.\n  - Cache lookup uses a key/scope that ignores session context.\n  - The test reads polluted shared state from an earlier test.\n\nOnly after that should code change, and the correction should match the proven failure mode:\n- Fix await/commit ordering if visibility happens after `write()` resolves.\n- Fix write-through or invalidation if stale cache survives a successful write.\n- Add session context or bypass shared cache for same-session reads if the cache scope is wrong.\n- Reset or isolate cache/test fixtures if the problem is test contamination.\n\nA second retry is evidence-supported only if you can show the system intentionally provides eventual consistency here and that the contract is not read-your-writes. With the current test wording, a retry would more likely mask the defect than fix it.",
+    "selected_project_skills": [
+      "code-complete",
+      "working-effectively-with-legacy-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

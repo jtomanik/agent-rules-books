@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58aa-1b13-7100-b925-eceb3ee32169",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest patch is a tiny local refactor: isolate discount calculation into a pure helper, add the partner rule there, and leave the command path in `finalize` untouched.\n\nAssumption to lock before merge: `partner` gets a 15% base discount at `total >= 500`, and the existing `> 1000` extra 5% still applies on top, because that large-invoice rule is existing behavior outside the new segment rule. If Product instead means \"exactly 15% total for partner once threshold is met,\" that must be stated explicitly; otherwise I would preserve the additive `> 1000` rule.\n\nConcrete patch plan:\n1. Extract the discount logic from `finalize` into a small pure function or private method such as `computeDiscount(account, invoice): number`.\n2. Encode segment/base discount explicitly:\n   - `vip` base `0.1`\n   - `partner` base `0.15` only when `invoice.total >= 500`\n   - otherwise base `0`\n3. Preserve the existing large-invoice rule exactly as written: if `invoice.total > 1000`, add `0.05`.\n4. Leave preview behavior, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, and `lastInvoiceId` exactly as they are.\n5. Do not broaden the patch into API redesign, boolean-flag cleanup, or collaborator changes under this release window.\n\nRevised sketch:\n```ts\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private computeDiscount(a: Account, i: Invoice): number {\n    let d = 0;\n\n    if (a.segment === \"vip\") {\n      d = 0.1;\n    } else if (a.segment === \"partner\" && i.total >= 500) {\n      d = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      d += 0.05;\n    }\n\n    return d;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const d = this.computeDiscount(a, i);\n    const amount = i.total * (1 - d);\n\n    if (preview) {\n      return { amount, discount: d, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount: d, changed: true };\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount computation and tests that prove the new partner rule plus unchanged side effects.\n- Out of scope: changing method signatures, replacing boolean flags, moving responsibilities across classes, rounding changes, persistence/mail/audit protocol changes, or any rewrite-oriented cleanup.\n\nTests required before shipping:\n1. `partner`, `total = 500`, preview mode: returns `discount: 0.15`, `amount: 425`, `changed: false`, and no save/mail/audit calls.\n2. `partner`, `total = 500`, non-preview: debits balance by `425`, calls `accounts.save`, and preserves existing mail/audit behavior.\n3. `partner`, `total = 499.99`: no partner discount; behavior matches prior rules.\n4. `partner`, `total = 1001`: expected discount is `0.20` under the additive interpretation, with correct amount and unchanged side effects.\n5. Regression checks for one `vip` case and one `standard` case to prove no behavior drift.\n6. Existing call-verification tests for `accounts.save`, `mailer.send`, and `audit.record` remain green unchanged except where expected amounts change for new partner cases.\n\nIf I had only 45 minutes, I would ship exactly that helper extraction plus those focused tests and nothing broader.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

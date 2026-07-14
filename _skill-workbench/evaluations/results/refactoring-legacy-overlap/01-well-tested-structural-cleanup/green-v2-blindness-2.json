@@ -1,0 +1,47 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f588b-a600-7193-8bd8-8a014c6f6ff9",
+  "exit_code": 0,
+  "result": {
+    "answer": "Treat this as a small refactoring series, not a redesign. The current method mixes four phases in one body: subtotal, discount, shipping, and tax/total assembly. The cleanup should stop once `price()` is an orchestration method over those existing rules and the tests still prove identical behavior.\n\nRecommended sequence:\n\n1. Keep the current focused tests as the safety net and run them after every extraction. They already cover the critical interaction: discount is computed before domestic free-shipping eligibility, and international shipping overrides free shipping.\n2. Extract subtotal calculation first into a private helper such as `calculateSubtotal(items)`. This is the safest isolated move because it has no branching and no dependency on later rules.\n3. Make the pricing phases explicit in `price()` with intermediate values before more extraction. In practice that means introducing a named local like `discountedSubtotalCents = subtotalCents - discountCents` and keeping `taxableCents` explicit. This reduces hidden coupling before moving logic.\n4. Extract `calculateDiscount(customerTier, subtotalCents)`. Keep the threshold, percentage, and `Math.floor` exactly where they are conceptually. Do not generalize discount policies yet.\n5. Extract `calculateShipping(destination, discountedSubtotalCents)`. Passing the already-discounted subtotal is important because it preserves the existing rule boundary and makes the \u201cgold threshold before free shipping\u201d dependency explicit instead of re-derived inside the helper.\n6. Extract `calculateTax(taxableCents)` and leave final object assembly in `price()`. At that point `price()` should read top-down: subtotal, discount, discounted subtotal, shipping, taxable amount, tax, return.\n7. Only if the team wants one more low-risk cleanup, replace the numeric literals with module-private named constants. Stop there unless a constant name is disputed; this is readability cleanup, not a policy redesign.\n\nA reviewable target shape is:\n\n```ts\nprice(order: Order): Price {\n  const subtotalCents = this.calculateSubtotal(order.items);\n  const discountCents = this.calculateDiscount(order.customerTier, subtotalCents);\n  const discountedSubtotalCents = subtotalCents - discountCents;\n  const shippingCents = this.calculateShipping(order.destination, discountedSubtotalCents);\n  const taxableCents = discountedSubtotalCents + shippingCents;\n  const taxCents = this.calculateTax(taxableCents);\n\n  return {\n    subtotalCents,\n    discountCents,\n    shippingCents,\n    taxCents,\n    totalCents: taxableCents + taxCents,\n  };\n}\n```\n\nWhere this cleanup should stop:\n\n- Stop when `price()` is clearly a phase-oriented coordinator and each helper has one coherent responsibility.\n- Do not change the public API, data shapes, rounding points, or the order in which business rules apply.\n- Do not introduce policy objects, strategy classes, rule engines, value objects, or a separate pricing pipeline yet. The current variation does not justify that abstraction.\n- Do not \u201cimprove\u201d semantics such as tax basis, shipping precedence, or discount configurability during this cleanup. Those are future behavior changes and should be separate commits backed by new tests.\n\nIn short: extract by phase, make dependencies explicit, preserve exact rule order, and stop before abstraction becomes speculative.",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "refactoring",
+        "sections": [
+          "Primary Directive",
+          "Preferred Refactoring Moves",
+          "Function-Level Rules",
+          "Class and Module Rules",
+          "Rules for Working with Conditionals",
+          "Data and Mutation Rules",
+          "Stopping Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:56:15.292642Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f588b-79b3-7d51-a9d4-087bfd345003.1783896963507890000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

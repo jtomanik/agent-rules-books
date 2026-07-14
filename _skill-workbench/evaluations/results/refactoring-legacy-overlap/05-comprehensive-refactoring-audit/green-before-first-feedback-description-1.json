@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/05-comprehensive-refactoring-audit.md",
+  "case_sha256": "db282b1f375a7c34471b235cfb87c033084598dd0cccc9a8b06b8e2e4b4d4c51",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5367-b8b1-7c70-adb9-c4003f016835",
+  "exit_code": 0,
+  "result": {
+    "answer": "The proposal is not a refactoring as submitted. It mixes a feature change, a public API redesign, and structural churn, and it also changes observable behavior.\n\nHighest-risk rejections:\n1. `gateway.capture(...)` before `gateway.authorize(...)` is a behavior change, not refactoring. Your stated suite covers event order, so this should fail immediately.\n2. `expedited` introduces new shipping behavior (`4_000`) and a new mode-switching parameter. That is a feature, not refactoring.\n3. Replacing `export function settle(...)` with `SettlementFacade#setttle(...)` changes the public contract for callers. That is API redesign unless the original function remains as a compatible entry point.\n4. `SettlementStrategy` and `SettlementFacade` are speculative generality here. There is only one algorithm and one caller shape shown. Fowler\u2019s bar for Strategy/indirection is repeated variation, not hypothetical future variation.\n\nWhat does count as refactoring in the proposal:\n- Moving calculation into another unit can be refactoring if the original entry point and behavior stay intact.\n- `SettlementNumbers.toReceipt()` is structurally harmless in isolation.\n- Using an intermediate object can be a valid `Replace Method with Method Object` move, but only when it enables further small extractions that the current local variables prevent.\n\nWhat should be rejected or resequenced:\n- Reject the call-order reversal outright.\n- Reject `expedited` from the refactoring patch. If wanted, ship it later as a separate behavior change with separate tests.\n- Reject `SettlementStrategy`/`SettlementFacade` unless there is already a second real settlement algorithm or a concrete extension point blocked by the current function.\n- Reject `SettlementNumbers` in its current form as a stopping point. As a mutable public-field bag, it adds lifecycle/state surface without earning its existence. If used at all, it should be a short-lived internal method object in a sequence of smaller steps.\n\nSmallest useful transformation sequence:\n1. Keep `export function settle(order, gateway)` exactly as the public entry point.\n2. Extract a pure `calculateReceipt(order): Receipt` or `calculateSettlement(order): { subtotal, discount, shipping, tax, total }`.\n3. Leave `settle` responsible only for validation, calling `calculate...`, then `authorize` and `capture` in the existing order.\n4. If needed, extract honest helpers like `calculateDiscount(...)` and `calculateShipping(...)`. Stop when the logic reads cleanly.\n5. Only if a second shipping/settlement policy actually arrives, introduce a strategy around that real variation point. Do not introduce it in advance.\n\nVerification obligations:\n- Existing contract tests must stay green with no test rewrites except for structural relocation.\n- Preserve the current exported API or add an adapter test proving source compatibility.\n- Keep an interaction test asserting `authorize` happens before `capture`.\n- Add characterization only if any behavior is still ambiguous; from your description, the current suite already covers the risky thresholds and sequencing.\n- If a later expedited feature is introduced, that requires new tests and must not be labeled refactoring.\n\nDefensible stopping point:\nA good stopping point is an unchanged public `settle(...)` that delegates to a pure extracted calculation function, with names improved and side effects isolated, while retaining the same thresholds, totals, errors, and gateway call order. Anything beyond that in this example trends into speculative abstraction rather than Fowler-style refactoring.\n\nBottom line: approve only a much smaller sequence centered on extraction and side-effect isolation. Reject the submitted patch as a mixed-intent redesign with at least one clear behavioral regression.",
+    "selected_project_skills": [
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "stderr": "2026-07-11T22:58:54.523981Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5367-9f49-7ca1-873d-11fa28582649.1783810727754304000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:59:45.958245Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5367-b8b1-7c70-adb9-c4003f016835.1783810734257877000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

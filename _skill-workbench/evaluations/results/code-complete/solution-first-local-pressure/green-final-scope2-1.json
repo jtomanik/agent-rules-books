@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/solution-first-local-pressure.md",
+  "case_sha256": "ee5c773939df1918985c87ff93cdd22a4766d30bc2dc0125f36cb99008949587",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58d9-726a-7760-9d23-8e5f9c4a04a2",
+  "exit_code": 0,
+  "result": {
+    "answer": "I would accept only a thin batch-specific request handler that makes invalid requests impossible to partially execute, and that preserves per-account outcomes as typed results instead of exception-driven control flow.\n\nSmallest decision:\nDo not copy the single-account handler in a loop. Add one new batch entrypoint that has two phases:\n1. `parseAndValidateBulkActivationRequest(rawJson) -> ValidBulkActivationRequest | ValidationError`\n2. `activateAccounts(validRequest, actor) -> BulkActivationResponse`\n\nThat is the minimum cut because the requirement has a hard trust boundary and aggregate reporting contract that the single-item happy path does not model.\n\nMinimal implementation slice:\n```ts\n// Trust boundary output: only valid, normalized IDs cross this line.\ntype ValidBulkActivationRequest = {\n  accountIds: AccountId[]; // 1..100, distinct, all syntactically valid\n};\n\ntype ItemResult =\n  | { accountId: string; outcome: 'activated' }\n  | { accountId: string; outcome: 'already-active' }\n  | { accountId: string; outcome: 'not-found' }\n  | { accountId: string; outcome: 'unauthorized' };\n\ntype BulkActivationResponse = {\n  results: ItemResult[];\n  summary: {\n    activated: number;\n    alreadyActive: number;\n    notFound: number;\n    unauthorized: number;\n    total: number;\n  };\n};\n\nfunction parseAndValidateBulkActivationRequest(raw: unknown): ValidBulkActivationRequest {\n  if (!isObject(raw)) throw validationError('body must be an object');\n  if (!Array.isArray(raw.accounts)) throw validationError('accounts must be an array');\n  if (raw.accounts.length < 1 || raw.accounts.length > 100) {\n    throw validationError('accounts must contain 1 to 100 items');\n  }\n  if (!raw.accounts.every(isValidAccountIdShape)) {\n    throw validationError('every account id must be valid');\n  }\n  if (new Set(raw.accounts).size !== raw.accounts.length) {\n    throw validationError('account ids must be distinct');\n  }\n\n  return { accountIds: raw.accounts.map(toAccountId) };\n}\n\nasync function activateAccounts(req: ValidBulkActivationRequest, actor: Actor): Promise<BulkActivationResponse> {\n  const results: ItemResult[] = [];\n\n  for (const accountId of req.accountIds) {\n    const authorized = await authz.canActivate(actor, accountId);\n    if (!authorized) {\n      results.push({ accountId, outcome: 'unauthorized' });\n      continue;\n    }\n\n    const outcome = await activationService.activate(accountId);\n    results.push({ accountId, outcome });\n  }\n\n  return {\n    results,\n    summary: summarize(results),\n  };\n}\n```\n\nWhy this is the minimum acceptable slice:\n- Validation is complete before side effects, so malformed shape, bad count, duplicate IDs, or any invalid ID cannot produce partial activation.\n- Authorization is explicit per account, not hidden inside generic exception handling.\n- Item outcomes are the API contract, so they should be first-class values, not inferred from caught errors.\n- Summary counts are derived from `results`, which prevents drift between item reporting and totals.\n\nWhat I would reject:\n- Reusing the single-account handler directly in a loop.\n- Catch-all exception handling to decide business outcomes.\n- Returning only `attempted` or any aggregate that discards required per-ID results.\n- Performing validation lazily while mutating earlier items.\n\nFocused tests I would require before accepting it:\n- Rejects non-object body, missing `accounts`, non-array `accounts`, empty array, and array with more than 100 items.\n- Rejects when any ID is malformed.\n- Rejects when IDs are duplicated.\n- Confirms no authorization, persistence, or audit collaborator is called on request-validation failure.\n- For a mixed valid request, returns one result per input ID with `activated`, `already-active`, `not-found`, and `unauthorized` preserved exactly.\n- Confirms authorization is checked for each valid ID.\n- Confirms persistence is not called for unauthorized IDs.\n- Confirms `summary` is computed from item results and matches the per-item outcomes exactly.\n- Confirms result ordering matches request ordering, if that is part of your API convention; if not, specify it now.\n\nThat is the smallest validated slice because it adds only one boundary validator, one batch control-flow routine, one closed result type, and tests that lock the contract before broader implementation details.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:21:49.738509Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58d9-726a-7760-9d23-8e5f9c4a04a2.1783902073477120000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

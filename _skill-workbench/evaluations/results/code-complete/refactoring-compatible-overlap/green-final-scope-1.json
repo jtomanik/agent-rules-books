@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-compatible-overlap.md",
+  "case_sha256": "0a3e3ff43521aba3080389491600f106049111ed627a39db0f6bef653a76e695",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58ca-b915-7202-9875-651f7ab878d7",
+  "exit_code": 0,
+  "result": {
+    "answer": "Phase 1 should be a pure preparatory refactor: extract validation from mutation, name the row fields, and keep `acceptRow()` returning `boolean` with identical pass/fail behavior and side effects. The review boundary is: existing green tests stay green without changing their assertions.\n\nA tight phase-1 shape is:\n\n```ts\ntype RawRow = [string, string, string, string];\n\ntype CandidateRow = {\n  id: string;\n  kind: string;\n  scoreText: string;\n  status: string;\n};\n\nfunction hasFourFields(row: string[]): row is RawRow {\n  return row.length === 4;\n}\n\nfunction toCandidateRow(row: RawRow): CandidateRow {\n  const [id, kind, scoreText, status] = row;\n  return { id, kind, scoreText, status };\n}\n\nfunction isValidCandidateRow(row: CandidateRow): boolean {\n  return row.id !== \"\"\n    && (row.kind === \"person\" || row.kind === \"company\")\n    && /^\\d+$/.test(row.scoreText)\n    && (row.status === \"active\" || row.status === \"inactive\");\n}\n\nexport function acceptRow(row: string[]): boolean {\n  if (!hasFourFields(row)) {\n    return false;\n  }\n\n  const candidate = toCandidateRow(row);\n  if (!isValidCandidateRow(candidate)) {\n    return false;\n  }\n\n  acceptedRows.push({\n    id: candidate.id,\n    kind: candidate.kind,\n    score: Number(candidate.scoreText),\n    status: candidate.status,\n  });\n\n  return true;\n}\n```\n\nThat is enough refactoring because it exposes validation as a separate unit and removes nested conditionals without altering observable behavior.\n\nPhase 2 should change the contract deliberately: return a typed rejection reason, make data meaning explicit in the types, and keep mutation only on accepted input. The validation function becomes the main seam.\n\n```ts\ntype RowKind = \"person\" | \"company\";\ntype RowStatus = \"active\" | \"inactive\";\n\ntype AcceptanceResult =\n  | { accepted: true }\n  | {\n      accepted: false;\n      reason: \"field-count\" | \"missing-id\" | \"kind\" | \"score\" | \"status\";\n    };\n\ntype ParsedRow = {\n  id: string;\n  kind: RowKind;\n  score: number;\n  status: RowStatus;\n};\n\ntype CandidateRow = {\n  id: string;\n  kind: string;\n  scoreText: string;\n  status: string;\n};\n\nfunction validateRow(row: string[]): AcceptanceResult {\n  if (!hasFourFields(row)) {\n    return { accepted: false, reason: \"field-count\" };\n  }\n\n  const candidate = toCandidateRow(row);\n\n  if (candidate.id === \"\") {\n    return { accepted: false, reason: \"missing-id\" };\n  }\n\n  if (candidate.kind !== \"person\" && candidate.kind !== \"company\") {\n    return { accepted: false, reason: \"kind\" };\n  }\n\n  if (!/^\\d+$/.test(candidate.scoreText)) {\n    return { accepted: false, reason: \"score\" };\n  }\n\n  if (candidate.status !== \"active\" && candidate.status !== \"inactive\") {\n    return { accepted: false, reason: \"status\" };\n  }\n\n  return { accepted: true };\n}\n\nfunction parseAcceptedRow(row: [string, string, string, string]): ParsedRow {\n  const [id, kind, scoreText, status] = row;\n  return {\n    id,\n    kind: kind as RowKind,\n    score: Number(scoreText),\n    status: status as RowStatus,\n  };\n}\n\nexport function acceptRow(row: string[]): AcceptanceResult {\n  const result = validateRow(row);\n  if (!result.accepted) {\n    return result;\n  }\n\n  const parsed = parseAcceptedRow(row as [string, string, string, string]);\n  acceptedRows.push(parsed);\n  return { accepted: true };\n}\n```\n\nTest split:\n\n1. Phase 1: keep current tests unchanged; optionally add helper-level characterization tests only if your test style allows structural coverage without changing observable expectations.\n2. Phase 2: update acceptance assertions to expect `{ accepted: true }` and add one rejection test each for `field-count`, `missing-id`, `kind`, `score`, and `status`.\n\nMinimal rejection matrix:\n\n- `[]` or 3/5 fields -> `field-count`\n- `[\"\", \"person\", \"10\", \"active\"]` -> `missing-id`\n- `[\"1\", \"robot\", \"10\", \"active\"]` -> `kind`\n- `[\"1\", \"person\", \"10x\", \"active\"]` -> `score`\n- `[\"1\", \"person\", \"10\", \"pending\"]` -> `status`\n\nThis keeps the two intents clean: first a preparatory refactor that only exposes the seam, then the behavior change that introduces typed outcomes and exhaustive rejection tests.",
+    "selected_project_skills": [
+      "refactoring",
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:05:46.598620Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58ca-b915-7202-9875-651f7ab878d7.1783901108502047000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,62 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/outbound-provider.md",
+  "case_sha256": "420500ae5fd787a2e9919b3b0bbbb67e620f27ac56b3631d066e7d74b79028c2",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5335-e30d-7322-a844-9f042f5c744e",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n1. The integration can hold checkout workers indefinitely under provider slowness because every blocking point is unbounded: `Semaphore.acquire()` waits forever, `ProviderClient.post()` has no connect/response deadline, and `requestSignal` is ignored. Under load, slow provider calls accumulate until all workers are stuck, which matches the load-test failure. Before 100% traffic, the provider call and slot acquisition both need bounded deadlines tied to checkout time budget, and the outbound call must receive an abort signal.\n2. Retry multiplication is unsafe for a latency-sensitive checkout path. The app loops 4 times, while the SDK already retries transport errors and `429`/`5xx` twice. In the worst case one checkout can trigger up to 12 provider attempts, all while holding a semaphore slot and open DB transaction. That amplifies overload and makes recovery harder. Use one retry layer only, with a very small bounded policy for this synchronous path.\n3. The DB transaction is opened before waiting on the provider and kept open across all retries/sleeps/network time. That extends lock/connection lifetime during the slowest part of the flow and increases saturation risk. The transaction should start only after a valid provider response is ready to persist.\n4. Malformed success responses are not handled safely. A status `200` with an HTML body will fail at `response.json()`, be retried repeatedly, and may still fall through to pending without distinguishing provider corruption from temporary overload. The code needs explicit response validation: require expected status/content type/schema, treat invalid bodies as provider failure, and never persist fields from an unchecked payload.\n5. The fallback queue is unbounded in practice. `PENDING_AUTHORIZATION_CAPACITY=0` means unlimited memory growth if the provider is degraded, and `pendingAuthorizations.push(...)` has no backpressure or durability guarantees. Before rollout, pending authorization capacity must be finite; when full, checkout should fail fast rather than exhaust memory.\n\nSmallest production-ready changes:\n- Pass an abort signal into `provider.post(...)` and derive it from the request deadline, with a provider timeout comfortably below `CHECKOUT_REQUEST_TIMEOUT_MS` so the app still has time to record/return the fallback result.\n- Configure explicit timeouts. For example: nonzero connect timeout, nonzero response timeout, and a bounded wait for `Semaphore.acquire()`. If a slot cannot be acquired quickly, return `pending` or a controlled failure instead of waiting indefinitely.\n- Remove one retry layer. The smallest change is usually to disable SDK retries for this path (`PAYMENT_SDK_RETRIES=0`) and keep at most 1 application-level retry, or remove the manual loop and keep a single tightly bounded SDK retry policy. Do not keep both.\n- Move `database.beginTransaction()` to just before persistence of a validated successful authorization.\n- Validate the provider response before use: check HTTP status, content type, and required fields such as `authorization_id` and `state`. Treat HTML/invalid JSON/missing fields as provider failure.\n- Bound `pendingAuthorizations` with a real capacity. If the queue is full, fail fast and surface a retryable checkout error instead of accepting infinite backlog.\n\nRequired behavior by failure mode:\n- Slow provider: stop waiting once the provider budget is reached, release the semaphore slot, avoid holding a DB transaction, and return `pending` only if the bounded pending queue accepts the item; otherwise fail fast.\n- Overloaded provider (`429`/timeouts): use minimal bounded retries with jitter if any, then degrade quickly to `pending` or controlled failure. Do not keep workers occupied through long retry chains.\n- Unavailable provider (connect failure/5xx): same as overload. Short bounded attempt budget, then fallback or fail fast.\n- Malformed response (`200` with HTML or bad schema): classify as provider failure, do not persist authorization data, do not treat it as success, and do not retry aggressively.\n\nRecommended config direction before tomorrow:\n- `PAYMENT_CONNECT_TIMEOUT_MS`: set a small nonzero value.\n- `PAYMENT_RESPONSE_TIMEOUT_MS`: set a small nonzero value below the checkout deadline.\n- `PAYMENT_SDK_RETRIES`: set to `0` if the manual retry remains, otherwise remove the manual loop.\n- `PAYMENT_MAX_IN_FLIGHT`: lower from `400` to a value the provider and your worker pool can sustain without saturating the service.\n- `PENDING_AUTHORIZATION_CAPACITY`: set to a finite number based on operational capacity.\n\nMinimal code shape:\n- Acquire a slot with timeout.\n- Call provider with abort/timeout.\n- Validate status/content type/body.\n- Open transaction only for the success write.\n- On bounded failure, enqueue pending only if capacity exists.\n- Always release the slot promptly.\n\nI would not send 100% traffic with the current implementation. The blocking semantics, retry amplification, and unbounded queue are enough to recreate full worker exhaustion during a provider incident.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Bound semaphore wait, connect timeout, and response timeout, and pass an abort signal into the provider call so checkout workers cannot wait indefinitely.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Use only one retry layer with a tightly bounded policy; remove either the manual 4-attempt loop or the SDK retries to prevent retry multiplication.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Start the database transaction only after a validated provider success response is available, so slow network calls do not hold DB resources.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Validate HTTP status, content type, and required response fields before persisting; treat HTML or invalid JSON in a `200` response as provider failure.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Set a finite `PENDING_AUTHORIZATION_CAPACITY` and fail fast when the queue is full instead of allowing unbounded backlog growth.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Reduce `PAYMENT_MAX_IN_FLIGHT` to a value aligned with worker and provider capacity, because the current value increases blast radius during provider slowness.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:04:28.527511Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5335-9706-70d1-9294-e697637c24c6.1783807448839161000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

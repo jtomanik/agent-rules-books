@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/refactoring-compatible-overlap.md",
+  "case_sha256": "0a3e3ff43521aba3080389491600f106049111ed627a39db0f6bef653a76e695",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585e-1f3f-7763-8ee4-65fddc3407cc",
+  "exit_code": 0,
+  "result": {
+    "answer": "Split this into two reviewable patches.\n\nPhase 1 is preparatory refactoring only. Keep `acceptRow` returning `boolean`, keep the push side effect where it is, and only decompose the nested conditionals into named checks plus a single validation path. That matches the refactoring guidance: remove the structural friction first, without smuggling in the feature.\n\n```ts\nfunction hasFieldCount(row: string[]): boolean {\n  return row.length === 4;\n}\n\nfunction hasId(row: string[]): boolean {\n  return row[0] !== \"\";\n}\n\nfunction hasSupportedKind(row: string[]): boolean {\n  return row[1] === \"person\" || row[1] === \"company\";\n}\n\nfunction hasNumericScore(row: string[]): boolean {\n  return /^\\d+$/.test(row[2]);\n}\n\nfunction hasSupportedStatus(row: string[]): boolean {\n  return row[3] === \"active\" || row[3] === \"inactive\";\n}\n\nfunction isAcceptableRow(row: string[]): boolean {\n  if (!hasFieldCount(row)) return false;\n  if (!hasId(row)) return false;\n  if (!hasSupportedKind(row)) return false;\n  if (!hasNumericScore(row)) return false;\n  if (!hasSupportedStatus(row)) return false;\n  return true;\n}\n\nexport function acceptRow(row: string[]): boolean {\n  if (!isAcceptableRow(row)) {\n    return false;\n  }\n\n  acceptedRows.push({\n    id: row[0],\n    kind: row[1],\n    score: Number(row[2]),\n    status: row[3],\n  });\n\n  return true;\n}\n```\n\nPhase-1 tests: ideally none change if the current suite already characterizes behavior. If coverage is incomplete, only add characterization tests that prove the old `true`/`false` contract and push/no-push behavior.\n\nPhase 2 is the behavior change. Introduce explicit row meaning, convert validation into a typed internal result, and make `acceptRow` return the new `AcceptanceResult`. Keep the boundary checks deliberately aligned with the current rules so the only product change is the rejection reason.\n\n```ts\ntype RowKind = \"person\" | \"company\";\ntype RowStatus = \"active\" | \"inactive\";\ntype RejectionReason =\n  | \"field-count\"\n  | \"missing-id\"\n  | \"kind\"\n  | \"score\"\n  | \"status\";\n\ntype AcceptanceResult =\n  | { accepted: true }\n  | { accepted: false; reason: RejectionReason };\n\ntype ParsedRow = {\n  id: string;\n  kind: RowKind;\n  score: number;\n  status: RowStatus;\n};\n\ntype ValidationResult =\n  | { ok: true; value: ParsedRow }\n  | { ok: false; reason: RejectionReason };\n\nfunction validateRow(row: string[]): ValidationResult {\n  if (row.length !== 4) {\n    return { ok: false, reason: \"field-count\" };\n  }\n\n  const [id, kind, scoreText, status] = row;\n\n  if (id === \"\") {\n    return { ok: false, reason: \"missing-id\" };\n  }\n\n  if (kind !== \"person\" && kind !== \"company\") {\n    return { ok: false, reason: \"kind\" };\n  }\n\n  if (!/^\\d+$/.test(scoreText)) {\n    return { ok: false, reason: \"score\" };\n  }\n\n  if (status !== \"active\" && status !== \"inactive\") {\n    return { ok: false, reason: \"status\" };\n  }\n\n  return {\n    ok: true,\n    value: {\n      id,\n      kind,\n      score: Number(scoreText),\n      status,\n    },\n  };\n}\n\nexport function acceptRow(row: string[]): AcceptanceResult {\n  const validation = validateRow(row);\n  if (!validation.ok) {\n    return { accepted: false, reason: validation.reason };\n  }\n\n  acceptedRows.push(validation.value);\n  return { accepted: true };\n}\n```\n\nPhase-2 tests should cover:\n- accepts a valid row, returns `{ accepted: true }`, and pushes the parsed object\n- rejects wrong field count with `\"field-count\"`\n- rejects empty id with `\"missing-id\"`\n- rejects unsupported kind with `\"kind\"`\n- rejects non-digit score with `\"score\"`\n- rejects unsupported status with `\"status\"`\n- for each rejection case, `acceptedRows` is unchanged\n\nThat keeps the two intents clean:\n1. preparatory refactor: flatten and name the validation logic, no observable behavior change\n2. feature change: switch the public contract from boolean rejection to typed rejection reasons",
+    "selected_project_skills": [
+      "refactoring",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:06:31.398046Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585e-1479-78a3-b9de-0fe214970b9b.1783893988474227000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:31.461926Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585e-1479-7690-8ce1-ae1013904b42.1783893988473519000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:31.729739Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585e-147f-7d61-babc-52d7b25361f1.1783893988479999000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

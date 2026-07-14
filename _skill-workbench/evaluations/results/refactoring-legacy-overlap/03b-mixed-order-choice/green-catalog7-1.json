@@ -1,0 +1,71 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md",
+  "case_sha256": "77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5874-3dae-7a41-b955-51b51478a05d",
+  "exit_code": 0,
+  "result": {
+    "answer": "**Recommended Order**\n1. Gain deterministic control first.\n2. Consolidate the current duplicated eligibility rule under characterization tests.\n3. Add the 60-day introductory-subscription rule in that single owner.\n4. Keep any follow-up cleanup separate and optional.\n\nThat is safer than either alternative.\n\nIf you extract first without test control, you are moving shared business logic in unprotected legacy code with hidden time and hidden database construction. A mistake changes both `previewCredit()` and `applyCredit()` at once and is hard to detect.\n\nIf you add the 60-day rule first in both methods, you create the same new rule twice, then touch it again to consolidate it. That increases change surface, review noise, and the chance that preview/apply drift apart.\n\nWith this code, the first real barrier is deterministic feedback: `new SubscriptionDatabase(...)` and `new Date()` are both hard dependencies. The smallest safe seam is to make database access and time injectable while preserving the current production default path. Once that seam exists, add focused tests around externally visible behavior of `previewCredit()` and `applyCredit()` before changing semantics.\n\n**Why This Order Fits the Evidence**\nThe worker is legacy by the task\u2019s own description: no focused tests, one slow end-to-end happy-path test, hard construction, and ambient time. That means the safest first move is not semantic and not cosmetic; it is creating control and observation.\n\nAfter that, consolidation should come before the new rule. Here the duplicated condition is already a known source of change risk, and the new requirement must apply consistently to both methods. Under tests, extracting a single eligibility owner as a behavior-preserving step reduces the number of places where the semantic change must land from two to one. That makes the actual product change smaller and more reviewable.\n\n**Decisions To Clarify First**\n1. Exact cutoff semantics: does \"older than 60 days\" mean `> 60 * 24h`, or ineligible starting exactly at the 60-day mark?\n2. Time interpretation: is `startedAt` guaranteed to be an ISO timestamp with timezone, and should comparison be done in UTC?\n3. `startedAt: null` for `kind: \"introductory\"`: preserve current eligibility, or make it ineligible because age cannot be proven?\n4. Scope of the new rule: should it affect both `previewCredit()` and `applyCredit()` identically? The task implies yes, but this should be explicit.\n5. Ownership shape: should the shared owner be a pure predicate/value object (preferred), or logic on an existing collaborator/domain type if one already owns subscription eligibility elsewhere?\n\nWithout answers to 1 and 3, the semantic patch can easily encode the wrong business rule while still looking \"reasonable.\"\n\n**Reviewable Patch Boundaries**\n1. Patch 1, deterministic control only.\nIntroduce seams for database and clock, preserving existing constructor behavior by default. Add focused characterization tests for current outcomes only: active/non-negative/not-on-hold applies; other current branches skip; preview/apply stay aligned on existing eligibility.\n\n2. Patch 2, consolidation only.\nExtract one shared eligibility owner with no intended behavior change. Move the duplicated condition behind that owner and update both methods to use it. Tests from patch 1 should pass unchanged.\n\n3. Patch 3, semantic change only.\nAdd new tests for introductory subscriptions around the 60-day boundary, then implement the rule in the shared owner. Keep paid-subscription behavior and all other existing outcomes unchanged.\n\n4. Patch 4, optional cleanup only.\nOnly if still useful, rename the owner or tighten API shape. No behavior changes.\n\n**What I Would Reject**\n- A single patch that injects dependencies, extracts logic, and adds the 60-day rule together.\n- Adding the 60-day rule twice first and promising to deduplicate later.\n- Extracting to a vague `utils` helper before test control exists.\n- Using only the slow end-to-end test as the safety net for this change.\n\nThe core decision is: break the hidden dependencies first, then do the smallest behavior-preserving consolidation, then land the new business rule once in the new owner.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "working-effectively-with-legacy-code",
+        "sections": [
+          "Primary Directive",
+          "Non-Negotiable Rules",
+          "Default Workflow for Legacy Changes",
+          "Testing Strategy Rules",
+          "Seam Rules",
+          "Dependency Breaking Rules",
+          "Handling Risky Areas",
+          "Review Rules",
+          "Forbidden Patterns",
+          "Code Generation Rules",
+          "Testing Rules",
+          "Review Checklist",
+          "Final Instruction"
+        ]
+      },
+      {
+        "skill": "refactoring",
+        "sections": [
+          "Primary Directive",
+          "What Counts as Refactoring",
+          "Non-Negotiable Rules",
+          "Safety Rules",
+          "Class and Module Rules",
+          "Rules for Working with Conditionals",
+          "Code Generation Rules",
+          "Testing Rules",
+          "Stopping Rules",
+          "Review Checklist",
+          "Final Instruction"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:30:41.066279Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-2404-7530-8752-9f9227f87026.1783895434245023000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:31:42.787619Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-3dae-7a41-b955-51b51478a05d.1783895440814869000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

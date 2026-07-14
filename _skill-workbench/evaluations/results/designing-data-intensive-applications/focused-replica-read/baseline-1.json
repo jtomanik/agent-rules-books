@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/focused-replica-read.md",
+  "case_sha256": "e5c642e655a2e69acfcb89ca0045bf6c520c92d54a608af9a640320b87cd206b",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5854-c1c5-7ab2-8b76-eac59a2a89e9",
+  "exit_code": 0,
+  "result": {
+    "answer": "The redirect cannot be allowed to do an ordinary `nearestReplica` read. The required contract is `read-your-writes` for the updating user, and because failover may happen between the write and the redirected read, that contract must be anchored to a failover-safe commit position, not just \"whatever replica is nearby\".\n\nFocused decision:\n- The post-update redirect needs a causal/read fence: `showProfile` must not serve the redirected request until it is reading from a node whose applied position is at least the write's committed position.\n- A successful write response must therefore mean more than \"committed on the old primary\". It must mean \"this commit position will still exist after any allowed failover\". If `promote_available_follower` can promote a follower that has not applied the acknowledged write, then the stated product contract is impossible to satisfy.\n\nSmallest implementation strategy that satisfies the contract:\n1. Have `updateProfile` capture the write's commit position and include it in the redirect context, for example a signed cookie/header/query token.\n2. On the redirected `showProfile`, require `replica_applied_position >= required_commit_position`.\n3. If the nearest replica is behind, do not use it for that request. Route this one request to the current leader, or to any replica known to have applied the position. After that request, normal replica reads can resume.\n4. Tighten the write-ack/failover rule so an acknowledged write is promotable-safe: either acknowledge only after the commit is present on a promotable follower, or only promote followers that have applied the acknowledged position.\n\nWhy this is the minimum:\n- It scopes the stronger consistency only to the post-update redirect path.\n- It does not require changing all reads, capacity policy, retry budgets, or general replica routing.\n- Waiting for async replicas alone is not sufficient, because lag is non-trivial and failover to a stale follower can permanently violate the contract.\n\nIn short: the redirect needs a commit-position fence, and the system must not acknowledge writes that can disappear on failover. Without both, reading from an asynchronous replica after the redirect is not correct.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T21:57:05.456547Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5854-c1c5-7ab2-8b76-eac59a2a89e9.1783893377495583000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

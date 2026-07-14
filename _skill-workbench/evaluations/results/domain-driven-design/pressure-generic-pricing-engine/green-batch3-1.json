@@ -1,0 +1,41 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/pressure-generic-pricing-engine.md",
+  "case_sha256": "1d40b8eaf3f8ef82f10abed636b4dcc42fdae770703029ee6875eabde5dbdb64",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c57-ff5e-7f40-bcf6-23e3980fced6",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Do not add another `rule.type` branch inside the current generic engine as the primary design move. The symptoms point the other way: overloaded language (`contract` means two different things), eligibility that depends on agreement state and renewal date, metadata-only inputs, single-amount outputs, and a recent spike in ad hoc status/type checks. That is a modeling hotspot, not a healthy extension point.\n\nBounded action for Friday: keep the existing engine, but stop pretending this rule is just another generic amount calculator. Add a thin, explicit `CommercialAgreementPricing` use case at the boundary that:\n1. Translates Sales/Billing language into one local vocabulary.\n2. Validates eligibility from an accepted commercial agreement, product set, quantity, and effective date.\n3. Distinguishes executed contract from pricing agreement/renewal terms.\n4. Calls the existing engine only after eligibility is proven, using a narrowed internal rule/context shape.\n\nIn practice, that means one small vertical slice, not a rewrite:\n- Introduce a dedicated input model for this rule instead of raw metadata in core decision code.\n- Put renewal re-evaluation in this use case, with renewal date as an explicit concept.\n- Treat the current engine as a calculation detail behind this boundary.\n- If needed for deadline safety, implement the new behavior as one specialized path in the new use case, not as more scattered `if (rule.type === ...)` logic across the engine.\n\nWhy this is the right tradeoff: it protects Friday delivery because the generic engine remains in place, but it also prevents further corruption of the model. You are paying for translation and eligibility once, at the edge, instead of multiplying hidden checks inside `applyRule` and string metadata conventions.\n\nTo protect delivery while testing whether a deeper model is warranted:\n- Define 3-5 domain examples with a domain expert immediately: accepted agreement applies, wrong product, excessive quantity, renewal inherits term but fails eligibility on renewal date, executed contract present but no valid commercial agreement.\n- Make those examples executable acceptance tests around the new use case.\n- Keep changes additive and isolated behind a feature flag or narrow entry point.\n- Track every extra type/status check added during implementation; if the slice still needs many checks after the boundary is introduced, that is evidence a deeper bounded-context/model split is warranted next.\n- Schedule a short post-Friday review: if more agreement-specific rules are coming, promote `CommercialAgreementPricing` into an explicit bounded context with its own language and model; if not, keep the boundary and stop there.\n\nDecision: change direction slightly now. Do not invest in a fresh platform rewrite, but do stop extending the generic branch model directly. Build a protective boundary around this contractual-pricing capability, ship through it by Friday, and use the resulting examples and change pressure to decide whether a fuller domain model is justified.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled",
+      "implementing-domain-driven-design",
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [
+    "required project skill not selected: domain-driven-design"
+  ],
+  "stderr": "2026-07-13T16:38:52.989869Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c57-ff5e-7f40-bcf6-23e3980fced6.1783960698719807000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

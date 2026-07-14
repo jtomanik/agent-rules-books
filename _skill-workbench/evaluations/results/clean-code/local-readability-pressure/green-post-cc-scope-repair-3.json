@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58be-46d2-7932-854e-5dd8652b3cf3",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest ship path is a minimal behavioral change inside discount calculation only, with a small extraction to keep the branch readable and reviewable.\n\nPatch plan:\n1. Extract discount computation from `finalize()` into a private helper such as `calculateDiscount(account, invoice)`.\n2. Add named constants for the existing VIP discount, large-invoice discount, new partner discount, and the partner threshold.\n3. Implement the new rule as `partner && total >= 500 => +0.15`.\n4. Preserve the existing `total > 1_000 => +0.05` behavior exactly, so partner accounts over 1,000 get `0.20` unless product explicitly says the 15% should replace all other discounts.\n5. Leave `finalize()` side effects and ordering unchanged: preview short-circuit, balance mutation, `accounts.save`, `lastInvoiceId`, optional `mailer.send`, and `audit.record`.\n\nRevised sketch:\n```ts\ntype Account = {\n  id: string;\n  segment: \"standard\" | \"vip\" | \"partner\";\n  balance: number;\n};\n\ntype Invoice = {\n  id: string;\n  total: number;\n};\n\nclass InvoiceService {\n  private static readonly VIP_DISCOUNT = 0.10;\n  private static readonly PARTNER_DISCOUNT = 0.15;\n  private static readonly LARGE_INVOICE_DISCOUNT = 0.05;\n  private static readonly PARTNER_THRESHOLD = 500;\n  private static readonly LARGE_INVOICE_THRESHOLD = 1_000;\n\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    let discount = 0;\n\n    if (a.segment === \"vip\") {\n      discount += InvoiceService.VIP_DISCOUNT;\n    }\n\n    if (a.segment === \"partner\" && i.total >= InvoiceService.PARTNER_THRESHOLD) {\n      discount += InvoiceService.PARTNER_DISCOUNT;\n    }\n\n    if (i.total > InvoiceService.LARGE_INVOICE_THRESHOLD) {\n      discount += InvoiceService.LARGE_INVOICE_DISCOUNT;\n    }\n\n    return discount;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount selection logic and tests directly protecting that logic through `finalize()`.\n- In scope: tiny readability cleanup local to the touched code, specifically extracting discount calculation and naming thresholds/constants.\n- Out of scope: changing the public method signature, removing boolean flags, changing persistence/email/audit sequencing, changing rounding/money representation, changing `lastInvoiceId` behavior, or refactoring collaborators.\n- Out of scope unless product clarifies otherwise: redefining how discounts compose. The conservative reading is additive because that preserves all prior behavior outside the new partner rule.\n\nTests required before shipping:\n1. Existing regression suite stays green unchanged.\n2. New return-value test: `partner`, total `499.99` => no partner discount.\n3. New return-value test: `partner`, total `500` => `discount === 0.15`, correct discounted amount.\n4. New return-value test: `partner`, total `1_001` => `discount === 0.20`, correct discounted amount.\n5. Regression test: `vip`, total `500` => still `0.10` only.\n6. Regression test: `standard`, total `1_001` => still `0.05` only.\n7. Non-preview interaction test for qualifying partner account: `accounts.save`, optional `mailer.send`, and `audit.record` still receive the discounted amount.\n8. Preview interaction test for qualifying partner account: no `accounts.save`, no `mailer.send`, no `audit.record`, and `changed === false`.\n\nIf the team wants the lowest-risk possible diff under the release deadline, I would ship exactly that helper extraction plus the tests above. The only product question worth escalating before merge is whether partner `>= 500` should stack with the existing `> 1_000` 5% rule; absent clarification, additive behavior is the narrowest change.",
+    "selected_project_skills": [
+      "clean-code",
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

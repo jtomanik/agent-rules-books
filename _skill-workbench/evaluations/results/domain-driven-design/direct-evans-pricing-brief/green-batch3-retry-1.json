@@ -1,0 +1,24 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/direct-evans-pricing-brief.md",
+  "case_sha256": "5ec5dbf71bcf410bb48239216f6a5b7d65ae6e8c614df5e8874e4479da3141fb",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c4a-75e7-7aa0-8aad-0a477cd33618",
+  "exit_code": 1,
+  "result": null,
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

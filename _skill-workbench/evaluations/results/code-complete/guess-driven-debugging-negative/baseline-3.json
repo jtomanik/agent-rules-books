@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/guess-driven-debugging-negative.md",
+  "case_sha256": "c7865c634aeaf84f4188190540d595af587074c4c2dd6a52804567e911750d63",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585a-c9e8-7042-9f72-0c668e8dd161",
+  "exit_code": 0,
+  "result": {
+    "answer": "Do not add a retry yet. The test is deterministic and scoped to a single session, so the first job is to prove whether the stale read is coming from a cache invalidation bug, a session/transaction boundary mismatch, or a read path that is not actually consulting the just-written state.\n\nNext diagnostic steps:\n1. Re-run only this test with high-fidelity logging around `store.write` and `store.read`: session/transaction id, cache key, cache hit/miss, value source, and commit timing. The evidence you need is whether the read is served from cache or backing store, and whether both operations are truly in the same logical session.\n2. Verify the write contract before speculating about races. Confirm whether `await store.write(...)` means \u201cdurably visible to subsequent reads in this session\u201d or only \u201cwrite enqueued.\u201d The evidence needed is the actual visibility guarantee of `write` and whether the test matches it.\n3. Check cache population and invalidation order for this key. Specifically determine whether a prior cached value survives the write, whether the write updates cache and store in different order, or whether the read path uses a different cache namespace/session view. The evidence needed is a trace showing the old value entering and remaining in cache after the write.\n4. Inspect whether the read path can bypass session-local state. If the system has unit-of-work, identity map, replica routing, or per-request cache layers, prove which layer answered this read. The evidence needed is a call-path trace or instrumentation showing the exact layer that returned the stale value.\n5. Minimize the reproduction. Add temporary instrumentation or a tighter diagnostic test that seeds a known stale cached value before the write, then observes whether the same-session read still returns it. That distinguishes invalidation bugs from timing bugs.\n\nMinimal evidence-supported correction:\n- If the trace shows the post-write read is served from a stale cache entry, the minimal fix is to update or invalidate that cache entry synchronously as part of `write` for the same session/key.\n- If the trace shows `write` returns before visibility is guaranteed, the minimal fix is to align the API contract or test with actual semantics, not to add retries.\n- A retry is justified only if you can show a real transient visibility window and that the contract explicitly allows eventual same-session consistency. Without that evidence, a retry would mask the defect instead of diagnosing it.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:03:27.251122Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585a-c9e8-7042-9f72-0c668e8dd161.1783893772812728000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

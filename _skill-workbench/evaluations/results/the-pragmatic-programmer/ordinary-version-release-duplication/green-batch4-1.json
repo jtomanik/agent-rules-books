@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/ordinary-version-release-duplication.md",
+  "case_sha256": "bfa0fbe8216743c3d9602a0985b95213d6893eac3c269ed76a465c2e3976d4f0",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dcd-b3a8-7761-ad85-ea3d5b913ca4",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Use one authoritative owner for the version and make every other step derive from it. The smallest correction is: remove `VERSION` from `.github/workflows/release.yml`, stop editing it in two places, and have packaging read the version from one release-owned source such as `package.json` or a single release input/tag. `scripts/build-package.sh` can still render `package.json` if needed, but it should read the version rather than declare it.\n\nKeep build and promotion orthogonal. `npm test` and `npm pack` produce a versioned artifact; upload and `promote-latest` should operate on that exact artifact identity, not on an ambient `latest` assumption. That avoids a mislabeled archive being silently promoted just because the workflow ran.\n\nThen automate the current checklist into one path. `RELEASE.md` should stop telling people to edit two files and rerun the same commands manually; instead it should describe one release entrypoint that builds once, emits one artifact, uploads that artifact, and optionally promotes that same artifact.\n\nFastest useful verification: immediately after packaging, inspect the produced archive metadata and compare it to the single source of truth before upload. In practice, verify that the generated `package.json` version and the `npm pack` artifact name/tarball contents agree. That catches the exact failure mode without adding a heavy release process.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design",
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/the-pragmatic-programmer/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:26:58.262105Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dcd-b3a8-7761-ad85-ea3d5b913ca4.1783985189800844000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

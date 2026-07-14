@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/refactoring-structural-neighbor.md",
+  "case_sha256": "895d2697037e8f58236072b0101ff3fd01292a571a3993c467f0e80f026011d1",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585e-1479-78a3-b9de-0fe214970b9b",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a three-step refactoring sequence.\n\n1. Extract the `compact` branch into a helper such as `private formatCompact(start: number, end: number): string`, but keep `format()` structurally the same otherwise, including the local `result`. That makes the first patch a single named move.\n2. Extract the non-compact branch into `private formatExpanded(start: number, end: number): string`, again still keeping `format()` on the temporary `result`. After this step, `format()` is just branch selection plus assignment.\n3. Replace the temporary with direct returns in `format()`: `if (compact) return this.formatCompact(start, end); return this.formatExpanded(start, end);`. This removes the temporary without mixing it into the extraction steps.\n\nThat sequence is small, reversible, and reviewable because each patch has one intent: extract one branch, extract the other branch, then remove the temporary. A sensible stopping condition is: `format()` only dispatches between the two extracted helpers, the temporary `result` is gone, all focused tests stay green, and any further cleanup would be speculative rather than needed for this refactoring.",
+    "selected_project_skills": [
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:06:28.752352Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-b4d9-7102-8958-40cb7304fddf.1783893963993413000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:06:28.812368Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f585d-b4d9-75d3-a520-085d09d99718.1783893963993443000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:07:59.950710Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585e-1479-78a3-b9de-0fe214970b9b.1783893988474227000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

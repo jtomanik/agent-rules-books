@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/focused-opportunistic-coordination.md",
+  "case_sha256": "eb9cebc246459bba2209bf55add49670c5134790849bed085a97c7960108b6fa",
+  "mode": "green",
+  "run": "green-batch4-description-final-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dff-c134-7a11-b934-a9981ad0822e",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Shared-space coordination fits this case.\n\nThe source condition from the consulted guidance is narrow: use blackboard-style coordination only when `uncertain order`, `multiple sources`, or `opportunistic collaboration` justify it. This pipeline meets all three.\n\nWhy it fits here:\n- `arrival_order: unknown` means a fixed orchestrated sequence would be artificial; the work is driven by whichever signals arrive first.\n- There are multiple independent inputs: `static_analyzer_findings`, `test_failures`, `dependency_advisories`, and `operator_annotations`.\n- The handlers are explicitly evidence-driven rather than stage-driven. `correlate_findings_when_supporting_evidence_exists`, `request_more_evidence_when_confidence_is_low`, and `publish_a_case_when_independent_signals_converge` all depend on partial accumulation and cross-signal convergence, which is a natural fit for a shared case board.\n- `handlers_may_run_opportunistically: true` and `fixed_pipeline_order: none` already describe blackboard-style operation more than a fixed pipeline.\n\nFocused decision:\n- Choose the shared `mutable_case_board` approach.\n- A fixed orchestrated pipeline is not the better default here because the useful order is discovered from incoming evidence, not predetermined.\n\nConstraint to keep explicit:\n- The shared board should have clear case-state rules for evidence confidence and publish thresholds; otherwise the coordination mechanism fits, but the mutable shared state will become ambiguous.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/the-pragmatic-programmer/references/index.md",
+      ".agents/skills/the-pragmatic-programmer/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "the-pragmatic-programmer",
+        "sections": [
+          "Resource and Coupling Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:21:14.376919Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}"
+}

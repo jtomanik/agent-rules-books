@@ -1,0 +1,46 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5894-bb12-79a1-8bf9-db9d75d791d1",
+  "exit_code": 0,
+  "result": {
+    "answer": "The shortcut is not safe. Broker transactions do not make this consumer exactly-once across the database and the email provider, and removing the idempotency table before launch would create correctness defects.\n\nFindings:\n1. `database.transaction(...)` can commit and the process can still crash before `message.ack()`. With `restart_from_committed_offset: true`, the same message will be re-delivered. Without durable deduplication, `tx.ledger.insert(...)` can run again and create duplicate ledger effects. `tx.orders.markConfirmed(...)` might be naturally idempotent, but the ledger write is not proven to be.\n2. `email.sendReceipt(...)` is outside the database transaction and outside any broker guarantee. If the provider accepts the send and the process crashes before the offset commit, replay sends a second receipt. That is already declared a user-visible defect.\n3. `email_provider.timeout_outcome: unknown` and `idempotency_key: unsupported` means unknown-success cannot be repaired into exactly-once delivery by this consumer. After a timeout, the system cannot distinguish \"not sent\" from \"sent but response lost\". Retrying risks duplicates; not retrying risks omission. Broker transactions do not solve that boundary.\n4. Replay is a supported operational path. Running this consumer unchanged during replay would reapply business effects and resend receipts unless processing is replay-safe. A replayable log requires replay-tolerant consumers or a side-effect-free rebuild path.\n5. Ordering is not safe to infer from the broker here. The topic is keyed by `customer_id`, and you state events for the same order can land on different partitions. That removes any per-order ordering guarantee from partition order. If correctness depends on order-level sequencing, the consumer needs an explicit per-order monotonicity/version check or the partitioning/keying must change.\n6. The code performs an uncoordinated multi-write across three authorities: database state, external email side effect, and broker offset. There is no single atomic commit across them and no repair contract shown.\n\nWhat must change before launch:\n1. Do not remove the idempotency/deduplication store unless it is replaced by an equivalent durable mechanism. Processing must record a stable event identity atomically with the database effects, and duplicate deliveries must become no-ops.\n2. Make the database effects idempotent at the storage boundary. At minimum, enforce a uniqueness rule for the ledger effect that matches the business invariant or event identity; do not rely on application hope.\n3. Separate replay/projection rebuild from business side effects. Replaying the topic must not resend receipts or reapply primary business writes.\n4. Fix the email correctness boundary. Because the provider offers neither idempotency keys nor a way to resolve unknown success, this design cannot prove exactly-once receipt sending. Before launch, either switch to a provider/integration that supports idempotent send or authoritative send-status reconciliation, or change the product requirement so duplicate receipts are acceptable. With the current requirement, this is a launch blocker.\n5. If order-level event order matters, repartition by `order_id` or add explicit per-order sequence/version enforcement in the database/consumer. Do not approve the consumer based on partition order from `customer_id`.\n\nBottom line: do not approve the consumer unchanged, and do not remove the idempotency table. The broker gives at-least-once redelivery at the database/email boundary, not end-to-end exactly-once correctness.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/index.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Event, Log, and Stream Rules",
+          "Partitioning and Locality Rules",
+          "Transaction Rules",
+          "Review Rules",
+          "Forbidden Patterns"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

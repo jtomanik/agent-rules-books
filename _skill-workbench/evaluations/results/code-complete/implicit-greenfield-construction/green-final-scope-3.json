@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/implicit-greenfield-construction.md",
+  "case_sha256": "d4b5c44ed1d1cf15a79c61af5ae7805bb640ce7bd8ee9538629982ef83dca4da",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58cb-d997-7461-8e6f-c2d911699275",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a narrow import use case that owns only boundary translation and batch orchestration. The first slice should accept a top-level JSON array, validate each element immediately into a typed `ImportRecord`, and never let untyped JSON cross that boundary. Make validation schema-driven and explicit: required fields, optional fields, type checks, value/range checks, and ID parsing into a strong `RecordId` type. For the first merge, reject unknown field names rather than silently ignoring them; that keeps the contract reviewable and prevents accidental schema drift.\n\nDo not fail the whole batch for record-level problems. Return per-record outcomes for `invalid` and `duplicate`, and reserve batch failure for envelope-level or system-level problems only: malformed top-level JSON, top-level value not being an array, or repository/integration failure. That gives the caller deterministic mixed-result behavior without conflating bad input with routine failure.\n\nRepresent duplicate IDs as a first-class import outcome, not as a generic validation error. Split it into two explicit cases so the caller can act on them cleanly: `duplicate_in_batch` and `duplicate_in_repository`. Detect in-batch duplicates inside the import module with a `seenIds` set after successful record validation. Detect repository duplicates through the typed repository boundary. Keep the duplicate payload small and explicit: record index, parsed ID when available, and duplicate kind.\n\nThe routine shape should stay linear and phase-separated:\n\n1. Parse top-level JSON and validate the envelope.\n2. Iterate records in order.\n3. Validate raw record into `ImportRecord` or collect validation errors.\n4. Check `seenIds` for in-batch duplicates.\n5. Call the typed repository for valid, non-duplicate records.\n6. Convert repository response into `imported` or `duplicate_in_repository`.\n7. Accumulate outcomes and summary counts.\n\nThat keeps setup, validation, duplicate detection, persistence call, and result assembly distinct. Avoid boolean mode flags or a batch method with hidden branching.\n\nThe caller contract should be a typed result, not exceptions for expected bad data. A good first contract is:\n\n- `ImportBatchResult` for successful batch execution, containing `outcomes[]` in input order plus summary counts.\n- `ImportBatchFailure` for fatal failures where the batch could not be processed as designed.\n\nA per-record outcome shape like this is enough for the first slice:\n\n- `Imported { index, id }`\n- `Invalid { index, errors[] }`\n- `Duplicate { index, id, kind }`\n\nUse structured validation errors such as `path`, `code`, and optional human-readable `message`. Do not expose repository internals or transport exceptions in record outcomes.\n\nThe smallest integration boundary with the already-typed repository is a single typed insert/create operation that can report duplicate ID as a typed domain result. Prefer something conceptually like `create(record) -> Created | DuplicateId`. Do not add a batch-aware repository API in the first slice. Since performance and persistence policy are out of scope, per-record repository calls are the smallest reviewable boundary and keep import concerns separate from storage concerns.\n\nThe smallest reviewable implementation slice before broader coding is:\n\n- One import use case function/class that accepts raw JSON array input.\n- One validator that maps raw JSON object to typed `ImportRecord` plus structured validation errors.\n- One typed repository port or adapter call for single-record create/insert.\n- One batch result model with ordered per-record outcomes and counts.\n- No retries, no async pipeline, no partial-recovery policy beyond per-record invalid/duplicate handling.\n\nRequired tests for the first merge should cover the contract, not persistence detail:\n\n- Boundary tests: malformed JSON fails with `ImportBatchFailure`; non-array top-level JSON fails; valid array reaches per-record processing.\n- Validation tests: missing required field, wrong field type, invalid ID format, unknown field, and multiple validation errors on one record.\n- Duplicate tests: duplicate ID later in the same batch; duplicate ID already present in repository.\n- Mixed-result tests: one imported, one invalid, one duplicate in a single batch, with outcomes preserved in input order and counts correct.\n- Integration-boundary tests: importer sends only typed `ImportRecord` values to the repository; invalid records never call the repository.\n- Control-flow tests: repository duplicate becomes `Duplicate` outcome, while fatal repository failure becomes `ImportBatchFailure` rather than a fake per-record validation result.\n\nThis is the right first production slice because it settles the caller-visible contract, the trust boundary, and the repository seam without prematurely designing batch persistence, retry behavior, or operational policy.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-architecture",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:07:28.686053Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58cb-d997-7461-8e6f-c2d911699275.1783901182359756000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

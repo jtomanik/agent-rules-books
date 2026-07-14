@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/unnamed-deeper-reservation-model.md",
+  "case_sha256": "cb5fdef5c6d55193e7e9eff10f45c9ac9e408cbe0579eab13558297a1a68ed29",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5caf-cc7a-7b81-8dae-933af78ad622",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current model collapses two different domain concepts into one status record: a temporary `Hold` and a customer `Commitment`. That is the main modeling gap. `PENDING` is really \u201cactive hold\u201d, `CONFIRMED` is really \u201ccommitment\u201d, and `RELEASED` currently mixes at least two business facts: hold release and commitment cancellation. The expiry timestamp also belongs only to the hold lifecycle, while `confirmedAt` belongs only to the commitment lifecycle.\n\nA deeper implementation-driving model inside the Reservation context is:\n\n- `CapacityHold`\n  - Meaning: temporary claim on capacity, not yet a customer commitment.\n  - Invariants: may expire, may be extended while active, may be released, may be confirmed only while still valid and capacity is held.\n  - Behavior: `extend(...)`, `release(reason)`, `confirm(now)`.\n- `Commitment`\n  - Meaning: accepted customer reservation created from a valid hold.\n  - Invariants: does not expire like a hold, may be cancelled for commitment-specific reasons.\n  - Behavior: `cancel(reason, now)`.\n- Domain transition\n  - `confirm` should not be \u201cchange status on one record\u201d; it should be \u201cconsume valid hold, create commitment`.\n\nA minimal code shape could be a discriminated union first, even if persistence stays as one row for now:\n\n```ts\ntype CapacityHold = {\n  kind: \"HOLD\";\n  capacityHeld: true;\n  expiresAt: Date;\n};\n\ntype Commitment = {\n  kind: \"COMMITMENT\";\n  confirmedAt: Date;\n};\n\ntype ReleasedHold = {\n  kind: \"RELEASED_HOLD\";\n  reason: \"expired\" | \"manual\";\n};\n\ntype CancelledCommitment = {\n  kind: \"CANCELLED_COMMITMENT\";\n  reason: string;\n  cancelledAt: Date;\n};\n```\n\nThat model explains the expert language better because it makes the business distinction explicit:\n\n- a request can create a hold without creating a commitment\n- expiry applies to holds, not commitments\n- confirmation converts one concept into another\n- releasing a hold and cancelling a commitment are different business actions\n- extending a hold is natural, while extending a commitment is nonsensical\n\nExpert scenarios that should test the model:\n\n1. \u201cCreate a temporary hold from a request.\u201d\n2. \u201cA hold expires before confirmation.\u201d\n3. \u201cConfirm a still-valid hold and create a commitment.\u201d\n4. \u201cAttempt to confirm an expired hold.\u201d\n5. \u201cRelease an unused hold for an operational reason.\u201d\n6. \u201cCancel an existing commitment for a customer/business reason.\u201d\n7. \u201cExtend an active hold.\u201d\n8. \u201cAttempt to extend a commitment.\u201d\n9. \u201cConfirm a hold after it was extended but before the new expiry.\u201d\n10. \u201cReturn capacity from hold release and commitment cancellation under different reported reasons.\u201d\n\nIncremental refactoring direction that preserves current behavior:\n\n1. Rename the language in code first: `PENDING` -> hold, `CONFIRMED` -> commitment, `RELEASED` -> released-hold for current behavior.\n2. Replace the status-centric record API with intention-revealing operations: `confirmHold`, `releaseHold`, `extendHold`.\n3. Introduce internal discriminated types or wrappers while still mapping to the existing single record shape.\n4. Separate release reasons from cancellation reasons in the model, even if persistence temporarily stores both in one column.\n5. Add a `cancelCommitment` path only when needed, instead of overloading `RELEASED` further.\n\nExplanatory gain is high: the next feature, hold extension, becomes a straightforward behavior on `CapacityHold` instead of another conditional branch on a generic `Reservation`. Migration cost is moderate if done incrementally because current storage and boundaries can remain unchanged at first; the main cost is renaming, introducing transitional mappers, and updating tests to speak the domain language. That trade is favorable here because the current model is already showing domain pressure: one enum is carrying multiple lifecycles, multiple time semantics, and multiple business reasons.",
+    "selected_project_skills": [
+      "domain-driven-design",
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T18:14:54.091820Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5caf-cc7a-7b81-8dae-933af78ad622.1783966452956334000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

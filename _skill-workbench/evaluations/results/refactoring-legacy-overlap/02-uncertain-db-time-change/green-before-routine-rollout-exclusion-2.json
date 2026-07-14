@@ -1,0 +1,34 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55bb-bac5-7071-a7ff-93c2aed3bc5c",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest bounded change is to preserve every observable behavior except the due threshold, and shift that threshold by an elapsed 48 hours.\n\nImplementation shape:\n- Add the smallest seam needed for fast tests: an optional injected clock and an optional injected billing database or narrow database interface, with current constructor behavior as the default.\n- Keep `chargeIfDue()` return values, transaction boundaries, write order, and exception propagation unchanged.\n- Compute due-ness from the existing parsed instant, not from local calendar math:\n  - parse `account.nextChargeAt` exactly as today\n  - add `48 * 60 * 60 * 1000`\n  - charge when `graceDeadline <= now`\n- Capture `now` once and reuse it for both the comparison and persisted timestamps, as the current code already does.\n- Do not bundle in timestamp cleanup, timezone normalization, schema changes, retries, or transaction restructuring.\n\nWhy this is the bounded move:\n- It preserves the current inclusive boundary pattern by applying it to the shifted deadline rather than changing comparison semantics independently.\n- It preserves current JS `Date` parsing behavior, which matters because the team does not yet know whether stored timestamps were influenced by local time.\n- It avoids changing caller-visible failure behavior in an untested area.\n\nVerification plan:\n1. Add characterization tests before the behavior change.\n   - `nextChargeAt` before `now` currently charges.\n   - `nextChargeAt` exactly equal to `now` currently charges.\n   - `nextChargeAt` after `now` returns `\"not-due\"`.\n   - Due path runs one transaction, inserts one charge, marks the account charged, and returns `\"charged\"`.\n   - Exceptions from `find`, `transaction`, `insert`, or `markCharged` still propagate unchanged.\n2. Add focused new-behavior tests for the grace period.\n   - `47h 59m 59.999s` after `nextChargeAt`: `\"not-due\"`.\n   - exactly `48h` after `nextChargeAt`: `\"charged\"` if preserving the current inclusive boundary.\n   - after `48h`: `\"charged\"`.\n3. Add timestamp-shape characterization for whatever formats actually exist.\n   - If stored values are ISO-with-offset or `Z`, verify those exact forms.\n   - If naive local-time strings exist, do not \"fix\" them in this change; document that the grace period is being applied to the same parsed instant the code uses today.\n4. Use staging only as an optional smoke check, not as the primary feedback loop.\n   - Shared, slow fixtures make it a poor place to discover behavior.\n   - If used, create or select a clearly isolated account and verify only one case before rollout: an account just inside the grace window does not charge, and one past the window does.\n   - Do not depend on staging for boundary coverage or failure-path coverage.\n\nProduct decisions that must be resolved instead of inferred:\n- Is \"48-hour grace period\" an exact elapsed 48 hours from the stored timestamp, or a business-day/local-calendar concept? The code should not guess.\n- At the grace boundary, should charging happen exactly when the 48 hours elapse, or only strictly after? The bounded implementation preserves the current inclusive style, but that is still a product decision if they care about the exact instant.\n- If historical `nextChargeAt` values were stored with incorrect local-time interpretation, should this change preserve existing interpretation, or should there be a separate data-remediation effort? Do not silently normalize old data inside this task.\n- If malformed timestamps exist, should they continue behaving as they do today or become explicit failures? That should be decided intentionally, not as collateral damage from the grace-period change.\n\nRecommended scope cut:\n- Do this task as: add seams for tests, lock current behavior with characterization tests, shift only the due threshold by 48 elapsed hours, add new grace-period tests, and stop there.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "release-it",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T09:51:30.382376Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55bb-bac5-7071-a7ff-93c2aed3bc5c.1783849794246434000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

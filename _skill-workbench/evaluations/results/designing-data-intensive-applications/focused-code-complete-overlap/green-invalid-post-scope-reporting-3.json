@@ -1,0 +1,56 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/focused-code-complete-overlap.md",
+  "case_sha256": "0a09d5db5dc46fc3467267ba177f789f09742fe85426c046f152fccb02978bd3",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58bc-6a9c-7410-8722-f8b5567a620c",
+  "exit_code": 0,
+  "result": {
+    "answer": "PostgreSQL should be the only correctness boundary for `applyEntry`. In one local transaction, serialize work per `manifestId`, decide whether the position is new, duplicate, or out of order, apply the authoritative record mutation, record that the position was applied, and advance the per-manifest cursor. The checksum index stays outside that boundary: update it only after commit, and treat any failure there as derived-state lag because it is rebuildable.\n\nThat resolves the replay/order/derived-state boundary like this:\n- Replay safety comes from a durable ledger row keyed by `(manifestId, position)`, not from broker ack.\n- Ordering is scoped only per manifest. Use one locked manifest-progress row per `manifestId`; different manifests then proceed concurrently.\n- The checksum index is derived. It must never decide whether the authoritative apply succeeded.\n\nA bounded shape for the slice:\n\n```ts\ntype ManifestEntry = {\n  manifestId: string;\n  position: number;\n  objectKey: string;\n};\n\ntype ApplyResult =\n  | { kind: \"applied\"; manifestId: string; position: number; derived: \"updated\" | \"stale\" }\n  | { kind: \"duplicate\"; manifestId: string; position: number }\n  | { kind: \"blocked\"; manifestId: string; position: number; expectedPosition: number }\n  | { kind: \"invalid\"; reason: \"bad_manifest_id\" | \"bad_position\" | \"bad_object_key\" };\n\nclass ConflictingReplayError extends Error {}\nclass RetryableApplyError extends Error {}\n```\n\nInternal routine boundaries should stay narrow:\n- `validateEntry(entry): ValidatedEntry | ApplyResult`\n- `applyAuthoritative(tx, entry): Promise<{ kind: \"applied\" | \"duplicate\" | \"blocked\"; checksum?: string; expectedPosition?: number }>`\n- `updateChecksumIndex(objectKey, checksum): Promise<void>`\n- `applyEntry(entry): Promise<ApplyResult>` as the orchestrator\n\nRecommended transaction contract inside `applyAuthoritative`:\n1. Validate `manifestId`, `objectKey`, and `position >= 0 && Number.isSafeInteger(position)` before opening the transaction.\n2. `INSERT ... ON CONFLICT DO NOTHING` the manifest-progress row, then `SELECT ... FOR UPDATE` it.\n3. Read `lastAppliedPosition`.\n4. If `entry.position <= lastAppliedPosition`, look up the applied-entry ledger row.\n5. If the ledger row matches the same `objectKey`, return `duplicate`.\n6. If that position exists with a different `objectKey`, throw `ConflictingReplayError`; that is not a harmless replay.\n7. If `entry.position !== lastAppliedPosition + 1`, return `blocked` with the expected next position and do not write anything.\n8. Apply the authoritative PostgreSQL mutation for the projection row(s).\n9. Insert the applied-entry ledger row with unique key `(manifest_id, position)`.\n10. Advance the manifest cursor to `entry.position`.\n11. Commit.\n12. After commit, best-effort update the checksum index. If that fails, return `applied` with `derived: \"stale\"`.\n\nA straightforward orchestrator is:\n\n```ts\nexport async function applyEntry(entry: ManifestEntry): Promise<ApplyResult> {\n  const validated = validateEntry(entry);\n  if (\"kind\" in validated) return validated;\n\n  const outcome = await db.transaction((tx) => applyAuthoritative(tx, validated));\n\n  if (outcome.kind === \"duplicate\") {\n    return { kind: \"duplicate\", manifestId: entry.manifestId, position: entry.position };\n  }\n\n  if (outcome.kind === \"blocked\") {\n    return {\n      kind: \"blocked\",\n      manifestId: entry.manifestId,\n      position: entry.position,\n      expectedPosition: outcome.expectedPosition,\n    };\n  }\n\n  try {\n    await updateChecksumIndex(entry.objectKey, outcome.checksum!);\n    return { kind: \"applied\", manifestId: entry.manifestId, position: entry.position, derived: \"updated\" };\n  } catch (error) {\n    return { kind: \"applied\", manifestId: entry.manifestId, position: entry.position, derived: \"stale\" };\n  }\n}\n```\n\nDefensive validation and error outcomes:\n- Return `invalid` for malformed input. No retry value.\n- Return `blocked` for out-of-order delivery. This is retryable because an earlier position may still arrive.\n- Return `duplicate` for exact replay of an already committed position.\n- Throw `ConflictingReplayError` for same `(manifestId, position)` with different immutable data such as `objectKey`; that indicates corruption or contract breach.\n- Translate deadlocks, connection loss, and transaction timeouts into `RetryableApplyError` so the broker can redeliver safely.\n- Do not let checksum-index failures roll back committed authoritative work.\n\nThe smallest implementation increment is:\n1. Add the per-manifest cursor lock and applied-entry ledger inside one transaction.\n2. Implement only `invalid`, `duplicate`, `blocked`, and `applied` for the authoritative PostgreSQL path.\n3. Keep checksum-index update as a stub or no-op at first.\n4. Add post-commit checksum update and `derived: \"stale\"` once the sequencing core passes.\n\nFocused tests for this slice:\n1. First position for a new manifest applies and advances the cursor.\n2. Replaying the same entry returns `duplicate` and does not reapply authoritative rows.\n3. Replaying the same position with a different `objectKey` raises `ConflictingReplayError`.\n4. Delivering position `2` before `1` returns `blocked` with `expectedPosition: 1` and performs no writes.\n5. Applying `0` then `1` succeeds in order.\n6. Concurrent `A/0` and `B/0` succeed independently; concurrency is only serialized within one manifest.\n7. Committed apply followed by checksum-index failure returns `applied` with `derived: \"stale\"`; replay afterwards returns `duplicate`.\n8. Transaction failure before commit leaves no ledger row and replay later applies once.\n\nThe key design constraint is this: cursor advance, applied-entry ledger insert, and authoritative projection mutation must be atomic in PostgreSQL; checksum-index maintenance must be explicitly outside that proof and rebuildable from authoritative state.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications",
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md",
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Idempotency and Replay Rules",
+          "Ordering Rules",
+          "Derived Data Rules",
+          "Transaction Rules"
+        ]
+      },
+      {
+        "skill": "code-complete",
+        "sections": [
+          "Routine Design Rules",
+          "Defensive Programming Rules",
+          "Error Handling Rules",
+          "Incremental Construction Rules",
+          "Testing Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [
+    "reference_mode focused requires SKILL.md, index.md, and full.md"
+  ],
+  "stderr": "2026-07-12T23:51:00.961996Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58bc-6a9c-7410-8722-f8b5567a620c.1783900170933348000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

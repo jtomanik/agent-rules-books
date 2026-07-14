@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f536f-34c0-77f0-b3fe-2f8a8db59576",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a minimal, local change rather than \u201cjust another branch\u201d inside `finalize`. The safe patch is: extract discount calculation into one small pure function, add the new `partner` rule there, and leave persistence, preview behavior, email, audit, and `lastInvoiceId` flow untouched.\n\nRecommended scope boundary: only pricing policy for `partner` accounts and the tests that protect that policy. Do not change method signatures, repository or mailer interfaces, preview semantics, audit payload shape, persistence timing, or the existing `vip` / `> 1000` rules except where the new requirement explicitly applies.\n\nOne material ambiguity must be resolved before shipping: for a `partner` invoice over `1000`, is the discount `15%` total, or `20%` because the existing `+5%` still stacks? The wording \u201creceive a 15% discount when the invoice total is at least 500\u201d reads like `15%` total. If product cannot answer quickly, I would document that assumption and implement `15%` total for `partner >= 500`, because it is the narrowest reading of the new rule.\n\nConcrete patch plan:\n1. Add a pure helper such as `calculateDiscount(account, invoice)` or `discountFor(account, total)`.\n2. Move the existing `vip` / `> 1000` logic into that helper unchanged first.\n3. Add the `partner >= 500` rule with explicit precedence, so the stacking behavior is obvious in code instead of implied by branch order.\n4. Keep `finalize` responsible only for orchestration: compute discount, derive amount, short-circuit preview, then perform save / email / audit exactly as today.\n5. Add focused tests for the new rule and one interaction test for the `> 1000` case.\n6. Run the existing suite plus the new tests; do not broaden the refactor beyond this extraction.\n\nA revised sketch:\n\n```ts\ntype DiscountPolicyInput = {\n  segment: Account[\"segment\"];\n  total: number;\n};\n\nfunction calculateDiscount({ segment, total }: DiscountPolicyInput): number {\n  if (segment === \"partner\" && total >= 500) {\n    return 0.15; // or 0.20 if product confirms stacking with the >1000 rule\n  }\n\n  let discount = segment === \"vip\" ? 0.1 : 0;\n\n  if (total > 1_000) {\n    discount += 0.05;\n  }\n\n  return discount;\n}\n\nclass InvoiceService {\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = calculateDiscount({ segment: a.segment, total: i.total });\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\nTests required before shipping:\n- `partner` with total below `500` keeps current behavior.\n- `partner` with total exactly `500` gets the new discount.\n- `partner` preview returns discounted `amount`, correct `discount`, and `changed: false`, with no calls to `save`, `send`, or `record`.\n- `partner` non-preview persists the discounted amount through `accounts.save`, `mailer.send`, and `audit.record`.\n- `partner` with total above `1000` matches the confirmed business rule: either `15%` total or stacked `20%`.\n- Characterization coverage remains for existing `standard`, `vip`, and `> 1000` behavior so the extraction does not accidentally change legacy rules.\n\nGiven the 45-minute window, this is the highest-confidence path: one local extraction, one explicit policy decision, and narrowly targeted tests around the new branch and its side effects.",
+    "selected_project_skills": [
+      "clean-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": ""
+}

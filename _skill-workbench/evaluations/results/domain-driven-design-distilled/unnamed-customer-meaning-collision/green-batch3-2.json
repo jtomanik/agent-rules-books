@@ -1,0 +1,48 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design-distilled/unnamed-customer-meaning-collision.md",
+  "case_sha256": "05b23f1934f2473d70822bdfd1f2d56ec62bb9fe263a1be25403bd402fd22f8c",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c54-0fae-7662-8f38-e8621285c5df",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposed shared `Customer` model should be rejected as a domain model. It collapses three different meanings into one type, and the first leak is already visible in `active`: each team means something different, so a single boolean is false precision.\n\nThe smallest set of decisions is:\n1. Declare three bounded contexts: Billing, Identity, and Fulfillment each own their own model and language.\n2. Stop treating `Customer` as a shared business concept. Use local names for the local meaning, for example `BillingCustomer` or `BillingAccountParty`, `Subject`, and `Recipient`.\n3. Ban shared domain fields whose meaning is not identical across contexts. In particular, remove canonical `active` and `status` unless they are redefined as integration-only fields with one explicit cross-team meaning.\n4. Cross boundaries only through an explicit integration contract, not a shared domain object.\n\nWhat should cross boundaries:\n- Stable identifiers and correlations: local IDs (`billing_account_id`, `subject_id`, `recipient_id`) plus, if needed, a separate cross-reference record owned by an integration layer or registry.\n- Explicit facts in published language: for example `invoice_eligibility`, `login_enabled`, `delivery_instructions_usable` as separate named attributes or events.\n- Translated representations only: each receiving context maps the incoming contract into its own model and terms.\n\nWhat should not cross boundaries:\n- A shared `Customer` class/entity.\n- A single `active` flag.\n- A generic `status` string without a bounded, published vocabulary.\n- Optional fields from other contexts embedded into one canonical business object.\n\nA safer replacement is not a canonical `Customer`, but a published interchange model such as `CustomerReference` or `PartyLink`, whose job is only identification and correlation. Example:\n\n```yaml\ncustomer_reference:\n  enterprise_party_id: uuid\n  billing_account_id: optional\n  subject_id: optional\n  recipient_id: optional\n```\n\nThen context-specific meaning crosses as separate contracts, for example:\n- Billing publishes whether an account may receive invoices.\n- Identity publishes whether login is enabled for a subject.\n- Fulfillment publishes whether recipient delivery instructions are usable.\n\nBoundary rule: shared language is for interchange only; business meaning stays local. If one team consumes another team\u2019s data, it should do so through a published contract plus translation at the boundary, effectively an anticorruption layer rather than direct model reuse.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/domain-driven-design-distilled/references/index.md",
+      ".agents/skills/domain-driven-design-distilled/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "domain-driven-design-distilled",
+        "sections": [
+          "Strategic Rules",
+          "Context Relationship Rules",
+          "Integration Style Rules",
+          "Ubiquitous Language Rules",
+          "Architecture and Infrastructure Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design-distilled"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:34:41.619594Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c54-0fae-7662-8f38-e8621285c5df.1783960440750419000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

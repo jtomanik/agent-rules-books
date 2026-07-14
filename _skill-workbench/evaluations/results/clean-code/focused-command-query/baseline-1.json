@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/focused-command-query.md",
+  "case_sha256": "bade0e9ce79858f47d07125e55d2ac72623fb5d89d19580ea2124bbb337646fa",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5337-e63b-7072-a051-53b7cb20df50",
+  "exit_code": 0,
+  "result": {
+    "answer": "Under Clean Code\u2019s command-query rule, `findUser` is technically a violation. It answers a question and also mutates object state by populating `usersById`. Under the hidden-side-effect guidance, the main problem is not that the mutation is catastrophic, but that the method name reads like a pure lookup while it quietly changes internal state.\n\nThe second reviewer is still partly right: a strong-reason exception exists for internal memoization or lazy caching when all of these hold:\n- The mutation is strictly encapsulated.\n- It does not change the method\u2019s business result, only performance.\n- The abstraction itself makes caching expected, not surprising.\n\nSo the ruling is: `findUser` on `UserDirectory` should be treated as non-ideal under Clean Code, but a narrowly justified exception is acceptable if caching is the point of the abstraction or is made explicit enough that the side effect is no longer hidden.\n\nSmallest acceptable alternatives:\n\n1. Keep the behavior, but make the cache explicit in the abstraction or name.\n```ts\ntype User = {\n  id: string;\n  displayName: string;\n};\n\nclass CachingUserDirectory {\n  private readonly usersById = new Map<string, User | undefined>();\n\n  constructor(private readonly repository: UserRepository) {}\n\n  findUser(id: string): User | undefined {\n    if (!this.usersById.has(id)) {\n      this.usersById.set(id, this.repository.findById(id));\n    }\n\n    return this.usersById.get(id);\n  }\n}\n```\nThis is the smallest strong-reason exception: same code, but the side effect is no longer conceptually hidden.\n\n2. Make the mutation explicit in the method name.\n```ts\ngetOrLoadUser(id: string): User | undefined {\n  if (!this.usersById.has(id)) {\n    this.usersById.set(id, this.repository.findById(id));\n  }\n\n  return this.usersById.get(id);\n}\n```\nThis still mixes command and query, but it is clearer and less misleading.\n\n3. Split command from query if you want strict CQS.\n```ts\nprimeUser(id: string): void {\n  if (!this.usersById.has(id)) {\n    this.usersById.set(id, this.repository.findById(id));\n  }\n}\n\ngetCachedUser(id: string): User | undefined {\n  return this.usersById.get(id);\n}\n```\nThis is the cleanest reading of the rule, but it is a larger API cost.\n\nIf you are applying Clean Code strictly, reject the original method. If you allow a strong-reason exception, accept only the explicit-caching version, not the original `findUser` name on a generic `UserDirectory`.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Treat the original `findUser` method as a command-query separation violation because it returns a value while mutating internal cache state.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Allow a narrow exception only when the caching behavior is explicit in the abstraction or method naming, so the side effect is not hidden.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Prefer either an explicit caching name like `getOrLoadUser`/`CachingUserDirectory` or a strict split such as `primeUser` plus `getCachedUser`, depending on how strictly you want to enforce CQS.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:07:17.198747Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-e63b-7072-a051-53b7cb20df50.1783807600187424000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

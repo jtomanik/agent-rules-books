@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5361-8af0-79e2-a957-dc9ccaf576e6",
+  "exit_code": 0,
+  "result": {
+    "answer": "1. High: the integration can wait forever before it even reaches the carrier, which violates the checkout degradation contract under saturation. In `fetchCarrierQuote` at the semaphore acquire (`snippet lines 5-7`), `Semaphore.acquire()` has no deadline or signal, so once `CARRIER_MAX_IN_FLIGHT=32` is exhausted, quote work can queue indefinitely instead of degrading to `{ kind: \"unavailable\" }`. For an optional dependency, that is the wrong overload behavior. Smallest fix before merge: make slot acquisition abortable from `requestSignal` or a derived deadline, and return `unavailable` when the wait is cancelled.\n\n2. High: the outbound call is not actually bounded by the checkout request budget. In the `carrierClient.post()` call (`snippet lines 9-18`), `requestSignal` is ignored, and the documented `timeoutMs` does not cover connection establishment. That leaves DNS/TCP/TLS/connect hangs outside the 2000 ms response timer, so checkout can be held past `CHECKOUT_REQUEST_TIMEOUT_MS=2500`. Smallest fix before merge: pass an abort signal to the client and combine the checkout signal with a carrier-specific timeout so both semaphore wait and the entire HTTP exchange are cut off within budget.\n\n3. Medium: all provider and contract failures are currently collapsed into transient \u201cunavailable\u201d, which hides broken releases and violates the stated response contract. The code parses JSON unconditionally and catches everything into `{ kind: \"unavailable\" }` (`snippet lines 19-31`). That means `4xx`, non-`200`, non-JSON bodies, and malformed `200` payloads are treated the same as `429`/`5xx`/timeout/transport failure, even though the contract explicitly separates them. Smallest fix before merge: validate `status`, content type, and payload shape before returning `available`; map only `429`, `5xx`, timeout, and transport failure to `unavailable`; treat `4xx` and invalid `200` bodies as integration/contract errors with distinct error logging and metrics.\n\nAssumptions and scope: I am not asking for retries, a circuit breaker, or a broader checkout audit. The existing no-retry posture is correct for this path, and the semaphore is a reasonable bulkhead once its wait is bounded.\n\nMinimal pre-merge change set:\n- Make semaphore acquisition cancellable by `requestSignal`.\n- Pass an abort signal into `carrierClient.post()` so connect time and in-flight request time are both bounded.\n- Add explicit response validation and failure classification at the HTTP boundary.\n- Emit distinct diagnostics for contract bugs vs transient unavailability.\n\nResidual testing gap worth covering before release: one focused test each for semaphore saturation, caller cancellation, connect/timeout abort, `429`/`5xx` fallback, and `4xx` or malformed `200` classification.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:53:11.229920Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5361-8af0-79e2-a957-dc9ccaf576e6.1783810329330372000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

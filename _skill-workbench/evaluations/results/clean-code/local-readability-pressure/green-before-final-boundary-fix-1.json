@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5354-30bd-7783-ba33-16ae5cef9ede",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a strictly local change: extract discount calculation into a small pure helper, then add the `partner` rule there. That keeps the risky part isolated and avoids adding more branching into `finalize`, which already mixes calculation, mutation, persistence, email, and audit.\n\nRecommended interpretation: make `partner` at `total >= 500` a new base discount rule, and keep the existing `> 1_000` extra `0.05` behavior unchanged. That yields `0.15` for qualifying partner invoices and `0.20` when the same invoice is also above `1_000`. If product meant \"exactly 15% total, no stacking,\" that must be stated explicitly because it changes an existing cross-cutting discount rule.\n\nConcrete patch plan:\n1. Extract discount logic from `finalize` into `private calculateDiscount(account: Account, invoice: Invoice): number` or a nearby pure function.\n2. Replace the current inline `let d = ...` block with a call to that helper.\n3. Implement base discount selection explicitly: `vip -> 0.10`, `partner with total >= 500 -> 0.15`, otherwise `0`.\n4. Preserve the existing large-invoice adjustment as a separate step: `if (invoice.total > 1_000) discount += 0.05`.\n5. Leave preview, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, and `lastInvoiceId` behavior untouched.\n6. Add targeted tests only around the changed contract and one non-regression path for side effects.\n7. Run the full TypeScript test suite before shipping.\n\nFunction sketch:\n\n```ts\nclass InvoiceService {\n  // ... existing fields/ctor\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.calculateDiscount(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n\n  private calculateDiscount(a: Account, i: Invoice): number {\n    let discount = 0;\n\n    if (a.segment === \"vip\") {\n      discount = 0.10;\n    } else if (a.segment === \"partner\" && i.total >= 500) {\n      discount = 0.15;\n    }\n\n    if (i.total > 1_000) {\n      discount += 0.05;\n    }\n\n    return discount;\n  }\n}\n```\n\nExact scope boundary:\n- In scope: discount calculation only.\n- In scope: a small extraction that makes the new rule readable and testable.\n- Out of scope: changing `finalize` signature, removing boolean flags, changing persistence/email/audit sequencing, altering rounding behavior, introducing new types/policies/strategy objects, or refactoring unrelated service structure.\n\nTests required before shipping:\n1. `partner` with `total = 499.99` gets no new partner discount.\n2. `partner` with `total = 500` gets `discount = 0.15` and correct amount.\n3. `partner` with `total = 1000` still gets `0.15` only.\n4. `partner` with `total = 1000.01` gets `0.20` if stacking is intended.\n5. Existing `vip` cases still return `0.10`, and `0.15` above `1_000`.\n6. Existing `standard` cases still return `0` and `0.05` above `1_000`.\n7. One non-preview finalize test for a qualifying partner account still verifies unchanged side effects: `accounts.save`, optional `mailer.send`, and `audit.record` receive the new discounted amount.\n8. One preview test for a qualifying partner account verifies `changed: false` and no side effects.\n\nShip/no-ship bar: I would ship after those tests pass and the existing suite remains green. I would not broaden the change further under rewrite pressure.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:38:25.997403Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5354-30bd-7783-ba33-16ae5cef9ede.1783809454269436000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

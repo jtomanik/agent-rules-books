@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/focused-command-query.md",
+  "case_sha256": "bade0e9ce79858f47d07125e55d2ac72623fb5d89d19580ea2124bbb337646fa",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5349-326e-7521-919a-2a2cb064e1b2",
+  "exit_code": 0,
+  "result": {
+    "answer": "`findUser` is a Clean Code violation as written.\n\nUnder the repository\u2019s Clean Code guidance, two rules apply directly: a function that answers a question should not also mutate state, and hidden side effects should be eliminated. `findUser(id)` reads like a query, but on a cache miss it mutates `usersById`. The fact that the mutation is internal does not remove the problem; it is still a hidden state transition, and the guidance also says to keep state transitions obvious.\n\nThe \"internal lazy cache is harmless\" argument is too broad. A strong-reason exception can exist, but only narrowly: if lazy memoization is materially necessary and splitting the API would make the design worse overall. Even then, the exception does not justify a query-shaped name that hides mutation. The minimum acceptable form is to make the load/memoize behavior explicit.\n\nSmallest acceptable alternatives:\n\n1. Strict command-query separation:\n```ts\nfindCachedUser(id: string): User | undefined {\n  return this.usersById.get(id);\n}\n\nloadUser(id: string): User | undefined {\n  const user = this.repository.findById(id);\n  this.usersById.set(id, user);\n  return user;\n}\n```\nThis is the cleanest ruling under the guidance.\n\n2. Smallest practical exception when lazy caching is justified:\n```ts\ngetOrLoadUser(id: string): User | undefined {\n  if (!this.usersById.has(id)) {\n    this.usersById.set(id, this.repository.findById(id));\n  }\n\n  return this.usersById.get(id);\n}\n```\nThis still mixes query and mutation, so it is an exception, not a clean CQS pass. The improvement is that the name makes the side effect visible instead of hiding it behind `findUser`.\n\nRuling: reject `findUser` under Clean Code command-query and hidden-side-effect guidance. Accept a lazy-cache exception only with a strong reason, and only if the API makes the state change explicit.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md",
+      ".agents/skills/clean-code/references/index.md",
+      ".agents/skills/clean-code/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:26:10.289848Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5349-326e-7521-919a-2a2cb064e1b2.1783808733806873000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "baseline",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5339-a3a0-7b40-88f5-ee6521c5252b",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use two bounded patches, with characterization coverage before semantics.\n\nPatch 1 should create a test seam around `RenewalWorker` without changing outcomes. Add focused worker-level tests for `quote()` and `renew()` by injecting both dependencies that are currently hidden: a `RenewalDatabase` instance and the current time source. The safe shape is a constructor overload or optional params such as `{ database, now }`, with production defaults still creating `new RenewalDatabase(process.env.RENEWAL_DSN!)` and `new Date()`. Before any semantic edit, learn and lock down these behaviors in tests: `quote()` returns a price only for currently eligible accounts, `renew()` writes the renewal row and mark-renewed timestamp only for currently eligible accounts, `renew()` returns `\"skipped\"` and performs no writes for ineligible accounts, and both methods use the same effective timestamp when the clock is fixed. Also confirm the existing slow end-to-end test remains untouched as the broad integration check.\n\nPatch 2 should add the new rule in tests first, then in code, while keeping one owner for eligibility. Add explicit cases for trial accounts at the boundary: younger than 30 days stays eligible, exactly 30 days needs a product decision and must be pinned explicitly before coding, older than 30 days becomes ineligible for both `quote()` and `renew()`. Before semantic edits, control the date basis for the rule: whether age is computed from exact elapsed milliseconds or calendar days, whether `trialStartedAt` is guaranteed ISO/UTC, and what should happen if a trial account has `trialStartedAt: null` or an invalid value. Once those decisions are pinned, introduce a single private eligibility function or extracted policy, for example `isEligibleForAutomaticRenewal(account, now)`, and switch both `quote()` and `renew()` to use it. That structural consolidation patch must be behavior-preserving except for the newly specified trial-age rule: same database calls, same transaction boundaries, same timestamps written, same return values, and no expansion of eligibility for paused, closed, or negative-balance accounts.\n\nRecommended review order:\n1. Dependency-injection seam plus characterization tests, with no logic change.\n2. Trial-age tests documenting boundary behavior.\n3. Shared eligibility owner adopted by both call sites.\n4. Minimal semantic diff adding the `trial > 30 days` exclusion inside that shared owner.\n\nPatch boundaries to keep review safe:\n- Boundary A: `RenewalWorker` constructor and private helpers only, plus new focused tests.\n- Boundary B: no `RenewalDatabase` API redesign unless tests prove the current surface blocks isolation.\n- Boundary C: no changes to pricing, transaction shape, persistence schema, or unrelated account rules.\n- Boundary D: if exact-30-day handling or null `trialStartedAt` is unspecified, stop and get that requirement clarified before merging the semantic patch.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "First add a controllable database and clock seam around `RenewalWorker`, and use it to write focused characterization tests for current `quote()` and `renew()` behavior before any logic change.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Pin the new trial-age rule with boundary tests, especially the exact 30-day cutoff and malformed or null `trialStartedAt`, before implementing the semantic change.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Consolidate the duplicated conditional into one shared eligibility owner only after current behavior is covered, and keep that refactor behavior-preserving except for the new trial-age exclusion.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": ""
+}

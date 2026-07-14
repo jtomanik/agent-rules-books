@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5355-d5ae-75b0-9947-b56e7dbd25a3",
+  "exit_code": 0,
+  "result": {
+    "answer": "The correct boundary is neither \u201ccrash on every exception\u201d nor \u201ccatch, ack, and continue.\u201d In this configuration, `throw` on all failures is unsafe because `max_deliveries: 0`, no DLQ, `restart: always`, six replicas, and immediate redelivery turn any poison input into a fleet-wide restart loop. A broad `catch` plus `ack` is also unsafe because it converts retryable dependency failures into silent data loss.\n\n**Policy**\n1. Malformed incoming message: quarantine, do not crash.\nA bad `message.body` or invalid `InventoryEvent` shape is a poison message. It will never succeed on retry, so it must leave the hot path immediately. With the current broker settings, that requires an explicit quarantine path: dead-letter queue or equivalent reject-without-requeue handling. Logging and rethrowing is wrong here because it restarts the process and redelivers the same poison message forever.\n\n2. Transient dependency failure: retry in a bounded way, then pause consumption, do not ack, do not crash.\n`503`, timeout, and even `200` with malformed dependency JSON are dependency failures, not message failures. The message may be valid. Do not acknowledge it. Do not crash the process, because process restart just redelivers all unacked work and amplifies load. Retry with one bounded policy only, with timeout and backoff/jitter. If the dependency remains unhealthy after that budget, stop consuming new work and surface an unhealthy/paused state for operators. Given there is no per-message or per-partition pause, pausing the deployment is the correct escalation after bounded retries are exhausted.\n\n3. Compromised process state: crash.\nLet the exception escape only when the process cannot be trusted to continue safely: corrupted shared state, broken DB/broker client invariants, unrecoverable initialization/configuration faults, resource exhaustion, or a bug class that leaves the worker in an unknown state. That is the proper supervisor boundary. A normal per-message parse error or dependency outage does not meet that bar.\n\n**Why this is the exact boundary here**\nThe staging incident already proved the failure chain: malformed messages plus unconditional rethrow plus unlimited redelivery plus unconditional restart caused restart storms across all six replicas. The opposite extreme, acking inside one broad catch, would lose valid events whenever inventory returns `503`, times out, or emits malformed JSON.\n\n**Minimal changes needed**\n- Add explicit message validation before calling dependencies or the database, and route invalid messages to quarantine immediately.\n- Configure a quarantine path: non-null dead-letter exchange and finite `max_deliveries` for poison handling. Unlimited deliveries is incompatible with safe malformed-message handling.\n- Add an explicit dependency timeout. `dependency_timeout_ms: 0` is not safe.\n- Use exactly one retry layer for dependency failures. If `dependency_retries: 3` is active, keep it bounded and add backoff/jitter; do not also rely on infinite broker redelivery as a second retry system.\n- Add a consumer paused/circuit-broken state for exhausted dependency failures, and make readiness mean \u201csafe to consume\u201d rather than merely \u201cbroker connection is open.\u201d Current readiness is not operationally meaningful for this worker.\n- Keep process crash reserved for unrecoverable worker-state corruption only.\n\n**What to test**\n- Malformed message is quarantined once, never retried, and does not restart the worker.\n- Inventory `503` and timeout are retried within the configured budget, not acknowledged, and eventually transition the consumer to paused/unready rather than crash-looping.\n- Inventory `200` with malformed JSON follows the same dependency-failure path, not the poison-message path.\n- A simulated unrecoverable internal failure still exits the process and is restarted by the supervisor.\n- No nested retry storm: verify total attempts and backoff behavior under six replicas.\n\nIn short: poison messages go to quarantine, dependency failures retry then pause, only compromised process state crashes.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-11T22:40:42.421005Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5355-d5ae-75b0-9947-b56e7dbd25a3.1783809562031187000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

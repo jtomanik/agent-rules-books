@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/local-readability-pressure.md",
+  "case_sha256": "dc1d7374ccd150c7a960ec85358a81fa736d9414de1a4671ab1976ebcc9f234a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58da-6f73-76d0-9e31-3ffbfa2d7dbe",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest scope is a local change to discount calculation only. Do not broaden into fixing `finalize` shape, removing boolean flags, or restructuring side effects. Preserve the existing save/email/audit flow exactly, and change only the computed `discount`/`amount` for `partner` accounts with `invoice.total >= 500`.\n\nConcrete patch plan:\n1. Extract discount calculation into a small pure helper such as `private discountFor(account: Account, invoice: Invoice): number` or a file-local function.\n2. Encode the new rule there first: if `account.segment === \"partner\" && invoice.total >= 500`, return `0.15`.\n3. Keep existing behavior for every other case: `vip` gets `0.1`, invoices with `total > 1000` add `0.05`, standard gets `0`.\n4. Leave preview handling, balance mutation, `accounts.save`, `mailer.send`, `audit.record`, and `lastInvoiceId` untouched.\n5. Run the existing suite plus the new boundary/regression tests below.\n\nRevised sketch:\n```ts\nclass InvoiceService {\n  private lastInvoiceId: string | undefined;\n\n  constructor(\n    private readonly accounts: AccountRepository,\n    private readonly mailer: Mailer,\n    private readonly audit: AuditLog,\n  ) {}\n\n  private discountFor(account: Account, invoice: Invoice): number {\n    if (account.segment === \"partner\" && invoice.total >= 500) {\n      return 0.15;\n    }\n\n    let discount = account.segment === \"vip\" ? 0.1 : 0;\n    if (invoice.total > 1_000) {\n      discount += 0.05;\n    }\n    return discount;\n  }\n\n  finalize(a: Account, i: Invoice, preview: boolean, sendEmail: boolean) {\n    const discount = this.discountFor(a, i);\n    const amount = i.total * (1 - discount);\n\n    if (preview) {\n      return { amount, discount, changed: false };\n    }\n\n    a.balance -= amount;\n    this.accounts.save(a);\n    this.lastInvoiceId = i.id;\n\n    if (sendEmail) {\n      this.mailer.send(a.id, i.id, amount);\n    }\n\n    this.audit.record(\"invoice-finalized\", {\n      accountId: a.id,\n      invoiceId: i.id,\n      amount,\n    });\n\n    return { amount, discount, changed: true };\n  }\n}\n```\n\nI would ship with the assumption that partner-at-500 means a flat 15% total discount for that slice, not 15% plus the existing `> 1000` 5%. The wording is specific, and this keeps the change narrowly targeted. If product actually wants additive behavior for partner invoices over 1000, that is a one-line rule change, but it should be confirmed explicitly because `0.15` vs `0.20` is user-visible.\n\nTests required before shipping:\n- `partner` with `total === 500` in preview returns `discount: 0.15`, `amount: 425`, `changed: false`, and no side effects.\n- `partner` with `total > 500` in finalize updates balance by the discounted amount and preserves `accounts.save`, `audit.record`, and optional `mailer.send` behavior.\n- `partner` with `total < 500` gets no partner discount.\n- `partner` with `total > 1000` gets `0.15` total discount under the chosen interpretation, guarding against accidental additive `0.20`.\n- Existing regression tests remain for `standard`, `vip`, preview mode, email on/off, and audit/save calls.\n\nExact scope boundary: one new pricing rule in discount computation plus focused tests for its thresholds and interaction with the old `> 1000` rule. No interface redesign, no persistence/mail/audit changes, no rewrite of `finalize`, and no opportunistic cleanup outside the touched decision logic.",
+    "selected_project_skills": [
+      "code-complete",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-13T00:23:03.234281Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f58da-6f73-76d0-9e31-3ffbfa2d7dbe.1783902138228214000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

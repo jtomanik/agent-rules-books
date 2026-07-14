@@ -1,0 +1,32 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/02-uncertain-db-time-change.md",
+  "case_sha256": "c212d5e1d9167a8e7755d15c96c8e7f15225c577a6b72d98f8cdb07935f40c3a",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b9-da1a-76b2-9550-08f665635029",
+  "exit_code": 0,
+  "result": {
+    "answer": "Safest bounded change: do not alter transaction scope, exception flow, constructor behavior, or persistence calls beyond delaying the due check by a computed 48-hour offset. Treat this as a legacy change.\n\nRecommended implementation shape:\n1. First introduce a minimal seam for hidden inputs so the behavior can be characterized without the staging DB:\n   - inject `now(): Date` or a clock object\n   - inject the database collaborator, or at least a narrow `BillingDatabaseLike`\n   - keep current defaults so production behavior is unchanged when callers do not pass test doubles\n2. Add characterization tests for current externally visible behavior before changing semantics:\n   - returns `\"charged\"` when `nextChargeAt <= now`\n   - returns `\"not-due\"` when `nextChargeAt > now`\n   - on charge, writes one charge row and marks the account charged inside one transaction\n   - exceptions from `find`, `transaction`, `insert`, or `markCharged` still propagate exactly as today\n   - `chargedAt` and `markCharged(..., timestamp)` use the same captured `now`\n3. Then change only the policy calculation:\n   - compute `graceDeadline = new Date(account.nextChargeAt).getTime() + 48 * 60 * 60 * 1000`\n   - charge only when `graceDeadline <= now.getTime()`\n   - keep the existing inclusive boundary behavior relative to the new deadline unless product explicitly says otherwise\n\nThat yields a minimal semantic diff: \u201cdue at `nextChargeAt`\u201d becomes \u201cdue at `nextChargeAt + 48h`\u201d, while preserving current transaction and exception behavior.\n\nVerification plan:\n1. Fast unit tests with fakes, not staging, for:\n   - exactly 1 ms before grace deadline: `\"not-due\"`\n   - exactly at grace deadline: current inclusive behavior preserved, so `\"charged\"`\n   - after grace deadline: `\"charged\"`\n   - transaction callback contains both write operations in order\n   - failure cases preserve current propagation and do not add retries/swallowing\n2. Add one narrow integration check only if a cheap isolated DB harness already exists. Do not rely on the shared slow staging database as the main safety mechanism.\n3. If staging must be used, bound it to read/observe or to a disposable test account only. No shared-fixture cleanup assumptions.\n4. Before release, run a one-off query/report to identify accounts whose `nextChargeAt` is already more than 48 hours old, because they will become immediately chargeable after deploy.\n\nProduct decisions that must be resolved explicitly, not inferred from code:\n- Boundary rule: should charging happen exactly at `nextChargeAt + 48h`, or only after that instant?\n- Time interpretation: are stored `nextChargeAt` values guaranteed to be absolute timestamps with correct timezone/offset semantics, or have some rows historically been stored in local time / naive time?\n- Migration behavior for already overdue accounts: should they charge immediately on first scheduler run after deploy, or should existing overdue rows get special handling?\n- Grace-period basis: is the grace period always 48 absolute hours, or \u201c2 local calendar days\u201d in an account/business timezone?\n- Invalid timestamp behavior: if `nextChargeAt` is malformed or timezone-ambiguous, should the scheduler fail, skip, or quarantine the account?\n\nWithout those decisions, the safest engineering move is to preserve every observable behavior except the single policy delta of adding 48 absolute hours to the due threshold.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T09:48:40.478416Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55b9-da1a-76b2-9550-08f665635029.1783849671195566000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

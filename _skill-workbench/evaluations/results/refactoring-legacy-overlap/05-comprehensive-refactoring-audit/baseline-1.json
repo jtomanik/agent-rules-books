@@ -1,0 +1,68 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/05-comprehensive-refactoring-audit.md",
+  "case_sha256": "db282b1f375a7c34471b235cfb87c033084598dd0cccc9a8b06b8e2e4b4d4c51",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5339-a38d-73f2-8799-4a348627f4a8",
+  "exit_code": 0,
+  "result": {
+    "answer": "This is not a behavior-preserving refactoring as proposed. It mixes refactoring with new feature work, architectural speculation, and at least one direct behavioral regression.\n\nPrimary findings:\n1. Reject the change as a single step. `gateway.authorize(total); gateway.capture(total);` becomes `capture` before `authorize`. Your contract suite explicitly covers event order, so this is an observable behavior change and fails Fowler\u2019s refactoring bar.\n2. Reject the new `expedited` path from the refactoring scope. It introduces a new shipping rule (`4_000`) and a new input dimension. That is feature work, not refactoring.\n3. Reject the public API replacement from exported function `settle(order, gateway)` to `SettlementFacade#setttle(order, gateway, expedited?)` as part of a preservation-only cleanup. Changing the entry point, construction model, and call shape is externally observable unless you keep the original function as a compatibility wrapper.\n4. Reject `Strategy`/`Facade` unless there is a real second algorithm or imminent variation point. Fowler refactoring favors small justified abstractions; this is speculative generality.\n5. Treat `SettlementNumbers` as potentially refactoring, but only after resequencing. A mutable data bag can be introduced safely as an internal step, but here it is bundled with feature and API changes, so it is not defensible in this form.\n\nWhat is refactoring here:\n- Replacing repeated arithmetic with named locals or extraction of calculation steps.\n- Introducing an internal helper/value object if behavior and call contract stay identical.\n- Moving logic behind a wrapper while preserving the exported `settle` function and exact gateway call order.\n\nWhat is not refactoring here:\n- Adding `expedited` behavior.\n- Reversing `authorize`/`capture` order.\n- Replacing the exported function with a class-based fa\u00e7ade as the public contract.\n- Adding `Strategy` with only one implementation.\n\nSmallest useful transformations:\n1. Keep the exported `settle(order, gateway): Receipt` function unchanged.\n2. Extract pure calculations into local helpers in place: `calculateSubtotal`, `calculateDiscount`, `calculateShipping`, `calculateTax`.\n3. Preserve the exact sequencing side effects: validate, compute, `authorize`, `capture`, return receipt.\n4. If desired, introduce an internal `SettlementNumbers` result builder only after the helpers are covered and behavior is proven unchanged.\n5. Only introduce a strategy abstraction when a second settlement algorithm actually exists.\n6. Only add `expedited` in a separate change set with new tests and an explicit product decision.\n\nVerification obligations:\n- Existing contract suite must pass unchanged.\n- Add characterization tests only if needed for internals, but do not rewrite the contract around the new design.\n- Verify exact exception type for empty orders remains `EmptyOrderError`.\n- Verify discount threshold boundary at `10_000` and shipping boundary at post-discount `5_000` remain exact.\n- Verify international shipping still dominates domestic free-shipping logic exactly as before.\n- Verify gateway interaction order remains `authorize` then `capture` with the same `total` argument.\n- Verify returned receipt fields and integer rounding behavior are byte-for-byte equivalent for representative boundary cases.\n\nDefensible stopping point:\nStop after extracting the pure calculations and, at most, a private internal helper/value object while preserving the exported function and side-effect order. That gives better readability and testability without speculative abstraction. Do not proceed to `Strategy`, `Facade`, or `expedited` until there is a concrete second workflow or approved new behavior.\n\nA Fowler-style sequence would be: characterize behavior, extract calculations, name concepts, optionally encapsulate the receipt construction internally, rerun the contract suite after each micro-step, and stop. Anything beyond that needs a separate change narrative, not a refactoring label.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Reject the proposed replacement as a single refactoring because it changes observable behavior by reversing gateway call order.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Split `expedited` shipping into a separate feature change with its own tests instead of including it in a cleanup.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Preserve the exported `settle(order, gateway): Receipt` function as the public contract during cleanup; if a fa\u00e7ade is desired, add it behind a compatibility wrapper first.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Resequence the work into micro-refactorings: extract subtotal/discount/shipping/tax calculations, preserve side-effect order, then optionally introduce an internal value object.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Do not introduce `SettlementStrategy` until there is at least one additional concrete settlement algorithm or a committed near-term need.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Use the existing contract suite as the primary proof obligation and add focused boundary assertions only where the extracted internals increase risk.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Adopt a defensible stopping point after improved naming and extraction, before speculative abstractions like `Facade` and `Strategy`.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:08:34.343967Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5339-0b19-75b0-a095-31e980818b78.1783807675161548000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

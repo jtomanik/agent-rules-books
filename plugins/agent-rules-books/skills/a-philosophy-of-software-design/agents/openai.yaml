@@ -1,0 +1,7 @@
+interface:
+  display_name: "A Philosophy of Software Design"
+  short_description: "Review module depth and hidden complexity"
+  default_prompt: "Use $a-philosophy-of-software-design to review this module and API design."
+
+policy:
+  allow_implicit_invocation: true

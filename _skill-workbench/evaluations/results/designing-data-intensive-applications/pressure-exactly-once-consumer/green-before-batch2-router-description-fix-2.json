@@ -1,0 +1,29 @@
+{
+  "case": "_skill-workbench/evaluations/cases/designing-data-intensive-applications/pressure-exactly-once-consumer.md",
+  "case_sha256": "fab8c5000666b1938f128cff7c6ae19ed9e3008da2d34d6e381c0035aab01e32",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585a-5d9f-7283-bbd1-8cde9c8fcf1b",
+  "exit_code": 0,
+  "result": {
+    "answer": "The shortcut is not safe for launch.\n\nBroker exactly-once here is not end-to-end. It can cover broker state and offset commit, but it does not make the database write plus external email send exactly once. Given the stated crash window, a redelivery after `ledger` committed but before offset commit will run `consume` again. Without the idempotency table or an equivalent inbox/uniqueness guard, this can duplicate the ledger entry and re-send the receipt.\n\nThe current consumer also is not replay-safe. Replay is an explicit supported operation, but this handler performs non-rebuild side effects: it mutates durable business state and sends user-visible email. Reprocessing historical messages would re-apply those effects unless each event is deduplicated durably and side effects are suppressed or separately rebuilt.\n\nOrdering is also not safe as configured. The topic is partitioned by `customer_id`, while correctness is per `orderId`. The facts say two events for the same order can land on different partitions, so there is no per-order ordering guarantee. With `max_concurrency: 48`, the same order can be processed concurrently. That means duplicate or reordered work can race through `markConfirmed`, `ledger.insert`, and `sendReceipt` unless the database enforces a single valid transition and a single ledger effect per event/order.\n\nThe email side effect is the hardest blocker. The provider does not support idempotency keys, and timeout outcome is unknown. If `sendReceipt` times out, you cannot know whether the user already received the email. Retrying risks a duplicate receipt; not retrying risks a missing receipt. Because duplicate receipts are defined as a correctness defect, this provider/integration cannot satisfy the requirement unchanged.\n\nWhat must change before launch:\n\n1. Keep the deduplication mechanism, or replace it with an equivalent durable inbox keyed by a stable event identity, committed atomically with the database changes.\n2. Make the database effects idempotent and concurrency-safe. At minimum, enforce one confirmation transition and one ledger effect per logical event/order with database constraints or compare-and-set semantics; do not rely on broker delivery semantics.\n3. Remove direct email sending from this consumer transaction path. Persist a durable receipt intent/outbox record in the same database transaction as the business state change.\n4. Do not approve the email path until unknown-success is solved. Before launch, use a provider or API contract that supports idempotent sends or a reliable delivery-status lookup keyed by your own request identity. Without that, exactly-once visible receipt delivery is not defensible.\n5. Define replay behavior explicitly. Either this handler must ignore already-applied events and suppress side effects during rebuilds, or replay must use a separate rebuild path that does not resend receipts.\n6. If per-order ordering matters beyond pure deduplication, repartition by `orderId` or add explicit per-order serialization/version checks in the database.\n\nBottom line: removing the idempotency table and approving the consumer unchanged would rely on exactly-once wishful thinking. The broker feature is insufficient for duplicate, replay, ordering, and unknown-success side-effect correctness in this design.",
+    "selected_project_skills": [
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/designing-data-intensive-applications/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:02:25.141166Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-fc4f-76e0-8635-027cc49cec86.1783893720144857000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:02:25.292485Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-fc32-70b1-a715-592d3111ae45.1783893720115863000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:02:25.324699Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-fc17-7143-9391-4ab6db19884e.1783893720087969000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:02:25.385013Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-fc15-7f30-9867-7b3aa4e95a7b.1783893720087030000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:03:05.708487Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585a-5d9f-7283-bbd1-8cde9c8fcf1b.1783893745055977000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

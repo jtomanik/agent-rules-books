@@ -1,0 +1,394 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/comprehensive-domain-model-audit-v2.md",
+  "case_sha256": "c56478a3d5ea9b92b2d24b7d277d5110631e6b7aa5a25d4a74e5d269efda4c70",
+  "mode": "green",
+  "run": "green-inline-map-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.4",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "repository",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f604a-8086-7493-a9ed-a06b81b8a0cb",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "**Overall Verdict**\n\nThe current design is not a domain model; it is a shared enterprise data model with workflow wrappers. The strongest failure modes are:\n- one shared model across Sales, Underwriting, Policy Administration, Billing, Claims, and Reinsurance\n- contradictory meanings for `policy status` and `claim status`\n- generic workflow services owning business decisions\n- persistence-shaped entities instead of behavior-bearing domain objects\n- transactions stretched across multiple business capabilities\n- vendor terminology leaking into core code\n- no explicit translation between teams or systems\n\nThat combination produces a Big Ball of Mud with accidental shared kernels. In insurance, that is especially damaging because the same nouns are real but not equivalent across contexts. `Policy`, `claim`, `status`, `coverage`, `exposure`, and `reserve` do not mean one thing platform-wide.\n\n**Strategic Audit**\n\nThe first strategic correction is to stop treating the platform as one model. It should be split into explicit Bounded Contexts:\n- Sales\n- Underwriting\n- Policy Administration\n- Billing\n- Claims\n- Reinsurance\n\nRecommended subdomain classification:\n- `Claims`: Core Domain. This is the differentiating capability and should receive the richest model, the strongest language discipline, and the most testing/refactoring budget.\n- `Underwriting`: Supporting, but model-rich where product/risk rules are complex.\n- `Policy Administration`: Supporting operational backbone with real lifecycle complexity.\n- `Reinsurance`: Supporting and specialized; important, but not where the platform should spend equal modeling effort by default.\n- `Sales`: Supporting. Model channel/distribution behavior, but do not let it define downstream insurance concepts.\n- `Billing`: Generic or light Supporting unless the business truly differentiates on billing products.\n\nEqual strategic investment across all six areas is a mistake. Claims should be protected and deepened first; Billing and parts of Sales should stay simpler unless complexity proves otherwise.\n\n**Model Discovery And Expert Knowledge**\n\nThe current symptoms imply missing knowledge crunching, not just poor implementation. The audit should start with collaborative model discovery around real scenarios, not entity diagrams.\n\nRequired expert participation:\n- Sales/distribution lead\n- Underwriter\n- Policy servicing specialist\n- Billing operations expert\n- Claims adjuster and claims manager\n- Reinsurance specialist\n- Coverage/legal expert where policy wording matters\n\nRequired discovery artifacts:\n- one context map for all six contexts\n- one glossary per context, not one platform glossary\n- event storming or equivalent scenario mapping for cross-context flows\n- explicit status dictionaries per context\n- example-based scenario catalogue\n- translation tables for statuses, identifiers, and key business facts crossing boundaries\n\nHigh-value walkthroughs:\n- new business from quote to bind to issued policy\n- endorsement mid-term with billing impact\n- cancellation for non-payment and reinstatement\n- FNOL on a policy near lapse/cancellation boundaries\n- claim with partial coverage dispute\n- claim reserve movement triggering reinsurance notification\n- large-loss claim with recovery and salvage/subrogation\n\nIf the model cannot explain those scenarios cleanly, the model is still shallow.\n\n**Ubiquitous Language Audit**\n\nThe platform currently violates language discipline. The same terms carry different meanings and generic words hide real concepts.\n\nCorrections:\n- `Policy` in Sales is usually a prospective offer or bind target; in Policy Administration it is an administered contract in force across a term.\n- `Claim status` must not mix intake progress, coverage position, investigation progress, financial maturity, and closure state.\n- `Policy status` must not mix contract lifecycle, billing standing, servicing workflow, and legal enforceability.\n- vendor or package terms must not appear as core domain terms unless the business itself uses them.\n- `WorkflowService`, `StateService`, `ProcessManager`, `GenericStatus`, `EntityData`, and similarly vague names are audit failures unless clearly outside the domain layer.\n\nRecommended language split:\n- Sales: `Prospect`, `Submission`, `Quote`, `Offer`, `Bind Request`\n- Underwriting: `Risk`, `Exposure`, `Rating Factor`, `Referral`, `Underwriting Decision`\n- Policy Administration: `Policy`, `Coverage`, `Endorsement`, `Term`, `Renewal`, `Cancellation`, `Reinstatement`\n- Billing: `Billing Account`, `Invoice`, `Installment`, `Delinquency`, `Payment Allocation`, `Write-off`\n- Claims: `Notice of Loss`, `Claim`, `Exposure`, `Coverage Position`, `Reserve`, `Settlement`, `Recovery`, `Subrogation`\n- Reinsurance: `Treaty`, `Facultative Placement`, `Cession`, `Attachment`, `Recovery`, `Bordereau`\n\n**Deeper Insight And Explicit Concepts**\n\nThe contradictory statuses indicate missing concepts. Do not repair that with a larger enum.\n\nFor Policy Administration, split at least these concerns:\n- contract lifecycle status\n- coverage effective status\n- servicing status\n- billing standing as an imported fact, not native policy state\n\nFor Claims, split at least these concerns:\n- intake status\n- coverage position\n- investigation status\n- financial status\n- closure status\n\nExamples of explicit concepts that should replace flags and conditionals:\n- `CoveragePosition`\n- `CancellationReason`\n- `ReinstatementEligibility`\n- `ReferralReason`\n- `ReserveAdequacy`\n- `AttachmentEvaluation`\n- `RecoveryEligibility`\n- `SettlementAuthority`\n- `NonPaymentTerminationRule`\n- `CoveragePeriod`\n- `WaitingPeriod`\n- `DeductibleApplication`\n\nWhen a boolean or status code hides a business rule, the model is too shallow.\n\n**Bounded Contexts And Relationships**\n\nRecommended context relationships:\n- Sales -> Underwriting: `Customer/Supplier` with a published quote/decision contract.\n- Underwriting -> Policy Administration: `Customer/Supplier` or `Published Language` around bound coverage and issuance inputs.\n- Policy Administration -> Billing: `Customer/Supplier` with explicit translation from policy obligations to billing schedule/account facts.\n- Policy Administration -> Claims: `Anticorruption Layer`. Claims must not consume policy admin classes or policy statuses directly.\n- Policy Administration -> Reinsurance: `Published Language` or ACL depending product/vendor complexity.\n- Claims -> Reinsurance: explicit integration, likely `Published Language` plus translation for recoverable loss facts.\n- Billing -> Claims: narrow published facts only, such as coverage-affecting payment standing where legally relevant.\n\nWhat should be forbidden:\n- shared domain classes across contexts\n- shared status enums across contexts\n- direct database coupling across contexts\n- one canonical `Policy` object used by Sales, Billing, Claims, and Reinsurance\n\nClaims especially needs protection from foreign models. It should receive translated policy coverage facts, not a foreign policy aggregate.\n\n**Model Integrity By Context**\n\nSales:\n- Keep the model light.\n- Focus on distribution workflow, quote intent, and bind requests.\n- Do not let Sales invent downstream policy or claim semantics.\n- A `Quote` or `Submission` aggregate may be enough.\n\nUnderwriting:\n- Model decision-making explicitly.\n- `Referral`, `Eligibility`, `Risk Assessment`, and `Underwriting Decision` are likely real concepts.\n- Underwriting should produce decisions and offered terms, not directly mutate administrative policy state.\n\nPolicy Administration:\n- This is the home of policy lifecycle and endorsement behavior.\n- Policy invariants belong here: term rules, endorsement applicability, renewal/cancellation/reinstatement rules.\n- Billing standing and claims handling progress should arrive as external facts, not become native policy state.\n\nBilling:\n- Keep the model focused on monetary obligations and collections behavior.\n- `BillingAccount` is not `Policy`.\n- Billing should not own contract semantics beyond the specific facts needed for invoicing and collection.\n\nClaims:\n- This is where the richest model belongs.\n- Do not collapse everything into one `Claim` aggregate if reserves, exposures, recoveries, and settlements evolve under different invariants.\n- Likely concepts include `Claim`, `Exposure`, `CoverageEvaluation`, `Reserve`, `RecoveryCase`, `Settlement`.\n- Claims status must reflect claim handling meaning, not policy admin or vendor workflow meaning.\n\nReinsurance:\n- Model ceded risk and recoveries explicitly.\n- `Treaty`, `Cession`, and `Recovery` should not be hidden behind accounting or file-transfer vocabulary.\n- Reinsurance should consume translated insurance facts, not direct policy or claim internals.\n\n**Tactical Audit**\n\nEntities and Value Objects:\n- The current persistence-shaped entities are wrong for a behavior-rich insurance platform.\n- Use Entities where identity/lifecycle matter: `Policy`, `Claim`, `BillingAccount`, `Treaty`, possibly `Submission`.\n- Use Value Objects aggressively for meaning-heavy concepts: identifiers, money, percentage, date range, deductible, retention, limit, coverage period, reason codes, reserve adjustments, decision outcomes.\n- Raw strings, integers, decimals, and broad enums for these concepts are a modeling defect.\n\nAggregates:\n- Current broad transactions strongly suggest oversized aggregates or missing boundaries.\n- One transaction should usually change one aggregate in one context.\n- Cross-context consistency should usually be eventual.\n- Do not size aggregates for ORM navigation or screen convenience.\n- Reference other aggregates by identity.\n\nDomain Services:\n- The generic workflow services are a red flag.\n- Replace them with either richer aggregates/value objects or narrowly named Domain Services where behavior truly spans multiple concepts.\n- Acceptable Domain Service examples: `CoverageEvaluationService`, `AttachmentCalculationService`, `PremiumAllocationPolicy`.\n- Unacceptable: one platform-wide `WorkflowService` owning transitions for policy, billing, and claims.\n\nRepositories:\n- Repositories should exist for aggregate roots, not tables.\n- They should return domain objects or domain-oriented results, not ORM rows.\n- A repository API should reflect access needs such as finding a `Claim` by claim number or reconstituting a `Policy` by policy ID and term, not generic CRUD.\n\nFactories:\n- Use factories where creation is domain-significant.\n- Likely candidates: claim intake from FNOL plus coverage snapshot, policy issuance from bound terms, reinsurance cession creation from covered exposure/loss facts.\n- Reconstitution from persistence must stay separate from creation of new valid domain objects.\n\nSpecifications and Policies:\n- The platform likely needs explicit specifications for coverage, eligibility, referral, attachment, and settlement conditions.\n- If those rules are scattered as conditionals in services, handlers, or repositories, the model is not carrying its meaning.\n\n**Application And Infrastructure Boundaries**\n\nThe current design appears to let workflow and persistence concerns own too much policy.\n\nTarget boundary discipline:\n- Domain layer owns insurance meaning and invariants.\n- Application layer coordinates use cases: load aggregate, invoke behavior, persist, publish events.\n- Adapters translate UI/API/vendor/file formats.\n- Infrastructure handles ORM, queues, frameworks, file feeds, vendor SDKs, and batch mechanics.\n\nAudit failures:\n- domain code importing vendor/framework/persistence types\n- application services containing the real business rules\n- adapters or jobs deciding valid transitions\n- repositories enforcing policy\n- one representation reused as API payload, ORM row, domain object, and integration message\n\n**Translation And Published Language**\n\nThere is currently no explicit translation between teams. That is a core defect.\n\nRequired translations:\n- policy admin policy state -> claims coverage facts\n- billing delinquency/payment facts -> policy admin contractual effects\n- claims loss/reserve/recovery facts -> reinsurance cession/recovery inputs\n- underwriting decision outputs -> policy issuance inputs\n- vendor codes -> local domain terms at the edge only\n\nEach translation should be owned explicitly and tested. If a team says it has an anticorruption layer, that layer must actually translate language and semantics, not just move JSON around.\n\n**Supple Design And Communication Artifacts**\n\nThe model should become easier to think with.\n\nThat means:\n- intention-revealing method names\n- side-effect-free calculations where possible\n- commands separated from queries when mixing them would surprise readers\n- explicit assertions around invariants\n- modules/packages named by context and business purpose\n- diagrams that show boundaries, relationships, invariants, and lifecycle instead of class catalogs\n- executable scenario tests as living documentation\n\nPreferred artifacts:\n- context map\n- per-context glossary\n- event catalog\n- scenario examples in business language\n- status decomposition matrix\n- translation contracts\n\n**Tests And Review Discipline**\n\nHighest-value tests:\n- aggregate invariant tests\n- valid/invalid transition tests\n- value object construction/validation tests\n- specification/policy tests\n- application-service orchestration tests\n- translation/ACL tests\n- event contract tests at context boundaries\n\nClaims should receive the strongest executable example coverage because it is the Core Domain.\n\nTests should read in business language. If tests mostly assert persistence shape or workflow plumbing, they are not protecting the model.\n\n**Refactoring Program**\n\nRecommended incremental sequence:\n1. Define the six Bounded Contexts and publish the first context map.\n2. Split shared `policy status` and `claim status` into context-local concepts.\n3. Protect Claims first with an ACL against the shared model and foreign statuses.\n4. Extract explicit concepts from generic workflow services and repeated conditionals.\n5. Redraw aggregates to reduce transaction scope to immediate invariants.\n6. Replace persistence-shaped entities with behavior-bearing aggregates/entities/value objects in the Claims core first.\n7. Move policy out of repositories, controllers, jobs, and vendor adapters into the model.\n8. Separate application contracts from domain objects and from persistence/transport shapes.\n9. Simplify non-core areas rather than giving every subdomain equal DDD ceremony.\n10. Retire the shared model gradually through published contracts and translations, not a big-bang rewrite.\n\n**Forbidden Patterns**\n\nThe platform should explicitly forbid:\n- one shared enterprise domain model\n- shared cross-context status enums\n- generic workflow engines in the domain layer\n- persistence-first aggregate design\n- table-shaped entities masquerading as domain objects\n- broad multi-context transactions by default\n- direct cross-context object references\n- vendor terminology in core domain code\n- repository-per-table designs\n- application services that own all branching rules\n- transport or ORM objects reused as domain model\n- equal modeling investment across all subdomains regardless of strategic value\n\n**Final Review**\n\nThe platform needs strategic DDD correction, not local cleanup. The core recommendation is:\n- split the shared model into explicit Bounded Contexts\n- give Claims clear Core Domain priority\n- decompose overloaded statuses into real concepts\n- replace generic workflow services with explicit domain behavior\n- restore small aggregates and one-aggregate transaction defaults\n- put translations at every context and vendor boundary\n- keep infrastructure and vendor detail out of the model\n\nIf those changes are made, the insurance platform can move from persistence-shaped process automation to an implementation-driving domain model. If they are not, additional features will continue to increase contradiction, transaction scope, and semantic drift instead of increasing capability.",
+    "selected_project_skills": [
+      "domain-driven-design",
+      "domain-driven-design-distilled",
+      "implementing-domain-driven-design",
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design/SKILL.md",
+      ".agents/skills/domain-driven-design/references/full.md",
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/domain-driven-design-distilled/references/full.md",
+      ".agents/skills/implementing-domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/references/full.md",
+      ".agents/skills/clean-architecture/SKILL.md",
+      ".agents/skills/clean-architecture/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "domain-driven-design",
+        "sections": [
+          "*"
+        ]
+      },
+      {
+        "skill": "domain-driven-design-distilled",
+        "sections": [
+          "*"
+        ]
+      },
+      {
+        "skill": "implementing-domain-driven-design",
+        "sections": [
+          "*"
+        ]
+      },
+      {
+        "skill": "clean-architecture",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T11:04:50.980703Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f604a-8086-7493-a9ed-a06b81b8a0cb.1784026923160463000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
+  "evaluation_manifest": {
+    "case": {
+      "path": "_skill-workbench/evaluations/cases/domain-driven-design/comprehensive-domain-model-audit-v2.md",
+      "sha256": "c56478a3d5ea9b92b2d24b7d277d5110631e6b7aa5a25d4a74e5d269efda4c70"
+    },
+    "catalog": {
+      "byte_count": 6841,
+      "entries": [
+        {
+          "description": "A Philosophy of Software Design guidance for deep modules and information hiding. Use when cognitive load, shallow wrappers, leaky caller knowledge, tactical patches, or changes spreading across files make module or API design central. Clean Code owns readability; Code Complete, construction; Clean Architecture, policy direction; Refactoring, behavior-preserving change; Pragmatic Programmer, DRY, reversibility, feedback, and engineering practice. Co-invoke for independently central concerns.",
+          "name": "a-philosophy-of-software-design"
+        },
+        {
+          "description": "Clean Architecture guidance for inward dependencies and policy/detail separation. Use when policy independence is central and policy imports details, adapters own business rules, or core code constructs infrastructure. Layers, adapters, tests, and databases alone are insufficient. Clean Code covers readability; Refactoring, protected structural change; Legacy Code, blocked first feedback; Release It, production failure. Co-invoke only when policy dependence is also central.",
+          "name": "clean-architecture"
+        },
+        {
+          "description": "Clean Code guidance for locally readable, low-surprise implementation. Use when vague names, mixed responsibilities, boolean modes, hidden mutation, flow-narrating comments, schedule/rewrite pressure, or framework/concurrency detail obstructs a scoped change. Do not add it to an explicit refactoring-only audit or legacy-control task unless a separate local-readability decision is requested.",
+          "name": "clean-code"
+        },
+        {
+          "description": "Code Complete guidance for construction in implementation/change, review, debugging, refactoring, and tuning. Use when nontrivial work coordinates several concerns, or when solution-first coding, happy-path-only tests, mixed behavior/refactoring, guess-driven debugging drives code changes, or evidence-free tuning threatens defect control. It owns construction coordination; labels alone are insufficient, and another lens needs its own explicit objective rather than shared construction vocabulary.",
+          "name": "code-complete"
+        },
+        {
+          "description": "Designing Data-Intensive Applications guidance for distributed data correctness. Use when source-of-truth ownership, consistency/durability, replay/order, schema evolution, derived-data repair, replication/partitioning, or cross-system write/side-effect, transaction, or coordination semantics are central. A queue, cache, retry, database, or production failure alone is insufficient; Release It! owns operational survival and Clean Architecture policy direction unless data semantics are central.",
+          "name": "designing-data-intensive-applications"
+        },
+        {
+          "description": "Evans-style Domain-Driven Design guidance for discovering and evolving an implementation-driving domain model. Use when business complexity makes Ubiquitous Language conflicts, missing domain concepts, lifecycle rules, Bounded Context or Context Map decisions, Core Domain focus, or deeper-model pressure from awkward procedural behavior central. DDD Distilled owns the smallest-investment/selectivity gate; Implementing DDD owns post-boundary implementation mechanics.",
+          "name": "domain-driven-design"
+        },
+        {
+          "description": "Domain-Driven Design Distilled guidance for the smallest effective DDD investment and anti-ceremony selectivity. Use when domain complexity, language ambiguity, business differentiation, or integration risk makes subdomain investment, Bounded Context boundaries, Ubiquitous Language meaning, or whether tactical patterns earn their cost central. Domain-Driven Design owns deeper model discovery; Implementing Domain-Driven Design owns detailed mechanics after context and model commitment.",
+          "name": "domain-driven-design-distilled"
+        },
+        {
+          "description": "Implementing Domain-Driven Design guidance for implementation-level DDD after context and model commitment. Use when Aggregate boundaries, Value Objects/Entities, Repositories, Domain or Application Services, Domain Events, modules, translations, projections, or renamed-CRUD/anemic-model correction is central. Distilled owns the DDD investment gate; Domain-Driven Design owns strategic discovery and deeper model development; DDIA co-applies only for central distributed-data semantics.",
+          "name": "implementing-domain-driven-design"
+        },
+        {
+          "description": "Patterns of Enterprise Application Architecture guidance for force-based pattern choice and responsibility placement. Use when choosing business-logic, persistence, transaction, concurrency, session-state, or remote-boundary patterns is central, especially Transaction Script vs Table Module vs Domain Model or Repository/Data Mapper/Gateway/Active Record. DDD owns model discovery; Clean Architecture dependency direction; DDIA distributed-data semantics; Code Complete construction.",
+          "name": "patterns-of-enterprise-application-architecture"
+        },
+        {
+          "description": "Refactoring guidance for behavior-preserving structural change once observable behavior is known or protected. Use when renaming, extracting, moving, splitting, or another current code smell drives a behavior-preserving change. Dependency-seam work whose purpose is to gain first feedback belongs to Legacy Code until control exists.",
+          "name": "refactoring"
+        },
+        {
+          "description": "Refactoring.Guru guidance for code-smell classification, catalog treatment selection, and incomplete-library-class decisions. Use when explicit smell classification, choosing among named techniques and their preconditions or tradeoffs, or deciding how to add missing operations to an external class you cannot modify is central after behavior is known or protected. Refactoring owns ordinary behavior-preserving structural change; Clean Code local readability; Legacy Code first feedback.",
+          "name": "refactoring-guru"
+        },
+        {
+          "description": "Use only when production failure behavior is an explicit objective or demonstrated operational problem, such as deciding failure semantics, demand/capacity limits, blast-radius isolation, degraded service, recovery, operability, deployment/startup controls, incident chains, or bounded resilience tests. Do not infer this lens from testability, safe-change work, routine rollout verification, local API design, ordinary errors, in-process concurrency, service/database calls, or money/transactions.",
+          "name": "release-it"
+        },
+        {
+          "description": "The Pragmatic Programmer guidance for accountable, adaptable delivery. Use when outcome ownership, duplicated knowledge, change fan-out, irreversible commitment, prototype fossilization, manual delivery/feedback loops, or blackboard-style coordination are central across a change. Clean Code owns local readability; Code Complete construction; Refactoring behavior-preserving change; Legacy Code blocked first feedback; Release It! production failure; A Philosophy of Software Design module depth.",
+          "name": "the-pragmatic-programmer"
+        },
+        {
+          "description": "Use only when a semantic change is blocked because current behavior is materially unknown, no trustworthy focused tests exist, or a dependency cannot be observed or substituted. The task must require gaining first feedback before changing behavior. Do not use when observable behavior and operational facts are already supplied, or when first feedback is not blocked.",
+          "name": "working-effectively-with-legacy-code"
+        }
+      ],
+      "sha256": "f23977d3f201fc519c399fef75d7ed8d0f3b80e08f56da7a8659ad9c68d71a82",
+      "skill_count": 14
+    },
+    "contract": {
+      "case_id": "RM3b",
+      "evaluation_contract_version": 2,
+      "fixture_sha256": "c56478a3d5ea9b92b2d24b7d277d5110631e6b7aa5a25d4a74e5d269efda4c70",
+      "mapping": "_skill-workbench/domain-driven-design/mapping.md",
+      "mapping_sha256": "14f8be1a9edc22951c837677b10cb485ca812066e469663cac2fe4545e922d97",
+      "required_project_skills": [
+        "domain-driven-design"
+      ]
+    },
+    "execution": {
+      "configuration": {
+        "baseline_workspace": "temporary directory without project skills",
+        "ephemeral": true,
+        "green_workspace": "repository",
+        "ignore_user_config": true,
+        "sandbox": "read-only"
+      },
+      "mode": "green",
+      "model": "gpt-5.4",
+      "output": "_skill-workbench/evaluations/results/domain-driven-design/comprehensive-domain-model-audit-v2/green-inline-map-1.json",
+      "run": "green-inline-map-1",
+      "runner": {
+        "path": "_skill-workbench/scripts/run_skill_eval.py",
+        "sha256": "4fad18e35ac017086205f11b440ec98b6d7b14e3ccba0e690fac3e989255d65b"
+      },
+      "schema": {
+        "path": "_skill-workbench/evaluations/result-v2.schema.json",
+        "sha256": "90060cb6fea3e7b529ea5eda9a294bd7f18e1c266412be41d26b7a5365d8038c"
+      },
+      "timeout": 900
+    },
+    "manifest_version": 2,
+    "packages": {
+      "byte_count": 474958,
+      "entries": [
+        {
+          "byte_count": 7581,
+          "path": ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+          "sha256": "6de13ad8f0488e521f51d1f3126e4cd96e754fd29584c58d3919614af6cf34cc"
+        },
+        {
+          "byte_count": 13561,
+          "path": ".agents/skills/a-philosophy-of-software-design/references/full.md",
+          "sha256": "b521814b9d050d0d12594e13aa291029148a971b6f7d5a5ac3e74219de6c8563"
+        },
+        {
+          "byte_count": 5793,
+          "path": ".agents/skills/a-philosophy-of-software-design/references/index.md",
+          "sha256": "ae83c732dc4227c5d22ddb3e787c6dc7ea036fd5bf261af81399377e9b980130"
+        },
+        {
+          "byte_count": 7011,
+          "path": ".agents/skills/clean-architecture/SKILL.md",
+          "sha256": "2956a4cf0832f37c6e8e2af575db37f2378b37c26f463ee873942026238a4d03"
+        },
+        {
+          "byte_count": 17782,
+          "path": ".agents/skills/clean-architecture/references/full.md",
+          "sha256": "1f0366be1720989c63df6da8f15f12e78f8786f6e712eeb16cf3690b4dab6cc4"
+        },
+        {
+          "byte_count": 4399,
+          "path": ".agents/skills/clean-architecture/references/index.md",
+          "sha256": "2eb51dec1bf08cc2e255e653ffa630e0a68c9dec1db0f763a9699754146da50f"
+        },
+        {
+          "byte_count": 5439,
+          "path": ".agents/skills/clean-code/SKILL.md",
+          "sha256": "93fc140a587c4395d8f71fa73862d585bb026c44d3042fe28cc22a1a731c93a7"
+        },
+        {
+          "byte_count": 13851,
+          "path": ".agents/skills/clean-code/references/full.md",
+          "sha256": "0ec945c383144e2eeb52bdd18cc87668bff73c13421e17cc6e4ba3fc5905965e"
+        },
+        {
+          "byte_count": 5001,
+          "path": ".agents/skills/clean-code/references/index.md",
+          "sha256": "3c8928cd6ab1d40f5b2abac476104257ec020aa1a90378315388a4b050f0f935"
+        },
+        {
+          "byte_count": 8335,
+          "path": ".agents/skills/code-complete/SKILL.md",
+          "sha256": "f732c04127723e6cceb2b3448366d283b7bafa27dcc7b280f353558b1bb2e453"
+        },
+        {
+          "byte_count": 12407,
+          "path": ".agents/skills/code-complete/references/full.md",
+          "sha256": "57ca8fab93baea0761eeeca6c491fe79b093df47feb4172c0917a96f8ddc95a4"
+        },
+        {
+          "byte_count": 6247,
+          "path": ".agents/skills/code-complete/references/index.md",
+          "sha256": "cbe4f2335e90f2c021652045554d9b4d7bf4fa8f06bd452a6047d5872b0169a5"
+        },
+        {
+          "byte_count": 8562,
+          "path": ".agents/skills/designing-data-intensive-applications/SKILL.md",
+          "sha256": "2ba0cedab4860a47e0fe8b345a3646a05e48a2cc680718386344202fa157e0f1"
+        },
+        {
+          "byte_count": 16084,
+          "path": ".agents/skills/designing-data-intensive-applications/references/full.md",
+          "sha256": "8c1bfe1529076fda8f828ed6939b63bc3016830ad3c705071699a250e98b8f25"
+        },
+        {
+          "byte_count": 6226,
+          "path": ".agents/skills/designing-data-intensive-applications/references/index.md",
+          "sha256": "ef9debd7c29f58d4ac45949e64fcc525e195617ecdfe5052ac94216660854d9f"
+        },
+        {
+          "byte_count": 9577,
+          "path": ".agents/skills/domain-driven-design/SKILL.md",
+          "sha256": "0b8ced39807bfabb4749cf0a8f00cee1de7d30c1bd408becb5d52d3ecd162f6f"
+        },
+        {
+          "byte_count": 42424,
+          "path": ".agents/skills/domain-driven-design/references/full.md",
+          "sha256": "de806ceb828df4408e452361ab587d81f213443ad057017b1f6bed2334d5aaa6"
+        },
+        {
+          "byte_count": 8762,
+          "path": ".agents/skills/domain-driven-design/references/index.md",
+          "sha256": "a8aa0af5af02b431eeb5852049688a8a9510d831900ef56b5fb0f3018d8966f8"
+        },
+        {
+          "byte_count": 10960,
+          "path": ".agents/skills/domain-driven-design-distilled/SKILL.md",
+          "sha256": "d2c6d53c61ee6ec3b8afebd06b42e451363e9517c6358b2fd058574fbce2165b"
+        },
+        {
+          "byte_count": 11351,
+          "path": ".agents/skills/domain-driven-design-distilled/references/full.md",
+          "sha256": "d665da3c697df36fe04f8bb266381e5b40d158aad5283c1d233d4c47319e5b1c"
+        },
+        {
+          "byte_count": 4865,
+          "path": ".agents/skills/domain-driven-design-distilled/references/index.md",
+          "sha256": "8df4969caae5c7264c8ceed702516a854b473238f67c8da9c2958061b5d7c60b"
+        },
+        {
+          "byte_count": 12759,
+          "path": ".agents/skills/implementing-domain-driven-design/SKILL.md",
+          "sha256": "7432d11645fbdacd0233c6ad1d7ec4c832de716de2ea6bdc1d47812c9d47590c"
+        },
+        {
+          "byte_count": 12848,
+          "path": ".agents/skills/implementing-domain-driven-design/references/full.md",
+          "sha256": "cd2c1d404f60720cebca17fcffed9d68d94b1eef4a13bed63a4f59f01db005ad"
+        },
+        {
+          "byte_count": 5696,
+          "path": ".agents/skills/implementing-domain-driven-design/references/index.md",
+          "sha256": "8cd00d0f1488fea665e5242c1ebb8a0b06b9b7639f46fcc99167762aea346b72"
+        },
+        {
+          "byte_count": 10350,
+          "path": ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md",
+          "sha256": "46cba281cfb90d03515649820f233bc2152dc2f709cba6c0b47d00de18536aa4"
+        },
+        {
+          "byte_count": 15501,
+          "path": ".agents/skills/patterns-of-enterprise-application-architecture/references/full.md",
+          "sha256": "e7f30e7d65005924ec29cc0c6f032aedd0b1bffa22223d5386c5a3140cd76af0"
+        },
+        {
+          "byte_count": 5740,
+          "path": ".agents/skills/patterns-of-enterprise-application-architecture/references/index.md",
+          "sha256": "ec3fa9607ae5d5da849cf0b52314c2df06b9eb12de485d70c6aff11d3e8b9b6b"
+        },
+        {
+          "byte_count": 6700,
+          "path": ".agents/skills/refactoring/SKILL.md",
+          "sha256": "11ec92d297edee3889b78d666621a254b6e0b41b03beec536d34685c6a7aa165"
+        },
+        {
+          "byte_count": 17866,
+          "path": ".agents/skills/refactoring/references/full.md",
+          "sha256": "d7b9cf2b5ca26f3576943ff59cdeee61b65138213777b0e03bfe1075cbd966fc"
+        },
+        {
+          "byte_count": 4076,
+          "path": ".agents/skills/refactoring/references/index.md",
+          "sha256": "867e940ee226fb1e0152f9f60244c220b73606f325d008387e162a72b19855fb"
+        },
+        {
+          "byte_count": 9710,
+          "path": ".agents/skills/refactoring-guru/SKILL.md",
+          "sha256": "b5ff921636fd00208f7646854a5708a65b7351d6a68afd7df967206d10b12938"
+        },
+        {
+          "byte_count": 62561,
+          "path": ".agents/skills/refactoring-guru/references/full.md",
+          "sha256": "c92bdfcb8fc5d64a21f10fe268a02bf6a9a9ce6228f83ac85743905cba4b2497"
+        },
+        {
+          "byte_count": 4202,
+          "path": ".agents/skills/refactoring-guru/references/index.md",
+          "sha256": "c2600a94ea47a2989f8d57e15a17f586fbdf74e68b78c14b2156d76d68346094"
+        },
+        {
+          "byte_count": 8194,
+          "path": ".agents/skills/release-it/SKILL.md",
+          "sha256": "765f774ae13f8ec8107d27b6e83efcec376c1a8c746bdf2d399cc18b7ed605ce"
+        },
+        {
+          "byte_count": 13542,
+          "path": ".agents/skills/release-it/references/full.md",
+          "sha256": "ac72b846e9584f376090c8508b2bc66f557ea8d14195ea3b20e15a66b27c4aec"
+        },
+        {
+          "byte_count": 5223,
+          "path": ".agents/skills/release-it/references/index.md",
+          "sha256": "1bb0f0389efd6fb9073afbc82392c3a19837dbdae8246829ba31c0d227fb3587"
+        },
+        {
+          "byte_count": 8818,
+          "path": ".agents/skills/the-pragmatic-programmer/SKILL.md",
+          "sha256": "7eb3a409215d879b3ff85864c5e2bdd8683c0558e11a471b4e33ccc834fc4a1b"
+        },
+        {
+          "byte_count": 13398,
+          "path": ".agents/skills/the-pragmatic-programmer/references/full.md",
+          "sha256": "ea10063caff1989c1442c2aff501a942281fb5b06456e822ab856c701fc5e28d"
+        },
+        {
+          "byte_count": 6178,
+          "path": ".agents/skills/the-pragmatic-programmer/references/index.md",
+          "sha256": "715d9e7dc0b3f6b5dff742b2a133fa234934d276cc227f64cafae4f23e2affb6"
+        },
+        {
+          "byte_count": 7507,
+          "path": ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+          "sha256": "0549be029e33e4e34d91e6a955eb7dfff0176c24c4b1b6e112d88faf1d543164"
+        },
+        {
+          "byte_count": 13817,
+          "path": ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+          "sha256": "8b22bfc3d2851509d4cd8e05fbb9aca9e934f4b6915cb65fe8d6d9d241393fce"
+        },
+        {
+          "byte_count": 4054,
+          "path": ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+          "sha256": "8da729dc84b1570542c763a0f265b4e749bf7622a6d6591434994b83b8cb99e0"
+        }
+      ],
+      "file_count": 42,
+      "sha256": "d6f5103739852639aedcc7ec7e2531085b719c631d399896a7902c9485d50d8c"
+    },
+    "required_project_skills": [
+      "domain-driven-design"
+    ]
+  },
+  "evaluation_manifest_sha256": "482ad90690957f539cd7ce06cdfd89974312cd1edf77f41100c5cc436a63b19c",
+  "manifest_errors": []
+}

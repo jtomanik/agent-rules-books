@@ -1,0 +1,26 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-architecture/manual-focused-bounded.md",
+  "case_sha256": "fce5f59791b13bd907f0f953eaacfd0ec6de2d7bfaf59cfb10360d9644ca640d",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f588a-de19-72b3-9255-26f96339070c",
+  "exit_code": 0,
+  "result": {
+    "answer": "Reviewer B is correct.\n\nDependency inversion is not satisfied merely because the use case imports an interface type. The ownership of that interface matters. If `CustomerStore` is declared in the infrastructure package next to `SqlCustomerStore`, then infrastructure owns the abstraction. A use case importing that type still has a source dependency pointing outward to a lower-level detail package.\n\nUnder the dependency rule, inner policy code must not depend on outer implementation code or packages. Putting the port in infrastructure is reversed ownership: the detail layer defines the contract and the use case conforms to it. That is backwards for Clean Architecture. The abstraction should be owned by the use-case/application side, with infrastructure implementing it.\n\nFinal arbitration: reject Reviewer A's interpretation and side with Reviewer B. The current arrangement violates the dependency rule even though the imported symbol is an interface. The decisive factor is package ownership and dependency direction, not whether the referenced type is abstract.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "consulted_reference_sections": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

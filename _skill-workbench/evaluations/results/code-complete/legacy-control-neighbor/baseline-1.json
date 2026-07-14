@@ -1,0 +1,25 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/legacy-control-neighbor.md",
+  "case_sha256": "723f771d5cf18ba69b606205f5882d931fd067cd5ec41564cf0c84ad0f8bc05a",
+  "mode": "baseline",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5859-0eb8-7682-a73b-3a48a049947e",
+  "exit_code": 0,
+  "result": {
+    "answer": "Production is not characterized enough to safely change the suspension rule yet. The first work should be to pin current observable behavior at the `run(String)` boundary, then introduce the smallest seam needed to make that characterization repeatable, and only then add the three-day grace rule.\n\nRecommended order of work:\n1. Characterize the current behavior of `run(String)` without changing semantics. The cases that matter are: account missing returns `false`; due date before now and `suspended = false` returns `true` and issues the update; due date after now returns `false` and does not update; already suspended returns `false` and does not update; exact boundary at `due_at == now` must be pinned because the code uses `isBefore`, not `<=`.\n2. Characterize the externally visible side effects as part of that same pass: whether an update is attempted exactly once, what SQL shape is issued, and that the public constructor currently opens a real connection from `ACCOUNT_DSN`.\n3. Add the narrowest seam required to make those checks deterministic: keep the existing public constructor, but introduce a non-public constructor or equivalent injection point that accepts a `Connection` and a time source such as `Clock` or `Instant` supplier. The current constructor should delegate to it.\n4. Use that seam to build repeatable characterization tests with a stub/fake `Connection` and fixed time. Do not broadly rewrite JDBC usage or clean up unrelated design issues yet.\n5. After those tests are green, change only the rule from `due_at < now` to `due_at < now minus three days` and extend the pinned boundary cases to cover `2d 23h 59m`, exactly `3d`, and `3d + epsilon` overdue.\n\nThe smallest dependency substitution needed before the rule change is: make time explicit and database access injectable at construction. Time injection alone is not enough because the default constructor opens the real database, and connection injection alone is not enough because `Instant.now()` keeps the key boundary nondeterministic.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:00:59.469730Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5858-d0df-7581-8232-abbb29f3158b.1783893643488282000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:01:26.949039Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5859-0eb8-7682-a73b-3a48a049947e.1783893659321234000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

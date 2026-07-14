@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/ordinary-local-hygiene.md",
+  "case_sha256": "f6282cfcb4fb88d1c1e4906b027e6c02e877c4e4d44f3784e5489e34a8c4e92e",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5369-2b6f-78b1-a98e-bc4ffd3d3a00",
+  "exit_code": 0,
+  "result": {
+    "answer": "`makeLabel` is already behaviorally complete, so the cleanup boundary is internal readability only: keep the exported signature `makeLabel(p: PersonName, short: boolean): string`, preserve the exact strings, and avoid introducing new abstractions or API changes just to remove the boolean flag smell. In this case the smallest worthwhile cleanup is to normalize the trimmed inputs once, derive an optional trimmed nickname once, and return directly from the two behavior branches.\n\nA minimal locally readable rewrite is:\n\n```ts\ntype PersonName = {\n  first: string;\n  last: string;\n  nickname?: string;\n};\n\nexport function makeLabel(p: PersonName, short: boolean): string {\n  const first = p.first.trim();\n  const last = p.last.trim();\n  const nickname = p.nickname?.trim() || \"\";\n\n  if (short) {\n    return nickname || `${first} ${last}`;\n  }\n\n  return nickname ? `${last}, ${first} (${nickname})` : `${last}, ${first}`;\n}\n```\n\nWhy this is the right cleanup boundary:\n- It removes temporary mutation (`n`, `x`) and the comment that was compensating for structure.\n- It keeps all behavior local and explicit: input cleanup first, then the `short` split, then the exact output forms.\n- It does not broaden scope into changing the public API, adding helpers, or introducing a new type just to avoid the existing boolean parameter.\n\nConcise tests to keep:\n- `short=true` with nickname present returns the trimmed nickname.\n- `short=true` with nickname absent returns `\"<first> <last>\"` with both names trimmed.\n- `short=true` with nickname empty or whitespace-only falls back to `\"<first> <last>\"`.\n- `short=false` without nickname returns `\"<last>, <first>\"` with both names trimmed.\n- `short=false` with nickname present returns `\"<last>, <first> (<nickname>)\"` with nickname trimmed.\n- `short=false` with nickname whitespace-only does not append parentheses.\n- A case that proves exact spacing/punctuation, for example `\"Smith, Jane (JJ)\"` and `\"Jane Smith\"`.\n\nThis is a cleanup-only refactor. I did not inspect or propose changes outside this helper and its tests.",
+    "selected_project_skills": [
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T23:00:49.532391Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5369-2b6f-78b1-a98e-bc4ffd3d3a00.1783810829168031000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

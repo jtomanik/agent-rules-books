@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5361-8b32-7ad0-b8b8-129f2ca9f884",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n1. High: `Semaphore.acquire()` can wait forever (`snippet` line 5). Under carrier slowness or pool saturation, checkout can miss its `2500ms` budget before it ever attempts the call, which violates the required degraded behavior. Smallest fix: bound slot acquisition by the same per-request deadline or `requestSignal`; if no slot is available in time, return `{ kind: \"unavailable\" }` and record that it was capacity shedding.\n2. High: the outbound call is not canceled by `requestSignal` (`snippet` line 8), and `timeoutMs` does not cover connection establishment. DNS/TCP/TLS stalls can therefore run past the checkout budget even with `CARRIER_RESPONSE_TIMEOUT_MS=2000`. Smallest fix: pass an abort signal explicitly and make one overall deadline cover queue wait, connect, and response time. Keep retries at zero.\n3. Medium: the integration trusts any parsed JSON and maps every failure into `unavailable` (`snippet` lines 8-19). That means a provider `4xx`, non-`200`, non-JSON body, or malformed `200` payload can be silently degraded or even returned as `available` with invalid data. Smallest fix: only return `available` for HTTP `200` + JSON + validated `{ amount, currency, expires_at }`; treat `429`, `5xx`, timeout, and transport failure as `unavailable`; log and metric `4xx` and invalid `200` responses distinctly as contract/request defects.\n\nAssumptions:\n- I am assuming the caller can tolerate `4xx` being returned to checkout as `unavailable` for now, as long as it is surfaced distinctly in logs/metrics. If the codebase already has a separate internal error result, use that instead.\n\nMinimal pre-merge recommendation:\n- Add a single absolute deadline derived from the checkout request budget.\n- Use that deadline for semaphore acquisition and the HTTP client abort signal.\n- Validate HTTP status, content type, and response schema before returning `available`.\n- Keep the existing no-retry behavior; I would not require a circuit breaker before first merge given the existing bulkhead, provided the wait is bounded.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-11T22:52:57.955518Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5361-8b32-7ad0-b8b8-129f2ca9f884.1783810329395388000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

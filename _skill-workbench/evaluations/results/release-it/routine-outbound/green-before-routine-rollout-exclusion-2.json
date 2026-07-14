@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b6-cfcc-7211-b605-d0d27240a805",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings\n\n1. `carrierSlots.acquire()` can wait forever, so this path can miss the checkout budget before it ever reaches the fallback.\nThe integration already has a bulkhead, but `Semaphore.acquire()` is unbounded unless you pass a deadline or signal. Under saturation, checkout can stall instead of continuing with `{ kind: \"unavailable\" }`. Smallest fix: derive a carrier deadline from the request budget, pass it into `acquire()`, and map acquisition timeout/abort to `unavailable`.\n\n2. The outbound call is not canceled by the checkout request, and `timeoutMs` does not cover connect/setup time.\n`carrierClient.post()` ignores `requestSignal` unless it is passed explicitly, and the documented timeout only covers response waiting. A slow DNS/TCP/TLS connect can therefore run past both `CARRIER_RESPONSE_TIMEOUT_MS=2000` and the `CHECKOUT_REQUEST_TIMEOUT_MS=2500` request budget while holding one of the 32 in-flight slots. Smallest fix: pass an abort signal to `post()` and use one total carrier deadline that covers queue wait, connection establishment, and response wait.\n\n3. Response classification is too permissive and will hide contract bugs.\nThe code never checks HTTP status, content type, or response shape before returning `kind: \"available\"`. A non-`200` JSON body can be accepted as a quote, and provider `4xx` / malformed `200` responses get collapsed into generic unavailability only if parsing fails. That violates the stated provider contract and weakens diagnosis. Smallest fix: require `200`, JSON content, and validated `{ amount, currency, expires_at }` before returning `available`; treat `429`, `5xx`, timeout, and transport failures as `unavailable`; log provider `4xx` and invalid `200` responses as contract/request failures distinctly.\n\nAssumptions\n\n- I am assuming checkout should still degrade gracefully for carrier unavailability, but provider `4xx` and invalid `200` responses must at least be surfaced separately from routine unavailability.\n- I did not recommend larger controls like circuit breakers because this is a routine first-release review with no incident or hotspot, and the existing semaphore is already a reasonable minimal isolation mechanism once its wait is bounded.\n\nMinimal pre-merge shape\n\n- Create one derived carrier abort/deadline signal.\n- Use it for both semaphore acquisition and the HTTP call.\n- Validate status, content type, and payload before returning `available`.\n- Split logging/metrics between routine unavailability (`429`/`5xx`/timeout/transport) and contract failures (`4xx`/invalid `200`).",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": ""
+}

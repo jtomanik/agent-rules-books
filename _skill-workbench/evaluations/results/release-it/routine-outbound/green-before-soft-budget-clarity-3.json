@@ -1,0 +1,28 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/routine-outbound.md",
+  "case_sha256": "83bf6d71f68ae7cc6f96b07f37179feeee583782bf3fbbbccf9a90f8a1517d90",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55b1-be6e-7a11-8157-0e1ba824c732",
+  "exit_code": 0,
+  "result": {
+    "answer": "Findings:\n\n1. `Semaphore.acquire()` can wait forever, so checkout can burn its entire request budget before the carrier call even starts.\nThe integration contract says the quote is optional and checkout must continue with `{ kind: \"unavailable\" }` within budget. Today, once `CARRIER_MAX_IN_FLIGHT` is saturated, requests can stall indefinitely because `acquire()` has no deadline or signal. This is the highest-risk production failure because it defeats the intended degradation path.\nSmallest fix: make slot acquisition observe `requestSignal` or a derived quote deadline, and return `{ kind: \"unavailable\" }` on acquire timeout/abort.\n\n2. The outbound call is not bounded by the checkout request deadline.\n`carrierClient.post()` does not receive `requestSignal`, and `timeoutMs` excludes connection establishment. That means DNS/TCP/TLS/connect stalls can outlive both `CARRIER_RESPONSE_TIMEOUT_MS=2000` and the overall checkout timeout of `2500` ms. This again violates the required degraded behavior.\nSmallest fix: pass an abort signal to `carrierClient.post()`, ideally a derived signal that enforces the smaller of the remaining checkout budget and the carrier-specific timeout budget for the full call lifecycle.\n\n3. Failure classification is too broad and hides contract bugs as ordinary unavailability.\nThe current `catch` turns everything into `unavailable`: provider `4xx`, malformed `200` bodies, non-JSON responses, `429`, `5xx`, transport failures, and timeouts all collapse into the same path. Per the stated contract, `429`/`5xx`/timeout/transport are routine unavailability, but other `4xx` mean request/contract problems. Also, a valid success requires `200` + JSON + `{ amount: non-negative finite number, currency: three-letter string, expires_at: ISO-8601 timestamp }`.\nSmallest fix: explicitly validate status, content type, and body shape before returning `available`, and classify failures into at least:\n- `429`/`5xx`/timeout/transport -> warn and return `unavailable`\n- other `4xx`, non-JSON `200`, malformed body -> log as contract/request failure with status and safe response metadata\n\n4. A malformed success response can currently poison checkout state with bad quote data.\n`body.amount`, `body.currency`, and `body.expires_at` are trusted without validation. A negative amount, `NaN`, bad currency code, or invalid timestamp would be emitted as `kind: \"available\"`, which is worse than degrading to unavailable.\nSmallest fix: validate the success payload and downgrade invalid responses to the same contract-failure path from finding 3.\n\nRecommended pre-merge scope:\n- Add a bounded wait for semaphore acquisition.\n- Pass an abort signal into the HTTP client so connect time is also bounded.\n- Validate `200`/JSON/body shape before returning `available`.\n- Split logging/metrics between routine dependency unavailability and provider/request contract failure.\n\nI would not require broader resilience work before merge. No retry path is already correct for this request path, and the existing semaphore is a reasonable bulkhead once its wait is bounded.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "stderr": "2026-07-12T09:39:37.838691Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55b1-be6e-7a11-8157-0e1ba824c732.1783849139874953000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

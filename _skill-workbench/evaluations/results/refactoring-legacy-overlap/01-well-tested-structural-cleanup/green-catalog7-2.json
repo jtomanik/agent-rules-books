@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md",
+  "case_sha256": "06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e",
+  "mode": "green",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5874-3d77-7b32-a46a-abf80562fcbc",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a small-step refactoring sequence, not a redesign. The current method has one real smell: it mixes distinct pricing phases in one function. That is enough justification to split it, but not enough to introduce new objects, policies, or a rule engine.\n\nRecommended sequence:\n\n1. Keep the existing tests as the safety net and do not change them unless a rename or helper extraction forces purely mechanical updates.\n2. Extract subtotal calculation first into a small helper such as `calculateSubtotalCents(items)`. This is a straight loop extraction with no policy change.\n3. Extract discount calculation next into `calculateDiscountCents(order, subtotalCents)`. Keep the threshold and `Math.floor` exactly where they are semantically today.\n4. Extract shipping calculation into `calculateShippingCents(order, subtotalCents, discountCents)`. This is the important dependency boundary: shipping must continue to depend on `subtotal - discount`, and international shipping must continue to override free shipping.\n5. Extract tax calculation into `calculateTaxCents(subtotalCents, discountCents, shippingCents)` or first extract `taxableCents` as a named local and then the tax helper. Preserve the current taxable base and flooring behavior exactly.\n6. Leave `price(order)` as the orchestration method that calls those helpers in order and assembles the `Price` result. That makes the phases explicit without changing the public API.\n7. Only after those extractions, consider renaming locals for intent if needed, such as keeping `taxableCents` explicit because it documents the pricing pipeline.\n\nWhere the cleanup should stop:\n\n- Stop once `price(order)` reads as a short sequence of pricing phases and each helper has one coherent responsibility.\n- Do not introduce strategy classes, discount/shipping policy objects, enums, dependency injection, or a new module layout yet. There is only one method and two small conditionals; heavier abstraction would be speculative.\n- Do not change data shapes, method signatures, rounding behavior, condition ordering, or the meaning of domestic versus international shipping.\n- Do not fold this into a \"pricing engine\" rewrite. The goal is reviewable decomposition, not architecture work.\n\nA good end state is a still-simple `OrderPricer` with one public method and a few private helpers. If the next pricing feature can be added by editing one helper or the orchestration flow without re-reading a long mixed-purpose method, the refactoring has gone far enough.",
+    "selected_project_skills": [
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring/SKILL.md",
+      ".agents/skills/refactoring/references/index.md",
+      ".agents/skills/refactoring/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "refactoring",
+        "sections": [
+          "Primary Directive",
+          "Non-Negotiable Rules",
+          "Preferred Refactoring Moves",
+          "Function-Level Rules",
+          "Rules for Working with Conditionals",
+          "Stopping Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:30:40.999998Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-2404-7530-8752-9f9227f87026.1783895434245023000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-12T22:31:25.877219Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5874-3d77-7b32-a46a-abf80562fcbc.1783895440760277000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

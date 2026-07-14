@@ -1,0 +1,56 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03-mixed-seam-and-conditional-extraction.md",
+  "case_sha256": "4e3cba089fa2265c2309a88b20cf92a2a5ef56c7b991d0b17c3d8e8d86261998",
+  "mode": "baseline",
+  "run": "2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5338-588f-7d02-b51a-e194293becb7",
+  "exit_code": 0,
+  "result": {
+    "answer": "No repository files or repository book skills were present in the workspace, so this is a general engineering work order rather than a repo-specific patch plan.\n\nWork order:\n1. Freeze current behavior before semantic edits.\nCreate characterization tests around `quote()` and `renew()` for the existing shared eligibility outcomes: `active` vs `paused` vs `closed`, non-negative vs negative balance, `trial` vs `paid`, and the side effects of `renew()` when eligible vs ineligible. The immediate goal is to prove that every current branch except the new trial-age rule remains unchanged.\n2. Introduce control points for time and data access.\nBefore changing eligibility semantics, extract construction seams so tests can supply a database dependency and a clock value. Safe options are constructor injection, a small factory wrapper, or protected/static creation hooks, but the worker API should remain stable if that matters externally. Control of `now` must be exact in tests because the new rule is boundary-sensitive at 30 days.\n3. Add focused unit tests for the new rule.\nAdd tests for trial accounts at: less than 30 days old, exactly 30 days old, and older than 30 days. Also cover `trialStartedAt === null` explicitly, because the intended outcome is ambiguous unless product already defines it elsewhere. Pin the comparison rule before implementation: either `> 30 days` is ineligible and `== 30 days` still eligible, or `>= 30 days` is ineligible. The requirement text says \"older than 30 days,\" which implies strict `>`.\n4. Make the semantic change in one place only.\nCreate a single eligibility owner, such as `isEligibleForAutomaticRenewal(account, now)` or an `AccountRenewalPolicy` object. Put the new trial-age rule there together with the existing state/balance rules. Update both `quote()` and `renew()` to call that owner. Do not change pricing, transaction shape, timestamps, or skip/renew return values in this step.\n5. Do a behavior-preserving cleanup pass.\nAfter the shared owner is in place and green, remove duplicated conditionals and any redundant local logic. This pass must not alter externally visible outcomes beyond the already-tested trial-age rule.\n\nPatch boundaries:\n- Patch 1: test seam only.\nAdd injectable database and clock access without changing eligibility logic. Acceptance: all existing behavior tests pass unchanged.\n- Patch 2: characterization tests.\nAdd focused tests for `quote()` and `renew()` current behavior, including side effects and non-effects.\n- Patch 3: semantic rule addition.\nAdd the trial-age rule in the single shared eligibility owner, with boundary tests proving the new requirement.\n- Patch 4: structural consolidation.\nReplace the duplicated inline conditional in `quote()` and `renew()` with the shared owner if not already done in Patch 3, with no further semantic changes.\n\nWhat must be learned or controlled before semantic edits:\n- The exact 30-day boundary rule: strictly older than 30 days vs 30 days or older.\n- The intended handling of `trialStartedAt: null` for trial accounts.\n- Whether `quote()` and `renew()` are required to use the same eligibility policy. The request strongly implies yes, but this should be confirmed if the broader system ever allowed quoteable-but-not-renewable states.\n- The database API behavior under repeated `load()` calls and transaction boundaries, so the refactor does not accidentally change ordering or side effects.\n- The current timezone/date parsing expectations for `trialStartedAt` strings; tests should use fixed ISO timestamps to avoid locale drift.\n\nWhat must remain behavior-preserving during structural work:\n- Existing ineligibility for `closed`, `paused`, and negative-balance accounts.\n- Existing eligibility for all currently eligible paid accounts.\n- Current `quote()` behavior of returning `null` when ineligible and delegating to `prices.forPlan(account.plan, now)` when eligible.\n- Current `renew()` behavior of inserting the renewal record and marking renewed within one transaction, using the same `now` for both timestamps.\n- Current return values: `\"renewed\"` and `\"skipped\"` only.\n\nRecommended shape of the shared owner:\n```ts\nfunction isEligibleForAutomaticRenewal(account: Account, now: Date): boolean\n```\nThis keeps the rule pure, easy to unit test, and reusable from both `quote()` and `renew()`. If policy growth is expected, a small `RenewalEligibilityPolicy` object is also reasonable, but a pure function is the lower-risk first move.\n\nPrimary risk to avoid:\nThe refactor and the rule change should not land as one unstructured edit. If they are mixed, it becomes hard to prove whether a failing test is caused by the new 30-day policy or by the consolidation itself. Keep the seam, semantic change, and cleanup logically separable.",
+    "selected_project_skills": [],
+    "consulted_files": [],
+    "reference_mode": "none",
+    "recommendations": [
+      {
+        "recommendation": "Add constructor or factory seams for the database client and clock before changing eligibility semantics, so focused tests can cover both methods deterministically.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Write characterization tests for existing `quote()` and `renew()` outcomes first, then add boundary tests for trial age (`<30 days`, `==30 days`, `>30 days`).",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Centralize the eligibility rule in one pure owner such as `isEligibleForAutomaticRenewal(account, now)` and have both public methods delegate to it.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Treat handling of `trialStartedAt === null` and the exact meaning of \"older than 30 days\" as explicit product decisions to lock down before semantic edits.",
+        "source_support": [
+          "general judgment"
+        ]
+      },
+      {
+        "recommendation": "Separate the work into reviewable patches: seam extraction, characterization tests, semantic rule addition, and duplication cleanup.",
+        "source_support": [
+          "general judgment"
+        ]
+      }
+    ]
+  },
+  "stderr": "2026-07-11T22:07:09.620040Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at \"/Users/jakubtomanik/.codex/shell_snapshots/019f5337-e63b-7072-a051-53b7cb20df50.1783807600187424000.sh\": Os { code: 2, kind: NotFound, message: \"No such file or directory\" }\n2026-07-11T22:08:16.662338Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5338-588f-7d02-b51a-e194293becb7.1783807629455416000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

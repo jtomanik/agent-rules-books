@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/clean-code/legacy-code-neighbor.md",
+  "case_sha256": "f188119e75f1f1994886544057a92077f18eb9e7dee00e828f17634283bcbf6e",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55d4-25d0-72c1-a0e2-f68d8ab87a96",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safest order is to gain control of the current behavior before adding the grace-period rule.\n\nFirst, learn and pin down what must not change:\n- What `process(accountId)` means to callers outside the repo: when `true` is expected, whether repeated calls are common, and whether \"not found\" returning `false` is relied on.\n- The observable database effects: exactly one `update` only when the row exists, the account is overdue, and `suspended` is currently `false`.\n- Boundary behavior that may already be depended on: timestamp precision/time zone handling, behavior when `due_at` is null or malformed, and idempotence on already-suspended accounts.\n\nBecause the class opens the real database in its constructor and reads the real clock, the first control point I would add is the smallest one that breaks those barriers without changing the public entrypoint: keep the existing public constructor, but have it delegate to a non-public constructor that accepts the minimal collaborators needed for repeatable tests, ideally `Connection` and `Clock`. That is the narrowest useful intervention here because the blocking dependencies are real DB construction and `Instant.now()`.\n\nThen separate the work into distinct steps:\n1. Add characterization around current behavior with no rule change. Use the new seam to observe query results and update calls cheaply, and capture current return-value and side-effect behavior.\n2. Make only the structural extraction needed to isolate the decision. For example, extract the suspension decision into a small policy/helper that takes `dueAt`, `suspended`, and `now`. Keep its logic identical to today at first.\n3. Once that behavior is protected, change only the policy rule to require seven extra days past `due_at` before suspension.\n4. Add focused tests for the new boundary: before due date, on due date, within the 7-day window, exactly at 7 days, after 7 days, and already-suspended accounts.\n5. Run one production-shaped verification pass against a real database path or equivalent staging flow, because several callers are outside the repository and the JDBC behavior itself is part of the risk surface.\n\nWhat I would not do first is broad cleanup, query rewriting, naming cleanup, or architectural changes. Even obvious issues in this code should be left alone unless they are required to create the seam or to express the new rule safely, because in uncontrolled legacy code those can create untracked behavior changes.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

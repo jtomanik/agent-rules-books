@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/supervised-consumer.md",
+  "case_sha256": "9a5de91cf7a05a549863509d7952840ae6fad63d110034a0c0e7d082efdbe282",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f55c5-9695-7fa1-9ade-4537fcaecf09",
+  "exit_code": 0,
+  "result": {
+    "answer": "The safe boundary is a three-way split, not either extreme.\n\n`Malformed inbound message` => `quarantine`, do not retry, do not crash.\nThis includes invalid JSON in `message.body`, missing or invalid `id`/`sku`, and any consumer-owned schema or domain validation failure detected before calling `inventoryClient` or the database. With `max_deliveries: 0`, `dead_letter_exchange: null`, immediate redelivery on exit, and `restart: always`, a poison message will loop forever and can restart all 6 replicas, which matches the staging failure. A broad catch that `ack`s these is also wrong unless quarantine exists, because that silently drops bad data. The required terminal action is an explicit DLQ/quarantine path.\n\n`Transient dependency failure` => `retry`, then `pause`, do not `ack`, do not crash.\nThis includes inventory `503`, timeout, and inventory `200` with malformed JSON. That last case is not a malformed broker message; it is a dependency-contract failure. After bounded retries with timeout and backoff/jitter, stop consuming new work at the consumer/deployment level and fail readiness until the dependency recovers or operators pause the deployment. Do not crash to trigger retry: with `prefetch: 100` and 6 replicas, crash-based retry just turns one outage into a redelivery storm.\n\n`Compromised process state` => `crash`.\nLet the exception escape only when the worker itself is no longer trustworthy: invariant failure, corrupted runtime/client/channel state, ambiguous internal state after an unexpected bug, or another fault where continuing could misclassify outcomes or corrupt state. That is the legitimate supervisor boundary.\n\nThe current implementation is unsafe because the single `try/catch` collapses poison input, retryable dependency failure, and true process-fatal faults into one path. Given this broker/supervisor config, rethrowing every error makes poison messages fleet-wide restart fuel. The proposed broad catch plus `ack` would instead lose valid work on dependency or database failure.\n\nOnly changes needed to make this policy safe and testable:\n\n1. Add explicit message validation before any side effects and classify parse/schema/domain failures separately from dependency failures.\n2. Configure a quarantine path. `dead_letter_exchange: null` must change or malformed messages have no safe terminal outcome.\n3. Set a real dependency timeout. `dependency_timeout_ms: 0` is unsafe because hangs cannot be bounded or tested.\n4. Keep exactly one retry owner for inventory access, bounded, with backoff/jitter. Do not stack hidden client retries with consumer retries.\n5. Add consumer-wide pause/breaker behavior after dependency retry exhaustion, and make readiness mean `safe to consume`, not merely `broker_connection_is_open`.\n6. Make redelivery idempotent at the persistence boundary, typically by enforcing unique handling on `event.id`, so retry/redelivery or post-commit/pre-ack failure cannot double-apply the event.\n7. Narrow crash behavior to compromised-state or unclassified internal-bug paths only.\n8. Add finite restart throttling/backoff in the supervisor so true fatal bugs do not spin forever across all replicas.\n\nDecision table:\n- Invalid inbound JSON/schema/domain payload: quarantine.\n- Inventory `503` or timeout: retry, then pause/not-ready, no ack.\n- Inventory `200` with malformed JSON: same retry/pause path, not quarantine.\n- Temporary database failure before commit: same retry/pause path as other transient dependency failure.\n- Unexpected invariant failure or corrupted worker state: crash.\n\nTests to require:\n- malformed inbound message is quarantined and does not restart the process;\n- inventory `503`/timeout retries within budget, does not ack, and transitions to paused/not-ready after exhaustion;\n- inventory `200` malformed JSON follows dependency-failure handling, not quarantine;\n- duplicate redelivery of the same `event.id` is idempotent;\n- unexpected internal bug escapes and causes process exit;\n- readiness reflects paused dependency state, not just broker connectivity.",
+    "selected_project_skills": [
+      "release-it"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/index.md",
+      ".agents/skills/release-it/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "stderr": "2026-07-12T10:01:32.118462Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f55c5-9695-7fa1-9ade-4537fcaecf09.1783850440354922000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

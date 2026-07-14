@@ -1,0 +1,31 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/focused-table-driven-decision.md",
+  "case_sha256": "d38e6595f090da1a24c56128db5647bd37c837cdabb2e412530cee872e0be641",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f585b-e193-7a73-8e65-887d44595985",
+  "exit_code": 0,
+  "result": {
+    "answer": "A table is clearer here.\n\nUnder the Code Complete guidance you asked for, this logic is exactly the case where a table-driven form wins: the mapping is stable, explicit, small, and repetitive. The current `if` chain is still readable, but it spends control flow on what is really fixed data. A table removes the repeated branching, makes completeness easier to inspect, and lowers the chance of a wrong condition or mismatched value being introduced later.\n\nThe smallest acceptable representation is a plain nested object keyed by the two closed enums, not a compressed encoding:\n\n```ts\ntype Zone = \"local\" | \"regional\" | \"international\";\ntype Service = \"standard\" | \"express\";\n\nconst SHIPPING_CENTS: Record<Zone, Record<Service, number>> = {\n  local: { standard: 400, express: 900 },\n  regional: { standard: 700, express: 1300 },\n  international: { standard: 1800, express: 3200 },\n};\n\nexport function shippingCents(zone: Zone, service: Service): number {\n  const price = SHIPPING_CENTS[zone]?.[service];\n  if (price === undefined) {\n    throw new Error(\"unsupported shipping combination\");\n  }\n  return price;\n}\n```\n\nWhy this is the right boundary:\n- Statement/conditional guidance: it replaces repeated stable branching with a direct normal path.\n- Table-driven guidance: the table is obvious, explicit, and not encoded in a clever way.\n- Testing guidance: the data shape gives a clear set of combinations to verify.\n\nValidation to keep:\n- Keep the table fully typed as `Record<Zone, Record<Service, number>>` so missing zone/service entries fail at compile time.\n- Keep the runtime `undefined` guard if untyped JS callers or external inputs can reach this function.\n- If the function is purely internal and fully type-trusted, the throw is mostly defensive rather than core behavior.\n\nTests to cover:\n- Normal cases: all 6 valid `(zone, service)` pairs return the expected cents.\n- Contract/edge case: invalid `zone` at runtime throws.\n- Contract/edge case: invalid `service` at runtime throws.\n- Defensive edge case: missing lookup result throws if runtime input bypasses TypeScript.\n- Table integrity: one table-driven test that iterates expected cases is appropriate here, because the implementation itself is data-driven.\n\nI would resolve the review in favor of the table-driven version, with the nested object above as the minimum clear form. A flatter string-key map would be smaller textually, but less inspectable.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md",
+      ".agents/skills/code-complete/references/index.md",
+      ".agents/skills/code-complete/references/full.md"
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "stderr": "2026-07-12T22:04:46.015978Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f585b-e193-7a73-8e65-887d44595985.1783893844372257000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

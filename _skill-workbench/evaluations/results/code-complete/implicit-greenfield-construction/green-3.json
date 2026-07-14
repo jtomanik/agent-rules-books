@@ -1,0 +1,30 @@
+{
+  "case": "_skill-workbench/evaluations/cases/code-complete/implicit-greenfield-construction.md",
+  "case_sha256": "d4b5c44ed1d1cf15a79c61af5ae7805bb640ce7bd8ee9538629982ef83dca4da",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f58a6-5c74-7892-ad52-7f4dba2a73a7",
+  "exit_code": 0,
+  "result": {
+    "answer": "Use a two-level contract: reject an invalid batch shape, but return per-record outcomes for records inside a valid batch.\n\nRecommended first-slice design\n- Entry point: `importBatch(input: unknown, repo: ImportRepository): ImportBatchResult`.\n- Trust boundary: accept `unknown`, not pre-cast JSON-derived types. Validation happens immediately at the module edge.\n- Top-level shape: require an array. If the payload is not an array, return `BatchRejected` and do not call the repository.\n- Record validation: each array element is validated into a dedicated import DTO such as `ImportedRecord`. Use explicit field checks, required/optional field rules, and closed-shape validation. Reject unknown fields rather than silently dropping them.\n- Invalid records: inside a valid array batch, do not fail the whole batch. Return a per-record `invalid` outcome with field-level issues. This keeps the first slice reviewable while still covering mixed-result behavior.\n- Duplicate IDs: represent duplicates as a distinct per-record outcome, not as generic validation failure. Detect duplicates after successful per-record validation and before repository calls. Mark every member of a duplicate group as `duplicate_id` and write none of them, so behavior is deterministic and order-independent.\n- Repository boundary: keep it to one typed operation on already-validated records, for example `insert(record: ImportedRecord): InsertResult`, where `InsertResult` is only `inserted` or `id_conflict`. Do not push JSON parsing or field validation into the repository.\n- Caller-visible error contract: expected external-input problems are returned as typed results, not thrown. Reserve thrown errors for programmer mistakes or unexpected repository/runtime failures.\n\nSuggested result shapes\n```ts\ntype ImportBatchResult =\n  | { kind: \"batch_rejected\"; error: BatchInputError }\n  | { kind: \"completed\"; outcomes: RecordOutcome[]; summary: ImportSummary }\n\ntype RecordOutcome =\n  | { kind: \"inserted\"; index: number; id: RecordId }\n  | { kind: \"invalid\"; index: number; errors: FieldError[] }\n  | { kind: \"duplicate_id\"; index: number; id: RecordId; duplicate_indices: number[] }\n  | { kind: \"id_conflict\"; index: number; id: RecordId }\n```\n\nRoutine shape\n1. Validate batch container.\n2. Validate each record independently into either `ImportedRecord` or `FieldError[]`.\n3. Build an ID occurrence map from only the valid records.\n4. Convert duplicate groups into `duplicate_id` outcomes.\n5. Send remaining unique valid records to `repo.insert(...)`.\n6. Return outcomes in input order plus summary counts.\n\nThis shape keeps control flow easy to inspect: validation, duplicate detection, persistence, result assembly. It also avoids mixing trust-boundary logic with repository concerns.\n\nSmallest reviewable implementation slice\n- Support one importable record shape.\n- Support one batch entry point.\n- Support strict validation for required fields, optional fields, and unknown fields.\n- Support in-batch duplicate detection.\n- Support one repository call per eligible record with only `inserted` and `id_conflict` as repository outcomes.\n- Return ordered per-record outcomes plus summary counts.\n\nThat is the minimum slice that settles the unresolved decisions without dragging in out-of-scope persistence policy.\n\nMinimum first-merge tests\n- Boundary test: non-array payload returns `batch_rejected` and repo is not called.\n- Boundary test: array item that is not an object yields per-record `invalid`.\n- Validation test: missing required field yields `invalid` with field-specific error.\n- Validation test: wrong field type yields `invalid`.\n- Validation test: unknown field yields `invalid`.\n- Duplicate test: two valid records with the same ID in one batch both return `duplicate_id`, and neither is sent to the repo.\n- Repository-boundary test: one valid unique record is passed to the repo as a typed record.\n- Conflict test: repo returning `id_conflict` becomes a per-record `id_conflict` outcome.\n- Mixed-result test: one inserted, one invalid, one duplicate, one repo conflict in the same batch produces stable ordered outcomes and correct summary counts.\n\nReview guidance before coding\n- Keep validation errors precise and field-addressable.\n- Keep duplicate detection independent of input order side effects.\n- Keep the repository interface narrow and typed.\n- Avoid boolean status flags; use explicit result variants for batch and record outcomes.\n- Do not add retries, partial transaction policy, performance optimizations, or deployment concerns in this first slice.",
+    "selected_project_skills": [
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "stderr": ""
+}

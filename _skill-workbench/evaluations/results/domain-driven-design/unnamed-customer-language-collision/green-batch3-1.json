@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/domain-driven-design/unnamed-customer-language-collision.md",
+  "case_sha256": "b914d0a5d83b0da17369373165be596bc25188a006369490e5f0585205c45971",
+  "mode": "green",
+  "run": "1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c52-4f30-7d91-8917-3c0ccaa5e8fb",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposal should be rejected as a shared domain model. `Customer` is carrying three different meanings:\n\n- In Sales, it is a CRM account judged by recent opportunity activity.\n- In Billing, it is a legal/billable entity allowed to receive invoices.\n- In Support, it is an entitled party with support coverage.\n\nBefore any code is shared, the teams need to settle the language explicitly:\n\n- Does `Customer` mean account, legal entity, entitled party, or some broader party/organization concept?\n- What does `active` mean in each context? The current proposal hides three incompatible rules behind one boolean.\n- What does `status` mean, and who owns its lifecycle? A single string would collapse unrelated state machines.\n- What is `id`? CRM account ID, billing account ID, entitlement ID, or a new enterprise identifier?\n\nThose are not field-mapping problems. They show separate bounded contexts with different identity rules, invariants, and required data. The proposed class mixes foreign concerns (`ownerId`, `taxNumber`, `supportPlan`) and would force every team to depend on meanings they do not own.\n\nRecommended boundary:\n\n- Keep separate models such as `SalesAccount`, `BillableEntity` or `BillingAccount`, and `SupportEntitlement` or `SupportedParty`.\n- If the enterprise truly needs a common concept, make it a very small neutral reference model, for example `PartyRef` or `OrganizationRef`, containing only a stable enterprise identifier plus cross-reference IDs. Do not put `active`, `status`, or domain-specific attributes there.\n\nHow information should cross boundaries:\n\n- Cross-context traffic should use explicit integration contracts, not the shared class.\n- Publish context-specific events or API DTOs such as `BillingAccountApprovedForInvoicing`, `CreditHoldPlaced`, `SupportEntitlementActivated`, or `OpportunityActiveWithin90Days`.\n- Each receiving team translates that contract into its own model through a mapping/anticorruption layer.\n- If a shared contract is unavoidable, use a published language owned as an integration artifact and version it separately from internal domain classes.\n\nThe key clarification is this: the collision is not about one `Customer` type missing fields; it is about one word naming different business concepts. Until the teams define those concepts and boundaries, sharing code will couple unrelated models and corrupt all three.",
+    "selected_project_skills": [
+      "domain-driven-design-distilled",
+      "domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/domain-driven-design-distilled/SKILL.md",
+      ".agents/skills/domain-driven-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:32:41.951436Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c52-4f30-7d91-8917-3c0ccaa5e8fb.1783960325936464000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

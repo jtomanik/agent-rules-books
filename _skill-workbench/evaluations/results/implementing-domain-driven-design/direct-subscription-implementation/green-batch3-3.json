@@ -1,0 +1,44 @@
+{
+  "case": "_skill-workbench/evaluations/cases/implementing-domain-driven-design/direct-subscription-implementation.md",
+  "case_sha256": "764dfa6f65d2d27d613a86611892b42632439daa0ce126d79ad379f5059e61e7",
+  "mode": "green",
+  "run": "3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5c53-1a02-7450-af4a-051a65f57b3a",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The corrected implementation keeps this entirely inside the `Subscription` bounded context and removes foreign models from the aggregate.\n\nThe current proposal is off in six important ways:\n- `Subscription` is too large. `Customer`, `Plan`, `PaymentMethod`, and `RenewalHistory` should not be contained as mutable objects.\n- Public setters bypass invariants.\n- `GenericRepository<SubscriptionRow>` is table-shaped, not aggregate-shaped.\n- The renewal transaction spans multiple contexts (`Subscription`, `Customer`, `Plan`, `Payment`).\n- `RenewalRowInserted` is a persistence artifact, not a domain event.\n- Renewal history should be a projection, not a full aggregate graph load.\n\nA better implementation design is:\n\n```yaml\nbounded_context: Subscription\n\naggregate_roots:\n  Subscription:\n    identity: SubscriptionId\n    state:\n      customerId: CustomerId\n      status: SubscriptionStatus\n      currentTerm: SubscriptionTerm\n      nextTermPlanTerms: PlanTermsSnapshot\n      renewalWindow: RenewalWindow\n      acceptedRenewal: AcceptedRenewal?\n      version: SubscriptionVersion\n    invariants:\n      - cancelled subscriptions cannot renew\n      - accepted renewal must use nextTermPlanTerms captured for that term\n      - at most one accepted renewal exists for a subscription and term\n    behavior:\n      - evaluateRenewalEligibility(asOf)\n      - acceptRenewal(termId, paymentAuthorizationRef, acceptedAt)\n      - cancel(cancelledAt)\n\ninternal_types:\n  AcceptedRenewal:\n    fields: [termId, planTermsSnapshot, paymentAuthorizationRef, acceptedAt]\n  PlanTermsSnapshot:\n    fields: [planId, price, billingPeriod, commercialTerms, termId, capturedAt]\n  RenewalWindow:\n    fields: [opensAt, closesAt]\n  PaymentAuthorizationRef:\n    fields: [authorizationId]\n```\n\nKey modeling decisions:\n- `Subscription` is the only aggregate root needed here.\n- `Renewal` is not a separate aggregate unless you later need an independent lifecycle. Here, the immediate invariants belong on `Subscription`.\n- `Customer`, `Plan`, and Payments-owned payment data are referenced by identity or snapshot only.\n- `RenewalHistory` does not live inside the aggregate.\n\nRepository contracts should be aggregate-oriented:\n\n```text\ninterface SubscriptionRepository {\n  subscriptionOfId(id: SubscriptionId): Subscription?\n  save(subscription: Subscription, expectedVersion: SubscriptionVersion): void\n}\n\ninterface RenewalCandidateSource {\n  subscriptionsDueForEvaluation(asOf: Instant, limit: int): List<SubscriptionId>\n}\n```\n\nNotes:\n- `SubscriptionRepository` reconstitutes and persists the aggregate.\n- Use optimistic concurrency on save to protect \u201cat most one accepted renewal per subscription and term.\u201d\n- If persistence stores accepted renewals separately, also add a unique constraint on `(subscription_id, term_id)` as backing protection, but keep the rule in the aggregate.\n- Do not return rows or ORM entities from the repository.\n\nApplication coordination should be thin and cross-context aware:\n\n```text\nEvaluateAutomaticRenewal use case\n1. Load Subscription.\n2. Ask Subscription to evaluate eligibility using `asOf`.\n3. Build a payment authorization request from `nextTermPlanTerms`.\n4. Call Payments through an ACL using an idempotency key like `subscriptionId:termId`.\n5. On authorization success, reload Subscription in a local transaction.\n6. Call `acceptRenewal(termId, paymentAuthorizationRef, acceptedAt)`.\n7. Save Subscription and publish resulting domain events via outbox.\n```\n\nImportant boundary rule:\n- Do not load and update `Customer`, `Plan`, and `Payment` in one transaction.\n- Payments owns authorization. The Subscription context only consumes an authorization result/reference.\n- If authorization fails, do not mutate the aggregate unless the business explicitly wants a recorded failed evaluation fact.\n\nDomain events should be business facts in past tense, emitted from committed domain behavior:\n\n```text\nRenewalAccepted\n  subscriptionId\n  customerId\n  termId\n  planTermsSnapshot\n  paymentAuthorizationRef\n  acceptedAt\n\nSubscriptionCancelled\n  subscriptionId\n  cancelledAt\n```\n\nOptional only if failure history is customer-visible:\n\n```text\nRenewalAuthorizationDeclined\n  subscriptionId\n  termId\n  occurredAt\n  reasonCode\n```\n\nEvent guidance:\n- Replace `RenewalRowInserted` with `RenewalAccepted`.\n- Emit through an outbox as part of the same commit as the aggregate save, not ad hoc after the HTTP response.\n- Keep payloads domain-local, not table rows or transport objects.\n\nModule structure should make the context visible:\n\n```text\nsubscription/\n  domain/\n    Subscription\n    AcceptedRenewal\n    PlanTermsSnapshot\n    RenewalWindow\n    events/\n    repositories/\n  application/\n    EvaluateAutomaticRenewal\n    handlers/\n  integration/\n    payments/\n      PaymentsAcl\n      PaymentAuthorizationTranslator\n  infrastructure/\n    persistence/\n      SqlSubscriptionRepository\n      OutboxPublisher\n  readmodel/\n    RenewalHistoryProjector\n    RenewalHistoryView\n    RenewalHistoryQueryService\n```\n\nThe read model should be projection-based, not aggregate-shaped:\n- Build `RenewalHistoryView` from `RenewalAccepted` and any other customer-visible renewal events.\n- Query it directly by `subscriptionId`; do not load the complete `Subscription` graph.\n- Eventual consistency is acceptable because the approved rule allows customer-facing renewal history to lag by up to one minute.\n\nA suitable read-model shape is:\n\n```yaml\nRenewalHistoryView:\n  key: [subscriptionId, termId]\n  fields:\n    - subscriptionId\n    - termId\n    - planId\n    - price\n    - status\n    - acceptedAt?\n    - declinedAt?\n    - lastUpdatedAt\n```\n\nIn short: keep one small `Subscription` aggregate, enforce renewal invariants there, reference external contexts by identity and snapshots, coordinate payment authorization in an application service/ACL instead of a multi-context transaction, publish past-tense domain events, and serve renewal history from a projection.",
+    "selected_project_skills": [
+      "implementing-domain-driven-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/implementing-domain-driven-design/SKILL.md",
+      ".agents/skills/implementing-domain-driven-design/references/index.md",
+      ".agents/skills/implementing-domain-driven-design/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "implementing-domain-driven-design",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "implementing-domain-driven-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T16:34:42.711998Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5c53-1a02-7450-af4a-051a65f57b3a.1783960377858674000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}
