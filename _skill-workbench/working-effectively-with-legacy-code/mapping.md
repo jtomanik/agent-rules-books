@@ -83,6 +83,7 @@ The required wording checker reports exact fidelity: the primary bias, all 23 mi
 ## Packaging Prose Fidelity
 
 - Newly authored technical directives: none.
+- Inline reference map: eight source-backed labels link common focused questions directly to canonical full headings; every other bounded question still uses the exhaustive index. This changes loading only.
 - Review: frontmatter, headings, transitions, and reference-routing prose organize discovery and loading only; independent review found no technical rule beyond canonical guidance.
 
 ## Size Exception
@@ -90,8 +91,8 @@ The required wording checker reports exact fidelity: the primary bias, all 23 mi
 - Canonical mini: 796 words.
 - Before routing fix: `SKILL.md` 909 words; packaging overhead 113 words.
 - Before final catalog boundary: `SKILL.md` 914 words; packaging overhead 118 words.
-- Current: `SKILL.md` 922 words; packaging overhead 126 words.
-- Decision: retain the source-driven exception. Description-only routing metadata changed while the mini-derived body stayed exact; the canonical mini already exceeds the 500-word target, every mini rule remains required for complete ordinary use, and current packaging overhead remains below the 150-word soft target. Do not paraphrase rules during conversion to reduce this count.
+- Current: `SKILL.md` 983 words across 80 lines; packaging overhead 187 words.
+- Decision: retain the source-driven exception. The mini-derived body stayed exact; the canonical mini already exceeds the 500-word target, every mini rule remains required for complete ordinary use, and the 37-word soft-target overage provides eight direct focused routes without duplicating the exhaustive index. Do not paraphrase rules during conversion to reduce this count.
 
 ## Behavioral Scenarios
 
@@ -322,3 +323,77 @@ This section supersedes every earlier use of `current` and the pending O6b text 
 - O1 excluded Legacy Code `3/3`; O3 and O3b selected Legacy Code before Refactoring with focused disclosure `6/6`; O4 and O5 excluded Legacy Code; O6 kept Legacy first with justified Release It! overlap.
 - O6b final run `019f55ce-183c-7691-b6ba-192388b77890` selected only Legacy Code and used comprehensive disclosure. Its baseline and earlier final run remain preserved; the pending block above is obsolete.
 - Final acceptance: **pass** for Legacy discovery, first-feedback ownership, overlap ordering, local-only comprehensive retrieval, and source fidelity. No body or reference rewrite is required before the next conversion batch.
+
+## Inline Reference Map Evaluation
+
+The original shared focused proposal is preserved as rejected `refactoring/mapping.md` RM2. The separately owned controls below replace that proposal and close the earlier ordinary-positive gap without reclassifying any frozen historical case.
+
+### RM1: Comprehensive local Legacy control
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/refactoring-legacy-overlap/06b-comprehensive-legacy-local.md`
+- Fixture SHA-256: `6b98a3af236a9d7d85664dda0c6ff316311bdefff31db1c50c0fe6b831c168d7`
+- Required skills: `{working-effectively-with-legacy-code}`
+- Distinctive judgment: Apply the complete Feathers lens to unknown behavior, weak tests, seams, dependencies, and change control without importing production-failure policy.
+- Neighbor ownership: Refactoring follows only after control exists, and Release It! is outside this local-only fixture.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: comprehensive
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: all canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM1b; the frozen fixture, hash, and required set remain unchanged
+
+### RM1b: Comprehensive change-control replacement
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/working-effectively-with-legacy-code/comprehensive-change-control-audit-v2.md`
+- Fixture SHA-256: `f54ef1971329b4f1481088efa66f4ca84fcb3de508995ff1e3c6c4cde57aa447`
+- Required skills: `{working-effectively-with-legacy-code}`
+- Distinctive judgment: Apply the complete characterization, feedback, seam, sensing, dependency-breaking, sprout/wrap, risky-area, testing, and change-control lens end to end.
+- Neighbor ownership: Refactoring becomes central only after behavioral control exists, and Release It! is outside this local changeability audit; the explicit exhaustive unknown-code objective belongs here.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and end-to-end comprehensive loading were accepted.
+- Reference expectation: comprehensive
+- Runs: `green-inline-map-1`; selected `working-effectively-with-legacy-code` and compatible `refactoring`; required target reported `sections=["*"]`
+- Package fidelity trace: all canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: permitted downstream structural-change overlap; required target inclusion and end-to-end access passed
+
+### RM2: Ordinary characterization-change control
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/working-effectively-with-legacy-code/ordinary-characterization-change-v2.md`
+- Fixture SHA-256: `dac34357cd146c81e73eb4e6e7d5ec4737387b640564540c60940a485f131e9a`
+- Required skills: `{working-effectively-with-legacy-code}`
+- Distinctive judgment: Characterize relied-on calculator behavior, add one focused requirement test, preserve surprising dependencies, make the smallest semantic change, and limit cleanup to the controlled slice.
+- Neighbor ownership: Refactoring is secondary because the semantic change is blocked first by undocumented relied-on behavior; no architecture or production-failure redesign is requested.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and the ordinary tier premise were accepted.
+- Reference expectation: ordinary
+- Runs: `green-inline-map-1`; selected `working-effectively-with-legacy-code`; `ordinary`; no reference sections
+- Package fidelity trace: exact mini-derived characterization, first-feedback, semantic-change, preservation, and bounded-cleanup guidance
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: closes the preserved ordinary-positive disclosure gap with a body-only run
+
+### RM3: Focused sprout-wrap control
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/working-effectively-with-legacy-code/focused-sprout-wrap-choice-v2.md`
+- Fixture SHA-256: `0d87eb0bc9d4b3ff0cb9406c50d8ca54b83b6021ebc3fa284022416ca4f14aa3`
+- Required skills: `{working-effectively-with-legacy-code}`
+- Distinctive judgment: Compare the exact Sprout Method, Sprout Class, Wrap Method, and Wrap Class conditions, establish the minimum observation first, and choose the smallest reviewable insertion boundary.
+- Neighbor ownership: Refactoring follows only after control exists; the immediate source-specific technique choice for poorly tested code belongs to Legacy Code.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, absent four-technique detail, and the two-section destination were accepted.
+- Reference expectation: focused
+- Compact-body gap: The compact body names sprout and wrap as bounded options but intentionally omits the source's distinct applicability conditions for all four techniques.
+- Intended index destinations: `Testing Strategy Rules` and `Preferred Legacy Techniques`
+- Runs: `green-inline-map-1`; selected `working-effectively-with-legacy-code`; `focused`; target read `Testing Strategy Rules`, `Seam Rules`, `Preferred Legacy Techniques`, and `Handling Risky Areas`
+- Package fidelity trace: canonical full headings `Testing Strategy Rules` and `Preferred Legacy Techniques` plus unchanged mini-derived seam and patch-size guidance
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: two additional relevant target sections beyond the minimum pair; bounded focused access and required inclusion passed

@@ -198,6 +198,11 @@ def validate_repository(root: Path) -> list[str]:
                 for field in VERSION_2_FOCUSED_FIELDS:
                     if not fields.get(field):
                         errors.append(f"{label}: missing {field}")
+            ownership = normalized_scalar(fields["ownership review"])
+            if not re.match(r"^(?:pass|fail|rejected)\b", ownership):
+                errors.append(
+                    f"{label}: ownership review must be terminal PASS, FAIL, or REJECTED"
+                )
             errors.extend(validate_fixture(root, label, fields))
 
         if version == 2:

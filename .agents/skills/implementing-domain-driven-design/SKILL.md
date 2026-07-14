@@ -52,15 +52,22 @@ Practical DDD is not renamed CRUD. Model the operational domain inside an explic
 - Protect the Core Domain from generic abstractions and vendor terms; spend richer modeling where competitive or operational complexity lives, keep supporting subdomains simpler, and avoid DDD ceremony for trivial CRUD.
 - When a subdomain is simple CRUD, keep it simple; when invariants and lifecycle complexity appear, model them honestly instead of hiding them in services.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched implementation work, including one bounded tactical DDD decision that the guidance above resolves.
+Use this file alone when it resolves ordinary matched implementation work; do not open references merely to confirm its answer.
 
-Do not open references merely to restate a recommendation already supported here.
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For an explicit disputed interpretation or demonstrated implementation hotspot, read [references/index.md](references/index.md), then the smallest named sections in [references/full.md](references/full.md). Also use that focused route when, after applying this file, one bounded question remains unresolved about context translation, Aggregate consistency, tactical object or service semantics, Repository shape, Domain Events or Event Sourcing, Application Service ownership, module structure, client representations, or domain-boundary testing.
+- Aggregate consistency and transaction scope: [Aggregate Rules of Thumb](references/full.md#aggregate-rules-of-thumb)
+- Identity and value semantics: [Entity and Value Object Rules](references/full.md#entity-and-value-object-rules)
+- Aggregate persistence and query ownership: [Repository Rules](references/full.md#repository-rules)
+- Event meaning, publication, or sourcing: [Domain Event Rules](references/full.md#domain-event-rules)
+- Use-case coordination: [Application Service Rules](references/full.md#application-service-rules)
+- Context translation and integration: [Context Integration Rules](references/full.md#context-integration-rules)
+- Client and read representations: [Client Representation and Scope Discipline](references/full.md#client-representation-and-scope-discipline)
+- Domain-boundary verification: [Testing Rules](references/full.md#testing-rules)
 
-For a comprehensive DDD implementation audit or an explicit request for the complete Implementing Domain-Driven Design lens, read [references/full.md](references/full.md) end to end.
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive DDD implementation audit or complete Implementing Domain-Driven Design lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

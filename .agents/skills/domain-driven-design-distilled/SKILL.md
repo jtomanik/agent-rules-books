@@ -53,13 +53,21 @@ Use DDD where it clarifies complex business software; do not turn it into ritual
 - Estimate DDD work by modeling uncertainty, integration risk, and implementation cost, not only by feature count; treat team skill and access to domain experts as constraints on how much DDD ceremony the project can sustain.
 - When generating code, use this default order: identify the subdomain; identify the Bounded Context; write names in its local Ubiquitous Language; decide whether each concept is an Entity, Value Object, Aggregate, Service, Repository, or Domain Event; choose the smallest tactical pattern that fits; isolate infrastructure at boundaries; keep context translation explicit.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched work when the guidance above resolves the DDD investment, language, boundary, or tactical-pattern question.
+Use this file alone when it resolves the ordinary DDD investment or modeling question; do not open references merely to confirm its answer.
 
-For an explicit dispute or demonstrated modeling hotspot, read [references/index.md](references/index.md), then the smallest named sections in [references/full.md](references/full.md). Also use that focused route when one bounded source question remains unresolved after applying this file.
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For a comprehensive DDD Distilled audit, an explicit request for the complete book lens, or a decision spanning several independent concern families, read [references/full.md](references/full.md) end to end.
+- Whether DDD investment is justified: [Adoption Fit and Modeling Investment](references/full.md#adoption-fit-and-modeling-investment)
+- Subdomains and strategic priority: [Strategic Rules](references/full.md#strategic-rules)
+- Upstream/downstream relationship choice: [Context Relationship Rules](references/full.md#context-relationship-rules)
+- RPC, messaging, and contract shape: [Integration Style Rules](references/full.md#integration-style-rules)
+- Context-local terminology: [Ubiquitous Language Rules](references/full.md#ubiquitous-language-rules)
+- Tactical pattern selection: [Tactical Pattern Rules](references/full.md#tactical-pattern-rules)
+- Consistency boundary size: [Aggregate Minimalism Rules](references/full.md#aggregate-minimalism-rules)
+
+For any other bounded source question, use [the exhaustive index](references/index.md). For any explicit comprehensive end-to-end DDD investment or modeling audit, or a request for the complete DDD Distilled lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

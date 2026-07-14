@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -25,7 +26,7 @@ from validate_evaluation_contracts import (  # noqa: E402
 )
 
 
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2
 DEFAULT_SCHEMA = Path("_skill-workbench/evaluations/result-v2.schema.json")
 DEFAULT_RUNNER = Path("_skill-workbench/scripts/run_skill_eval.py")
 RUN_CONFIGURATION = {
@@ -98,6 +99,35 @@ def catalog_snapshot(repo: Path) -> dict[str, Any]:
     }
 
 
+def package_snapshot(repo: Path) -> dict[str, Any]:
+    skill_root = repo / ".agents" / "skills"
+    files = sorted(
+        path
+        for pattern in ("*/SKILL.md", "*/references/index.md", "*/references/full.md")
+        for path in skill_root.glob(pattern)
+    )
+    if not files:
+        raise ManifestError("live package is empty: .agents/skills skill and reference files not found")
+    entries = [
+        {
+            "path": repository_path(repo, path, "package file"),
+            "byte_count": path.stat().st_size,
+            "sha256": sha256_file(path),
+        }
+        for path in files
+    ]
+    payload = "".join(
+        f"{entry['path']}\t{entry['byte_count']}\t{entry['sha256']}\n"
+        for entry in entries
+    ).encode("utf-8")
+    return {
+        "file_count": len(entries),
+        "byte_count": sum(entry["byte_count"] for entry in entries),
+        "sha256": sha256_bytes(payload),
+        "entries": entries,
+    }
+
+
 def case_contract(repo: Path, case: Path) -> dict[str, Any]:
     case_relative = repository_path(repo, case, "case")
     matches: list[dict[str, Any]] = []
@@ -110,9 +140,10 @@ def case_contract(repo: Path, case: Path) -> dict[str, Any]:
                 continue
             case_version = normalized_scalar(fields.get("contract version", ""))
             if mapping_version != 2 and case_version != "2":
-                raise ManifestError(
-                    f"{mapping.relative_to(repo)} {case_id} is not an evaluation contract version 2 case"
-                )
+                continue
+            ownership = normalized_scalar(fields.get("ownership review", ""))
+            if not re.match(r"^pass\b", ownership):
+                continue
             required = parse_skill_set(fields.get("required skills", ""))
             if required is None:
                 raise ManifestError(
@@ -183,6 +214,7 @@ def build_manifest(
         "manifest_version": MANIFEST_VERSION,
         "contract": contract,
         "catalog": catalog_snapshot(repo),
+        "packages": package_snapshot(repo),
         "case": {
             "path": repository_path(repo, case, "case"),
             "sha256": case_sha256,
@@ -236,6 +268,7 @@ def validate_manifest(repo: Path, manifest: dict[str, Any], *, runner: Path) -> 
     comparisons = (
         ("contract", "mapping contract"),
         ("catalog", "catalog snapshot"),
+        ("packages", "package snapshot"),
         ("case", "case evidence"),
         ("required_project_skills", "required project skills"),
         ("execution", "execution contract"),

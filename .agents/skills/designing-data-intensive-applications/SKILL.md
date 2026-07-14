@@ -51,15 +51,22 @@ Do not design distributed data behavior as if every write, read, queue, cache, r
 
 - When reviewing or testing data-intensive code, look specifically for hidden source-of-truth ownership, missing idempotency, accidental exactly-once assumptions, unscoped ordering, schema drift, unrebuildable projections, unclear multi-writes, and unobservable lag or failure.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched work, including one bounded data-contract decision that the guidance above resolves.
+Use this file alone when it resolves ordinary matched work; do not open references merely to confirm its answer.
 
-Do not open references merely to confirm or elaborate a recommendation already supported here.
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For an explicit dispute or demonstrated correctness hotspot, you must read [references/index.md](references/index.md), then the smallest named sections in [references/full.md](references/full.md). Also use that focused route when, after applying this file, one bounded question remains unresolved about ownership and consistency, retry/replay/order safety, schema compatibility, derived-data repair, replication/partitioning, isolation, or coordination assumptions.
+- Durability and failure semantics: [Reliability Rules](references/full.md#reliability-rules)
+- Read guarantees and stale data: [Consistency Rules](references/full.md#consistency-rules)
+- Retries, duplicates, and replay: [Idempotency and Replay Rules](references/full.md#idempotency-and-replay-rules)
+- Compatibility and migration: [Schema Evolution Rules](references/full.md#schema-evolution-rules)
+- Replica topology and lag: [Replication Rules](references/full.md#replication-rules)
+- Atomicity and isolation: [Transaction Rules](references/full.md#transaction-rules)
+- Projection authority, rebuild, and repair: [Derived Data Rules](references/full.md#derived-data-rules)
+- Clocks, faults, and coordination: [Distributed Fault, Clock, and Consensus Rules](references/full.md#distributed-fault-clock-and-consensus-rules)
 
-For a comprehensive data-system audit, an explicit request for the complete DDIA lens, or a decision spanning several independent concern families, read [references/full.md](references/full.md) end to end.
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive data-system audit or complete DDIA lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

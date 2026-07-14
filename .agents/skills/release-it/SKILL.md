@@ -49,13 +49,20 @@ Application note: Classify the failing boundary before quarantine. Malformed inb
 - Include security and hostile traffic in production readiness, and use production tests, launch checks, capacity tests, game days, chaos, or disaster simulations only with limited blast radius, observability, stop conditions, and feedback into design.
 - When adding administrative controls, control planes, delivery tooling, hostile-traffic handling, or chaos/disaster work, require authorization, auditability, safe defaults, clear stop mechanisms, bounded blast radius, and recovery paths.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched work, including review of one outbound integration; do not open references to confirm or elaborate it.
+Stay here for ordinary matched work, including one outbound integration; do not open references merely to confirm it.
 
-For an explicit disputed interpretation or demonstrated production hotspot, you must read [references/index.md](references/index.md) and bounded sections in [references/full.md](references/full.md). Also use that focused route when, after applying this file, one bounded production-failure question remains unresolved. Otherwise, stop after this file.
+For disputed or missing source detail, open the smallest match:
 
-For a comprehensive production-readiness audit, an explicit request for the complete Release It! lens, or a decision that depends on interactions across several failure modes, read [references/full.md](references/full.md) end to end.
+- Timeouts, retries, breakers, and bulkheads: [Dependency Protection Rules](references/full.md#dependency-protection-rules)
+- Overload, queues, back pressure, and shedding: [Load and Capacity Rules](references/full.md#load-and-capacity-rules)
+- Partial progress and restartability: [Runtime State and Restart Safety Rules](references/full.md#runtime-state-and-restart-safety-rules)
+- Malformed or poisoning inputs: [Data Boundary Rules](references/full.md#data-boundary-rules)
+- Logs, metrics, health, and diagnosis: [Operational Visibility Rules](references/full.md#operational-visibility-rules)
+- Startup, readiness, and migrations: [Deployment and Startup Rules](references/full.md#deployment-and-startup-rules)
+
+Other bounded questions: use [the exhaustive index](references/index.md). For an explicit comprehensive production-readiness audit or complete Release It! lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

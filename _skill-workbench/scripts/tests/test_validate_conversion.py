@@ -38,7 +38,20 @@ class ConversionSizeBudgetTests(unittest.TestCase):
         workbench.mkdir(parents=True)
 
         long_rule = " ".join(["preserved"] * 510) + "."
-        full = "# Full\n\n## One section\n\nFull guidance.\n"
+        full = """# Full
+
+## One section
+
+Full guidance.
+
+## Two section
+
+More guidance.
+
+## Three section
+
+Final guidance.
+"""
         mini = f"""# Mini
 
 ## Primary bias to correct
@@ -81,9 +94,15 @@ Keep the bias.
 
 {extra_packaging}
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary work. Read [references/index.md](references/index.md) for focused work and [references/full.md](references/full.md) end to end for comprehensive work.
+Use this file alone for ordinary work.
+
+- [One section](references/full.md#one-section)
+- [Two section](references/full.md#two-section)
+- [Three section](references/full.md#three-section)
+
+Use [references/index.md](references/index.md) for other focused work and [references/full.md](references/full.md) end to end for comprehensive work.
 
 ## Final Checklist
 
@@ -149,7 +168,7 @@ The canonical mini source already exceeds the 500-word target. The skill preserv
         )
         (skill / "references" / "full.md").write_text(full, encoding="utf-8")
         (skill / "references" / "index.md").write_text(
-            "# Index\n\n[full.md](full.md)\n\n| Section | Lines | Read when |\n| --- | ---: | --- |\n| [One section](full.md#one-section) | `3-5` | The one section is needed. |\n",
+            "# Index\n\n[full.md](full.md)\n\n| Section | Lines | Read when |\n| --- | ---: | --- |\n| [One section](full.md#one-section) | `3-5` | The one section is needed. |\n| [Two section](full.md#two-section) | `7-9` | The two section is needed. |\n| [Three section](full.md#three-section) | `11-13` | The three section is needed. |\n",
             encoding="utf-8",
         )
         (workbench / "mapping.md").write_text(mapping, encoding="utf-8")
@@ -170,8 +189,8 @@ The canonical mini source already exceeds the 500-word target. The skill preserv
         skill = root / ".agents" / "skills" / "example" / "SKILL.md"
         skill.write_text(
             skill.read_text(encoding="utf-8").replace(
-                "\n\n## Reference Router",
-                "\n- Keep the second rule.\n\n## Reference Router",
+                "\n\n## Reference Map",
+                "\n- Keep the second rule.\n\n## Reference Map",
             ),
             encoding="utf-8",
         )
@@ -249,6 +268,80 @@ The canonical mini source already exceeds the 500-word target. The skill preserv
 
         self.assertTrue(
             any("Packaging Prose Fidelity" in error for error in result.errors),
+            result.errors,
+        )
+
+    def test_reference_map_requires_three_direct_full_links(self) -> None:
+        temporary, root = self.make_fixture(size_exception=True)
+        self.addCleanup(temporary.cleanup)
+        skill = root / ".agents" / "skills" / "example" / "SKILL.md"
+        skill.write_text(
+            skill.read_text(encoding="utf-8")
+            .replace("- [Two section](references/full.md#two-section)\n", "")
+            .replace("- [Three section](references/full.md#three-section)\n", ""),
+            encoding="utf-8",
+        )
+
+        result = validate_conversion.validate_one(root, "example")
+
+        self.assertTrue(any("3-8 direct full-section links" in error for error in result.errors), result.errors)
+
+    def test_reference_map_rejects_unknown_full_anchor(self) -> None:
+        temporary, root = self.make_fixture(size_exception=True)
+        self.addCleanup(temporary.cleanup)
+        skill = root / ".agents" / "skills" / "example" / "SKILL.md"
+        skill.write_text(
+            skill.read_text(encoding="utf-8").replace(
+                "references/full.md#three-section",
+                "references/full.md#missing-section",
+            ),
+            encoding="utf-8",
+        )
+
+        result = validate_conversion.validate_one(root, "example")
+
+        self.assertTrue(any("anchor does not resolve" in error for error in result.errors), result.errors)
+
+    def test_reference_map_requires_exhaustive_index_fallback(self) -> None:
+        temporary, root = self.make_fixture(size_exception=True)
+        self.addCleanup(temporary.cleanup)
+        skill = root / ".agents" / "skills" / "example" / "SKILL.md"
+        skill.write_text(
+            skill.read_text(encoding="utf-8")
+            .replace(
+                "## Reference Map\n",
+                "See [references/index.md](references/index.md).\n\n## Reference Map\n",
+            )
+            .replace(
+                "Use [references/index.md](references/index.md) for other focused work and ",
+                "For other focused work, ",
+            ),
+            encoding="utf-8",
+        )
+
+        result = validate_conversion.validate_one(root, "example")
+
+        self.assertTrue(
+            any("Reference Map must link references/index.md" in error for error in result.errors),
+            result.errors,
+        )
+
+    def test_reference_map_requires_explicit_end_to_end_full_fallback(self) -> None:
+        temporary, root = self.make_fixture(size_exception=True)
+        self.addCleanup(temporary.cleanup)
+        skill = root / ".agents" / "skills" / "example" / "SKILL.md"
+        skill.write_text(
+            skill.read_text(encoding="utf-8").replace(
+                "end to end for comprehensive work",
+                "for comprehensive work",
+            ),
+            encoding="utf-8",
+        )
+
+        result = validate_conversion.validate_one(root, "example")
+
+        self.assertTrue(
+            any("explicitly require an end-to-end read" in error for error in result.errors),
             result.errors,
         )
 

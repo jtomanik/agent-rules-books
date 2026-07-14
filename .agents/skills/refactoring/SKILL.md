@@ -48,13 +48,22 @@ Refactoring is behavior-preserving design work in small steps. Do not turn clean
 - Use abstraction and generalization only when current evidence justifies them. Remove pass-through layers, vague utilities, middle men, unused hierarchy, and just-in-case interfaces that do not improve changeability.
 - Preserve error semantics unless intentionally changing behavior. Refactor error handling to reveal the main path and consolidate duplicate validation, cleanup, recovery, or error structures.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary behavior-preserving structural work.
+Use this file alone for ordinary behavior-preserving structural work; do not open references merely to confirm its answer.
 
-For a focused ambiguity about a smell, named move, safety net, ownership boundary, conditional, or stopping condition, read [references/index.md](references/index.md), then read the sections it identifies in [references/full.md](references/full.md).
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For a comprehensive refactoring audit, an explicit request for the complete Fowler lens, or a decision involving several interacting smell and technique categories, read [references/full.md](references/full.md) end to end.
+- Refactoring versus behavior change: [What Counts as Refactoring](references/full.md#what-counts-as-refactoring)
+- Weak tests or mixed patch intent: [Safety Rules](references/full.md#safety-rules)
+- Smell diagnosis and duplication: [Code Smell Policy](references/full.md#code-smell-policy)
+- Local transformation choice: [Preferred Refactoring Moves](references/full.md#preferred-refactoring-moves)
+- Named catalog technique: [Refactoring Catalog Index](references/full.md#refactoring-catalog-index)
+- Conditional structure: [Rules for Working with Conditionals](references/full.md#rules-for-working-with-conditionals)
+- Behavior-preserving verification: [Testing Rules](references/full.md#testing-rules)
+- Scope and stopping: [Stopping Rules](references/full.md#stopping-rules)
+
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive refactoring audit or complete Fowler lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

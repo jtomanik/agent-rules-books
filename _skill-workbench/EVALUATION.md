@@ -46,7 +46,7 @@ Require all of the following:
 - Every prescriptive mini and nano detail reverse-traces to explicit support in
   the canonical full rule.
 - Every newly authored technical directive in the description, active body,
-  checklist, or reference router has a source trace.
+  checklist, reference map, or exhaustive index has a source trace.
 - An independent reviewer checks semantic modality, scope, exceptions,
   mechanisms, examples, and guarantees, not just textual similarity.
 
@@ -118,24 +118,27 @@ Question: did the package preserve useful access to normal, focused, and
 exhaustive guidance?
 
 - `ordinary`: `SKILL.md` alone is sufficient for routine matched work.
-- `focused`: `references/index.md` routes a concrete question to relevant
-  sections of `references/full.md`.
+- `focused`: the inline map routes a common concrete question directly to
+  relevant sections of `references/full.md`, or `references/index.md` routes
+  any other bounded question there.
 - `comprehensive`: an explicit exhaustive request reads the full reference end
   to end.
 
-Record any index access as focused, even when the solver stops after inspecting
-the router because `SKILL.md` already resolved the task. In that index-only
-case, `consulted_reference_sections` stays empty. Treat it as an over-read
+Record any index access or bounded `full.md` access as focused. When the solver
+stops after inspecting only the index because `SKILL.md` already resolved the
+task, `consulted_reference_sections` stays empty. Treat that as an over-read
 diagnostic; it does not demonstrate that a focused source-detail fixture reached
 the required full section.
 
-A focused fixture must contain a concrete source-detail need that the compact
-body intentionally does not answer and that the index can route to a bounded,
-coherent section set. Calling the task focused, making the decision narrow, or
-mentioning several related concerns is not sufficient. If `SKILL.md` actually
-contains everything needed, record the run as ordinary and treat the mistaken
-fixture expectation as a design diagnostic rather than forcing a reference
-read.
+A focused fixture must contain either a concrete source-detail need that the
+compact body intentionally does not answer or an explicit source-interpretation
+dispute whose exact proposition must be checked against canonical detail. The
+inline map or exhaustive index must route that need to a bounded, coherent
+section set. Generic disagreement, a narrow decision, or several related
+concerns are not sufficient. If `SKILL.md` contains everything needed and no
+source interpretation is disputed, record the run as ordinary and treat the
+mistaken fixture expectation as a design diagnostic rather than forcing a
+reference read.
 
 Classify the complete requested deliverable, not only its central decision. A
 case is focused when the compact body resolves the main choice but the prompt
@@ -156,7 +159,7 @@ A disclosure failure blocks acceptance only when the progressive-disclosure
 design materially collapses. Examples include:
 
 - Routine ordinary work consistently causes an end-to-end `full.md` read.
-- The router cannot reach source detail needed for a concrete focused question.
+- Neither the inline map nor exhaustive index can reach source detail needed for a concrete focused question.
 - An explicit comprehensive request cannot reach or does not read the complete
   reference.
 - Router wording systematically sends routine work across broad, unrelated
@@ -259,7 +262,7 @@ Record cases in `_skill-workbench/<book>/mapping.md` before execution:
 - Neighbor ownership: <why plausible sibling skills are secondary, complementary, or outside the central decision>
 - Ownership review: <independent reviewer and pre-run verdict>
 - Reference expectation: <ordinary | focused | comprehensive | diagnostic>
-- Compact-body gap: <focused only: exact source detail absent from SKILL.md>
+- Compact-body gap: <focused only: exact absent source detail, or `none` plus the exact disputed source proposition>
 - Intended index destinations: <focused only: bounded full-reference headings>
 - Runs: <run IDs and observations>
 - Package fidelity trace: <M*, N*, or full heading>
@@ -269,8 +272,9 @@ Record cases in `_skill-workbench/<book>/mapping.md` before execution:
 ```
 
 Before behavioral execution, `Ownership review` must be a completed independent
-`PASS`, not `pending`. For a focused case, the reviewer must confirm both that
-the compact body lacks the requested source detail and that the intended index
+`PASS`, not `pending`. For a focused case, the reviewer must confirm either that
+the compact body lacks the requested source detail or that the exact disputed
+source proposition needs canonical checking, and that the intended index
 destinations form the smallest coherent source set. Ordinary and comprehensive
 cases omit the two focused-only fields.
 
@@ -366,16 +370,18 @@ python3 _skill-workbench/scripts/run_skill_eval.py \
 
 The builder derives the required set from the exact version 2 mapping case. It
 records the sorted `<skill-name>\t<description>\n` catalog entries and SHA-256,
-case and mapping hashes, runner and schema hashes, model, fixed configuration,
-timeout, run name, and output path. The runner recomputes all repository-derived
-values before dispatch, refuses an existing output path, and embeds both the
-manifest and its file hash in the result. It then compares the case, mode, run,
-model, configuration, and required set in the result envelope with the manifest.
+a complete package snapshot for every live `SKILL.md`, `references/index.md`, and
+`references/full.md`, case and mapping hashes, runner and schema hashes, model,
+fixed configuration, timeout, run name, and output path. The runner recomputes
+all repository-derived values before dispatch, refuses an existing output path,
+and embeds both the manifest and its file hash in the result. It then compares
+the case, mode, run, model, configuration, and required set in the result
+envelope with the manifest.
 
-Any catalog, fixture, mapping, runner, or schema change invalidates an unrun
-manifest. Preserve it, create a separately named replacement after review, and
-never edit it into agreement. A pre-dispatch manifest rejection is process
-evidence, not solver behavior. Direct `run_skill_eval.py` arguments remain useful
+Any catalog, package file, fixture, mapping, runner, or schema change invalidates
+an unrun manifest. Preserve it, create a separately named replacement after
+review, and never edit it into agreement. A pre-dispatch manifest rejection is
+process evidence, not solver behavior. Direct `run_skill_eval.py` arguments remain useful
 for exploratory or historical diagnostics but are not current acceptance
 evidence.
 
@@ -410,7 +416,7 @@ behavior.
 | Change | Evidence invalidated | Required reruns |
 | --- | --- | --- |
 | Description change or new catalog neighbor | Discovery and catalog routing for affected skills | Direct and unnamed cases for the changed skill; every positive case requiring it; high-overlap cases involving the new or changed boundary. |
-| `SKILL.md` or index router-loading prose only | Disclosure behavior reached after selection | Affected ordinary cases, focused source-detail probes, comprehensive controls, and any preserved over-read that motivated the change. Do not rerun discovery unless description metadata also changed. |
+| `SKILL.md` reference-map or index router-loading prose only | Disclosure behavior reached after selection | Affected ordinary cases, focused source-detail probes, comprehensive controls, and any preserved over-read that motivated the change. Do not rerun discovery unless description metadata also changed. |
 | Active technical guidance, canonical mini/nano, or a prescriptive index predicate | Source/package fidelity and affected application behavior | Repeat reverse tracing, exact wording and semantic review, then rerun affected application, pressure, attribution, and disclosure cases. Rerun discovery only if the description changed. |
 | Fixture ownership or content correction | Only the corrected contract; old evidence stays historical | Preserve the old fixture and results, create a separately named versioned replacement, audit it, then execute its frozen runs. |
 | Harness, schema, or CLI defect that prevented valid evidence | Invalid process-boundary records only | Preserve failed artifacts, repair and unit-test the harness, pass one live preflight, then use uniquely named replacements for invalid runs. Existing valid records remain valid when prompt, model, configuration, and result semantics are unchanged. |
@@ -447,7 +453,7 @@ A conversion passes only when:
   source-supported documented exception.
 - Nano salience is mapped without inventing or expanding rules.
 - Full-only activation candidates have source-traced decisions, and every promoted branch has an unnamed discovery fixture.
-- Every active technical directive and prescriptive router condition traces to
+- Every active technical directive and prescriptive map or router condition traces to
   canonical source.
 - Reverse tracing finds no unsupported compressed-source detail.
 - Structural and mapping validation passes.

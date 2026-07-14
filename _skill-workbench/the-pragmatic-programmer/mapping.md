@@ -116,15 +116,15 @@ Candidate description (497 characters):
 ## Packaging Prose Fidelity
 
 - Newly authored technical directives: none.
-- Review: the description only routes invocation and assigns catalog ownership; its blackboard branch traces exactly to `Resource and Coupling Rules` line 243. Concern headings only organize canonical rules; router prose only chooses ordinary, focused, or comprehensive access. The focused router names full-source topic families but adds no mechanism, default, guarantee, failure mode, exception, or preference.
-- Prescriptive router conditions: `Use this file alone for ordinary matched work, and stop when it resolves the task` implements the process's ordinary tier; the bounded unresolved-question route implements focused disclosure; the comprehensive-audit or explicit-complete-lens route implements exhaustive disclosure.
+- Review: the description only routes invocation and assigns catalog ownership; its blackboard branch traces exactly to `Resource and Coupling Rules` line 243. Concern headings only organize canonical rules; the reference map only chooses ordinary, focused, or comprehensive access. Its eight source-backed labels add no mechanism, default, guarantee, failure mode, exception, or preference.
+- Prescriptive routing conditions: the ordinary stop implements the compact tier; eight direct links and the exhaustive-index fallback implement focused disclosure; the comprehensive-audit or explicit-complete-lens route implements exhaustive disclosure.
 
 ## Size Exception
 
 - Canonical mini: 992 words.
-- `SKILL.md`: 1,106 words and 80 lines.
-- Packaging overhead: 114 words, within the 150-word target.
-- Rationale: the canonical mini already exceeds 500 words. Source and wording fidelity require retaining all 37 complete rules and the 10-item checklist; no additional compression was performed during conversion.
+- `SKILL.md`: 1,166 words and 89 lines.
+- Packaging overhead: 174 words, within the documented 151-200 allowance.
+- Rationale: the canonical mini already exceeds 500 words. Source and wording fidelity require retaining all 37 complete rules and the ten-item checklist; the 24-word soft-target overage provides eight direct focused routes without duplicating the exhaustive index.
 
 ## Evaluation Cases
 
@@ -170,7 +170,7 @@ Candidate description (497 characters):
 - Neighbor ownership: Code Complete construction discipline is secondary; no local readability, behavior-preserving refactor, blocked legacy feedback, or production resilience decision is central.
 - Ownership review: PASS - independent corrected Batch 4 catalog audit against 13-skill snapshot `5d8299b7aa84498bc11c4120b790b07edd6485ebc21c60a0f280b541e4432e4d`
 - Reference expectation: ordinary
-- Runs: current valid `green-batch4-description-final-required-set-replacement-1`; selected the required target in ordinary mode
+- Runs: current valid `green-batch4-description-final-required-set-replacement-1`; selected the required target in ordinary mode; post-map `green-inline-map-1` again selected only the target in `ordinary` mode with no reference sections
 - Package fidelity trace: `M1`, `M4`, `M5`, `M11`, `M12`, `M16`, `M20`, `M24`, `M25`, `M33`, `N1-N3`, `N6`, `N10`, `N13`, `N14`, and `N16`
 - Attribution review: `PASS`; the answer applies source-backed one-owner knowledge, orthogonal build/promotion, automation, and earlier verification while keeping `package.json`, exact-artifact promotion, and filename checks as general choices
 - Behavioral result: `pass`; the correctly configured ordinary replacement includes the target and applies the intended bounded judgment
@@ -188,7 +188,7 @@ Candidate description (497 characters):
 - Reference expectation: focused
 - Compact-body gap: `SKILL.md` says shared state and coupling must earn their cost but does not state when blackboard-style coordination is justified.
 - Intended index destinations: `Resource and Coupling Rules`
-- Runs: `green-batch4-description-final-1`; selected the required target and read exactly `Resource and Coupling Rules` in focused mode
+- Runs: `green-batch4-description-final-1`; selected the required target and read exactly `Resource and Coupling Rules` in focused mode; post-map `green-inline-map-1` repeated that exact target-only route
 - Package fidelity trace: full heading `Resource and Coupling Rules`, especially canonical rule 7 at lines 243-244
 - Attribution review: `PASS`; the answer retrieves and applies the exact source-backed uncertain-order, multiple-sources, and opportunistic-collaboration conditions while keeping case-state and confidence mechanics as general additions
 - Behavioral result: `pass`; required discovery, one-section retrieval, and distinctive blackboard applicability judgment all pass
@@ -204,11 +204,11 @@ Candidate description (497 characters):
 - Neighbor ownership: Other skills may contribute to particular findings, but the explicit complete-reference objective and the listed cross-cutting concerns make this target central; added skills remain compatible diagnostics.
 - Ownership review: PASS - independent corrected Batch 4 catalog audit against 13-skill snapshot `5d8299b7aa84498bc11c4120b790b07edd6485ebc21c60a0f280b541e4432e4d`
 - Reference expectation: comprehensive
-- Runs: `green-batch4-description-final-1`; selected the required target and read `full.md` end to end with `sections=["*"]`
+- Runs: `green-batch4-description-final-1`; selected the required target and read `full.md` end to end with `sections=["*"]`; post-map `green-inline-map-1` repeated target-only comprehensive `*` access
 - Package fidelity trace: `M1-M37`, `N1-N19`, all 26 full headings, and the final checklist
-- Attribution review: `PASS`; the answer applies the complete source lens and explicitly separates source-backed findings from general implementation suggestions
-- Behavioral result: `pass`; exhaustive application and comprehensive retrieval both pass
-- Diagnostics: fixture does not name the book, skill, or lens and explicitly requests end-to-end packaged reference use; no attribution or disclosure issue remains
+- Attribution review: original accepted answer `PASS`; post-map `green-inline-map-1` `FAIL` because its source-backed section says accepting decay "guarantees entropy accumulation," while the canonical Broken Windows rule advises preventing and correcting decay without making that guarantee.
+- Behavioral result: exhaustive application and comprehensive retrieval pass, but the post-map answer has an attribution failure. Source/package fidelity remains `PASS` because the unsupported guarantee is absent from the package.
+- Diagnostics: fixture remains blind and target `*` access passed; preserve the unsupported guarantee as an answer-level failure and do not add it to the skill.
 
 ### E6: Vendor Deadline Pressure
 
@@ -248,6 +248,7 @@ Candidate description (497 characters):
 - Catalog snapshot: `PASS - FREEZE`; `.superpowers/sdd/catalog-review-final.md` independently approved all 21 active contracts against the corrected 13-description payload, 6,335 bytes, SHA-256 `5d8299b7aa84498bc11c4120b790b07edd6485ebc21c60a0f280b541e4432e4d`.
 - Semantic verdict: `PASS`; canonical mini/nano, body, index, full reference, corrected description, and all seven active ownership contracts are independently approved.
 - Unsupported or altered guidance: none. The new activation branch traces exactly to canonical `Resource and Coupling Rules` line 243; independent description review found no broadening or neighbor-boundary defect.
+- Post-map attribution review: `FAIL` for E5's solver-authored Broken Windows guarantee; independent review confirmed the package itself contains no unsupported guarantee.
 
 ## Validation Evidence
 
@@ -267,5 +268,5 @@ Candidate description (497 characters):
 
 - Source/package verdict: PASS; canonical source, mini/nano, body, index, full reference, and the source-backed description correction pass independent review
 - Original behavioral observation: valid focused E4 run missed the required target and selected DDIA alone; one direct run was separately rejected for self-report integrity, its named replacement passed, and the original matrix stopped before E5-E7
-- Current-state gate: PASS for the current `11/11` valid post-description records; corrected catalog ownership, required-skill inclusion, distinctive application, attribution, and progressive disclosure pass without absorbing excluded evidence
-- Residual diagnostics: preserve current invalid direct reporting and wrong-required-set records, the historical direct invalid record, the historical focused DDIA-only miss, E6's high-context over-read, allowed extras in E2/E7, general solver additions, and nonfatal environment warnings
+- Current-state gate: FAIL for the post-map E5 answer attribution; source/package fidelity, required-skill inclusion, distinctive application, and progressive disclosure remain `PASS`
+- Residual diagnostics: preserve current invalid direct reporting and wrong-required-set records, the historical direct invalid record, the historical focused DDIA-only miss, E6's high-context over-read, allowed extras in E2/E7, general solver additions, the post-map unsupported Broken Windows guarantee, and nonfatal environment warnings

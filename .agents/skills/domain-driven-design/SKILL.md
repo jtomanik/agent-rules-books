@@ -48,13 +48,22 @@ Keep domain behavior, code, tests, documents, and team language aligned inside e
 - Test the model in the Ubiquitous Language: prioritize domain tests for invariants, allowed and forbidden transitions, valid construction, specifications, application orchestration, and boundary translation before generic infrastructure checks.
 - When changing invariants, lifecycle transitions, specifications, orchestration, or context translation, add domain-language tests that prove valid behavior and block invalid states.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched work when it resolves the modeling question.
+Use this file alone when it resolves the ordinary modeling question; do not open references merely to confirm its answer.
 
-For an explicit disputed interpretation or demonstrated model hotspot, read [references/index.md](references/index.md), then the smallest named sections in [references/full.md](references/full.md). Also use this focused route when, after applying this file, one bounded source question remains unresolved about model discovery, Ubiquitous Language, Bounded Contexts, Context Maps, tactical meaning, Core Domain, or deeper-model refactoring.
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For a comprehensive DDD audit, an explicit request for the complete Evans lens, or a decision spanning several independent concern families, read [references/full.md](references/full.md) end to end.
+- Awkward models or missing distinctions: [Knowledge Crunching and Deep Models](references/full.md#knowledge-crunching-and-deep-models)
+- Hidden policies or concepts: [Making Implicit Concepts Explicit](references/full.md#making-implicit-concepts-explicit)
+- Context-specific terminology: [Ubiquitous Language](references/full.md#ubiquitous-language)
+- Model ownership boundaries: [Bounded Contexts](references/full.md#bounded-contexts)
+- Context relationship patterns: [Model Integrity Patterns](references/full.md#model-integrity-patterns)
+- Consistency and invariant boundaries: [Aggregates](references/full.md#aggregates)
+- External-model isolation: [Translation at Boundaries](references/full.md#translation-at-boundaries)
+- Incremental deeper-model recovery: [Refactoring Rules](references/full.md#refactoring-rules)
+
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive DDD audit or complete Evans lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

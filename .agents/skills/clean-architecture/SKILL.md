@@ -44,15 +44,20 @@ Do not let details become the architecture. Business policy stays independent, d
 - When tests need the framework, database, network, service, or hardware to verify business rules, move tests to use cases/entities with fakes or add a stable boundary contract.
 - Preserve behavior while improving dependency direction. Prefer incremental boundary extraction over rewrites, and call out architectural debt when it cannot be fixed safely now.
 
-## Reference Router
+## Reference Map
 
-Use this file alone when its guidance resolves the ordinary policy/dependency decision, including straightforward framework, ORM, transport, or adapter leakage.
+Use this file alone when it resolves the ordinary policy/dependency decision; do not open references merely to confirm its answer.
 
-Do not open references merely to confirm or elaborate a recommendation already supported here.
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For an explicit disputed interpretation or demonstrated dependency-rule hotspot, you must read [references/index.md](references/index.md), then the named sections of [references/full.md](references/full.md). Also use that focused route when, after applying this file, one bounded question remains unresolved about layer ownership, boundary cost, service/process separation, or detail-free policy testing.
+- Dependency direction or policy purity: [Non-Negotiable Rules](references/full.md#non-negotiable-rules)
+- Layer and interface ownership: [Required Layer Responsibilities](references/full.md#required-layer-responsibilities)
+- Boundary economics or deployment: [Boundary Cost, Deployment, and Operations](references/full.md#boundary-cost-deployment-and-operations)
+- Service, process, or embedded boundaries: [Services, Distribution, and Embedded Boundaries](references/full.md#services-distribution-and-embedded-boundaries)
+- Detail-free policy tests: [Testing Rules](references/full.md#testing-rules)
+- Incremental dependency repair: [Refactoring Rules](references/full.md#refactoring-rules)
 
-For a comprehensive audit, an explicit request for the complete Clean Architecture lens, or a decision spanning several concern families, read [references/full.md](references/full.md) end to end.
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive audit or complete Clean Architecture lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

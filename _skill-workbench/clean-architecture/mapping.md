@@ -109,15 +109,16 @@
 ## Packaging Prose Fidelity
 
 - Newly authored technical directives: none.
+- Inline reference map: six source-backed labels link common focused questions directly to canonical full headings; every other bounded question still uses the exhaustive index. This changes loading only.
 - Review: frontmatter, headings, transitions, and reference-routing prose organize discovery and loading only; independent review found no technical rule beyond canonical guidance.
 
 ## Size Exception
 
 - Canonical mini: 758 words.
-- `SKILL.md`: 908 words across 66 lines.
-- Packaging overhead: 150 words.
+- `SKILL.md`: 915 words across 71 lines.
+- Packaging overhead: 157 words.
 - Frontmatter description: 478 characters, excluding the terminating newline.
-- Decision: retain the source-driven exception. The canonical mini already exceeds the 500-word target, all 23 mini rules and eight checklist items remain required for complete ordinary use, and packaging overhead remains at the 150-word target while making the ordinary stop condition explicit. Do not paraphrase canonical rules to reduce this count.
+- Decision: retain the source-driven exception. The canonical mini already exceeds the 500-word target, all 23 mini rules and eight checklist items remain required for complete ordinary use, and the seven-word soft-target overage provides direct focused routes while preserving the ordinary stop. Do not paraphrase canonical rules to reduce this count.
 
 ## Evaluation Cases
 
@@ -420,3 +421,94 @@ These contracts and their blind raw-artifact files preserve the pre-execution re
 - Official validator: `/Users/jakubtomanik/.codex/skills/.system/skill-creator/scripts/quick_validate.py` reports `Skill is valid!` through `uv run --with pyyaml`.
 - Evaluation contracts: the required-skill contract validator passes; historical allowed/forbidden partitions remain preserved diagnostics.
 - Remaining risk: model answers can still over-read source detail or invent fixture state despite a source-faithful package.
+
+## Inline Reference Map Evaluation
+
+### RM1: Ordinary policy-detail control
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/clean-architecture/ordinary-policy-detail-design.md`
+- Fixture SHA-256: `be0ba2e68a8e7f76e31839b2fc76a26b62ef0fb4be8826ddc4ec9d65d0ed7ca8`
+- Required skills: `{clean-architecture}`
+- Distinctive judgment: Keep application policy inward and make the outer adapter own framework and persistence translation without opening source detail already present in the compact body.
+- Neighbor ownership: Clean Code may comment on local readability, but policy/detail dependency ownership is the Clean Architecture decision.
+- Ownership review: PASS - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; fixture blindness, central ownership, and the ordinary tier premise were accepted.
+- Reference expectation: ordinary
+- Runs: `green-inline-map-1`; selected `clean-architecture`; `ordinary`; no reference sections
+- Package fidelity trace: exact mini-derived policy, boundary, adapter, and dependency guidance; router-only change
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: none
+
+### RM2: Focused interface-ownership control
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/clean-architecture/focused-interface-ownership-dispute.md`
+- Fixture SHA-256: `6ca5339381c6e02940bb15280a89c210fe289e163dda0a61affc1dce1f4c5dea`
+- Required skills: `{clean-architecture}`
+- Distinctive judgment: Resolve source dependency and abstraction ownership across an application port and SQL adapter without broad redesign.
+- Neighbor ownership: The dispute is architectural ownership, not a local naming, refactoring, or production-failure decision.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture reveals the required source lens and cannot be reused unchanged.
+- Reference expectation: focused
+- Compact-body gap: The fixture asks for the source's detailed justification of abstraction ownership and source dependency, beyond the compact rule statement.
+- Intended index destinations: `Non-Negotiable Rules` and `Required Layer Responsibilities`
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: the two named canonical full headings and the unchanged mini-derived dependency rule
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM2b; the frozen fixture, hash, and required set remain unchanged
+
+### RM2b: Focused boundary-cost replacement
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/clean-architecture/focused-boundary-cost-choice-v2.md`
+- Fixture SHA-256: `b73482b868096a813845851f01db1f2a884c456c356165af408d1d2a9231fced`
+- Required skills: `{clean-architecture}`
+- Distinctive judgment: Compare in-process, deployable-component, and remote-service boundaries using source-specific boundary, deployment, and operational costs, then choose the smallest justified split.
+- Neighbor ownership: Release It! may contribute remote-failure tactics, but the central decision is whether policy ownership and deployment economics justify a stronger architecture boundary.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, explicit source dispute, and the two-section destination were accepted.
+- Reference expectation: focused
+- Compact-body gap: none; the fixture explicitly disputes which source boundary costs justify a stronger deployment boundary and requires canonical checking.
+- Intended index destinations: `Boundary Cost, Deployment, and Operations` and `Services, Distribution, and Embedded Boundaries`
+- Runs: `green-inline-map-1`; selected `clean-architecture`; `focused`; target sections `Architecture Economics and Priority`, `Boundary Cost, Deployment, and Operations`, and `Services, Distribution, and Embedded Boundaries`
+- Package fidelity trace: the two named canonical full headings and unchanged mini-derived dependency guidance
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: one additional relevant architecture-economics section beyond the two-section minimum; index plus full access remained bounded
+
+### RM3: Comprehensive architecture control
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/clean-architecture/direct-comprehensive-audit.md`
+- Fixture SHA-256: `c64d18ab132bc478a08abed288b891d07884f28ef502471f0cb10a639921280b`
+- Required skills: `{clean-architecture}`
+- Distinctive judgment: Apply the complete Clean Architecture lens across all canonical concern families.
+- Neighbor ownership: Other books may contribute compatible observations, but the requested end-to-end architecture audit is owned by this lens.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: comprehensive
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: all canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM3b; the frozen fixture, hash, and required set remain unchanged
+
+### RM3b: Comprehensive policy-boundary replacement
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/clean-architecture/comprehensive-policy-boundary-audit-v2.md`
+- Fixture SHA-256: `9071a499d3bb7b298ed7e81e73081708d619bacca3f7ad6129609023e6d1d6a2`
+- Required skills: `{clean-architecture}`
+- Distinctive judgment: Apply the complete policy-independence, dependency-direction, layer, boundary-economics, component, testing, and migration lens end to end.
+- Neighbor ownership: Other skills may contribute compatible local or operational findings, but the explicit exhaustive policy-and-boundary objective makes this skill central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and end-to-end comprehensive loading were accepted.
+- Reference expectation: comprehensive
+- Runs: `green-inline-map-1`; selected `clean-architecture` and compatible `patterns-of-enterprise-application-architecture`; both reported `comprehensive` target access with `sections=["*"]`
+- Package fidelity trace: all canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: permitted neighboring comprehensive selection; required target inclusion and end-to-end access passed

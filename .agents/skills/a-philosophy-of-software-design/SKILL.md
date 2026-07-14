@@ -44,13 +44,20 @@ Working code, small pieces, familiar patterns, flags, wrappers, and extra docume
 - When optimizing performance, measure first and hide the optimization; do not sacrifice module depth or information hiding without evidence that the tradeoff matters.
 - When testing or reviewing, focus on public behavior, interface contracts, hidden complexity through stable APIs, and special cases isolated behind the abstraction.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched work when it resolves the module or API design question.
+Use this file alone when it resolves the ordinary module or API design question; do not open references merely to confirm its answer.
 
-For an explicit disputed interpretation or demonstrated complexity hotspot, read [references/index.md](references/index.md), then the smallest named sections in [references/full.md](references/full.md). Also use that focused route when, after applying this file, one bounded question remains unresolved about module depth, information hiding, interface shape, special cases, temporal decomposition, comments, or performance tradeoffs.
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For a comprehensive module and API complexity audit or an explicit request for the complete book lens, read [references/full.md](references/full.md) end to end.
+- Shallow wrappers: [Module Depth Rules](references/full.md#module-depth-rules)
+- Leaked caller knowledge: [Information Hiding Rules](references/full.md#information-hiding-rules)
+- Interface arguments, lifecycle, or sequencing: [Interface Design Rules](references/full.md#interface-design-rules)
+- Lifecycle-shaped modules: [Temporal Decomposition Rules](references/full.md#temporal-decomposition-rules)
+- Competing designs or comments-first comparison: [Design Alternatives and Comments-First Design](references/full.md#design-alternatives-and-comments-first-design)
+- Performance tradeoffs or design-validation tests: [Performance, Trends, and Tests](references/full.md#performance-trends-and-tests)
+
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive module and API complexity audit or complete book lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

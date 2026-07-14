@@ -111,11 +111,12 @@ Description length: 484 characters. The opening names the established lens; all 
 ## Packaging Prose Fidelity
 
 - Newly authored technical directives: none.
-- Review: the description states invocation ownership, headings group canonical guidance, router prose controls loading, and index predicates route to source-stated pattern forces. None adds a technical mechanism, default, guarantee, failure mode, or exception.
+- Inline reference map: eight source-backed labels link common focused questions directly to canonical full headings; every other bounded question still uses the exhaustive index. This changes loading only.
+- Review: the description states invocation ownership, headings group canonical guidance, map prose controls loading, and index predicates route to source-stated pattern forces. None adds a technical mechanism, default, guarantee, failure mode, or exception.
 
 ## Size Exception
 
-The canonical mini is 1,167 words, already above the 500-word target. `SKILL.md` is 1,284 words and 73 lines, for 117 words of packaging overhead. The active body therefore preserves the complete mini rather than compressing it during conversion; overhead remains below the 150-word target and the 100-line limit passes.
+The canonical mini is 1,167 words, already above the 500-word target. `SKILL.md` is 1,350 words and 82 lines, for 183 words of packaging overhead. The active body preserves the complete mini rather than compressing it during conversion; the 33-word soft-target overage provides eight direct pattern-detail routes while keeping the exhaustive index as fallback, and the 100-line limit passes.
 
 ## Evaluation Cases
 
@@ -163,11 +164,11 @@ The seven original raw fixtures remain frozen. E4 and E6 were rejected before ex
 - Neighbor ownership: DDD investment is not central because lifecycle growth is explicitly absent; Code Complete may contribute construction detail but does not own the pattern-fit decision.
 - Ownership review: PASS - independent corrected Batch 4 catalog audit against 13-skill snapshot `5d8299b7aa84498bc11c4120b790b07edd6485ebc21c60a0f280b541e4432e4d`
 - Reference expectation: ordinary
-- Runs: `green-batch4-1`; selected Patterns of Enterprise Application Architecture in ordinary mode
+- Runs: `green-batch4-1`; selected Patterns of Enterprise Application Architecture in ordinary mode; post-map `green-inline-map-1` again selected only the target but used focused access to `Application Workflow Rules` and `Concurrency and Transaction Rules`
 - Package fidelity trace: `M1`, `M3-M7`, `M10`, `M12`, `M17-M18`, `N1-N4`, `N6`
 - Attribution review: `PASS`; the source backs the small transaction-script Service Layer, repositories, explicit customer/audit transaction, boundary DTO, and responsibility-aligned tests, while concrete audit columns and locking/update syntax remain general additions
 - Behavioral result: `pass`; the answer keeps the local operation bounded and applies the intended simple-flow pattern choice
-- Diagnostics: ordinary disclosure passes; `FOR UPDATE` is stronger than the fixture proves necessary and remains conditional on expected contention and justified cost, while the guarded-update alternative prevents material error; the record contains only the shell-snapshot cleanup warning
+- Diagnostics: original ordinary disclosure passes; the post-map run adds a bounded two-section over-read diagnostic, not a material collapse; `FOR UPDATE` remains stronger than the fixture proves necessary and conditional on expected contention and justified cost
 
 ### E4: Focused inheritance mapping
 
@@ -199,7 +200,7 @@ The seven original raw fixtures remain frozen. E4 and E6 were rejected before ex
 - Reference expectation: focused
 - Compact-body gap: `SKILL.md` names inheritance mapping but omits the source's concrete nullable-column, normalized-join, and concrete-table duplication tradeoffs.
 - Intended index destinations: `Object-Relational Mapping Pattern Index`
-- Runs: `green-batch4-1`; selected Patterns of Enterprise Application Architecture and read only `Object-Relational Mapping Pattern Index` in focused mode
+- Runs: `green-batch4-1`; selected Patterns of Enterprise Application Architecture and read only `Object-Relational Mapping Pattern Index` in focused mode; post-map `green-inline-map-1` repeated that exact target-only focused route
 - Package fidelity trace: `M9`, `N4`, full heading `Object-Relational Mapping Pattern Index`
 - Attribution review: `PASS`; the answer accurately retrieves and attributes the source's nullable-column, normalized-data/join-complexity, and concrete-table duplication forces, while the workload and schema candidates remain fixture facts
 - Behavioral result: `pass`; required inclusion, concrete mapping-detail retrieval, and focused disclosure all pass
@@ -215,7 +216,7 @@ The seven original raw fixtures remain frozen. E4 and E6 were rejected before ex
 - Neighbor ownership: Clean Architecture, DDD, DDIA, and Code Complete may add compatible guidance only where their distinct objectives become central; the requested exhaustive enterprise pattern catalog remains the target ownership.
 - Ownership review: PASS - independent corrected Batch 4 catalog audit against 13-skill snapshot `5d8299b7aa84498bc11c4120b790b07edd6485ebc21c60a0f280b541e4432e4d`
 - Reference expectation: comprehensive
-- Runs: `green-batch4-1`; selected Patterns of Enterprise Application Architecture and read `full.md` end to end in comprehensive mode
+- Runs: `green-batch4-1`; selected Patterns of Enterprise Application Architecture and read `full.md` end to end in comprehensive mode; post-map `green-inline-map-1` repeated target-only comprehensive `*` access
 - Package fidelity trace: `M1-M28`, `N1-N13`, full reference `*`
 - Attribution review: `PASS`; the blocker classifications and major pattern choices trace to the source, the supplied design inventory remains fixture data, and Aggregate vocabulary, concrete use-case names, and stale-session mechanisms remain general additions
 - Behavioral result: `pass`; exhaustive application and comprehensive retrieval both pass

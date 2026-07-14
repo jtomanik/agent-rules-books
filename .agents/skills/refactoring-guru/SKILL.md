@@ -59,13 +59,22 @@ Refactoring is not general cleanup or pattern application. It is a small, smell-
 - When deleting dead or speculative code, verify external reachability and test-only access before removal.
 - When a library class is incomplete, use a foreign method for one narrow gap and a local extension only for substantial repeated gaps.
 
-## Reference Router
+## Reference Map
 
-Use this file alone when it resolves smell classification, treatment comparison, risk ordering, verification, and stopping; do not open references merely to confirm or elaborate that answer.
+Use this file alone when it resolves smell classification, treatment comparison, risk ordering, verification, and stopping; do not open references merely to confirm its answer.
 
-Only when the task explicitly requires source detail absent above - an exact preferred/fallback/risky triad for one smell; a named technique's applicability, tradeoff, safe steps, or verification; incomplete-library-class migration or vendor-update compatibility; or another bounded canonical question - read [references/index.md](references/index.md), then the smallest relevant sections of [references/full.md](references/full.md).
+For explicit source detail absent above, open the smallest matching section:
 
-For an explicit complete Refactoring.Guru lens or exhaustive catalog audit, read [references/full.md](references/full.md) end to end.
+- Smell evidence and stopping: [Smell Detection Process](references/full.md#smell-detection-process)
+- Bloaters and their constraints: [Bloaters](references/full.md#bloaters)
+- Divergent, shotgun, or parallel-hierarchy change: [Change Preventers](references/full.md#change-preventers)
+- Envy, intimacy, chains, middlemen, or library gaps: [Couplers](references/full.md#couplers)
+- Named technique applicability: [Technique Selection Rules](references/full.md#technique-selection-rules)
+- Preferred, fallback, and risky treatment triads: [Smell-to-Treatment Priority Map](references/full.md#smell-to-treatment-priority-map)
+- Technique conditions, steps, and verification: [Technique Playbook](references/full.md#technique-playbook)
+- Execution preconditions: [Technique Execution Safety](references/full.md#technique-execution-safety)
+
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit complete Refactoring.Guru lens or exhaustive catalog audit, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

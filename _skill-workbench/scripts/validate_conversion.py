@@ -207,7 +207,7 @@ def index_sections(text: str, validation: Validation) -> list[tuple[str, str, in
     return rows
 
 
-def validate_links(skill_dir: Path, text: str, validation: Validation) -> None:
+def validate_links(skill_dir: Path, text: str, full_text: str, validation: Validation) -> None:
     links = re.findall(r"\[[^]]*]\((references/[^)#]+)(?:#[^)]+)?\)", text)
     validation.require("references/index.md" in links, "SKILL.md must link references/index.md")
     validation.require("references/full.md" in links, "SKILL.md must link references/full.md")
@@ -215,6 +215,40 @@ def validate_links(skill_dir: Path, text: str, validation: Validation) -> None:
         relative = Path(link)
         validation.require(len(relative.parts) == 2, f"reference link must be one level deep: {link}")
         validation.require((skill_dir / relative).is_file(), f"reference link does not resolve: {link}")
+
+    reference_map = markdown_section(text, "Reference Map")
+    validation.require(bool(reference_map), "SKILL.md must contain a non-empty ## Reference Map")
+    map_links = re.findall(r"\[[^]]*]\((references/[^)#]+)(?:#[^)]+)?\)", reference_map)
+    validation.require(
+        "references/index.md" in map_links,
+        "Reference Map must link references/index.md for exhaustive focused routing",
+    )
+    direct_anchors = re.findall(r"\[[^]]*]\(references/full\.md#([^)]+)\)", reference_map)
+    validation.require(
+        3 <= len(direct_anchors) <= 8,
+        f"Reference Map must contain 3-8 direct full-section links; found {len(direct_anchors)}",
+    )
+    validation.require(
+        len(direct_anchors) == len(set(direct_anchors)),
+        "Reference Map direct full-section links must be unique",
+    )
+    full_anchors = {anchor for _, anchor, _, _ in full_sections(full_text)}
+    for anchor in direct_anchors:
+        validation.require(anchor in full_anchors, f"Reference Map anchor does not resolve in full.md: {anchor}")
+    validation.require(
+        bool(re.search(r"\[[^]]*]\(references/full\.md\)", reference_map)),
+        "Reference Map must link bare references/full.md for comprehensive reading",
+    )
+    validation.require(
+        bool(
+            re.search(
+                r"\[[^]]*]\(references/full\.md\)[^.\n]{0,160}\bend[ -]to[ -]end\b",
+                reference_map,
+                re.IGNORECASE,
+            )
+        ),
+        "Reference Map bare full-reference link must explicitly require an end-to-end read",
+    )
 
 
 def validate_one(root: Path, name: str) -> Validation:
@@ -280,7 +314,7 @@ def validate_one(root: Path, name: str) -> Validation:
         f"SKILL.md adds {packaging_overhead} words beyond mini; hard maximum is {MAX_PACKAGING_OVERHEAD_WORDS}",
     )
     validation.require(not PLACEHOLDER_PATTERN.search(skill_text), "SKILL.md contains placeholder text")
-    validate_links(skill_dir, skill_text, validation)
+    validate_links(skill_dir, skill_text, full_text, validation)
     validation.require(
         bool(packaging_fidelity),
         "mapping.md must contain a non-empty ## Packaging Prose Fidelity inventory",

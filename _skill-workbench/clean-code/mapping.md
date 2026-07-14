@@ -106,15 +106,16 @@
 ## Packaging Prose Fidelity
 
 - Newly authored technical directives: none.
+- Inline reference map: six source-backed labels link common focused questions directly to canonical full headings; every other bounded question still uses the exhaustive index. This changes loading only.
 - Review: frontmatter, headings, transitions, and reference-routing prose organize discovery and loading only; independent review found no technical rule beyond canonical guidance.
 
 ## Size Exception
 
 - Canonical mini: 582 words.
-- `SKILL.md`: 731 words across 68 lines.
-- Packaging overhead: 149 words.
+- `SKILL.md`: 767 words across 75 lines.
+- Packaging overhead: 185 words.
 - Frontmatter description: 393 characters, excluding the terminating newline.
-- Decision: retain the source-driven exception. The canonical mini already exceeds the 500-word target, every mini rule remains required for complete ordinary use, and packaging overhead remains below the 150-word soft target. Do not paraphrase rules during conversion to reduce this count.
+- Decision: retain the source-driven exception. The canonical mini already exceeds the 500-word target, every mini rule remains required for complete ordinary use, and the 35-word soft-target overage provides six direct source-detail routes without duplicating the exhaustive index. Do not paraphrase rules during conversion to reduce this count.
 
 ## Behavioral Scenarios
 
@@ -463,3 +464,94 @@ This section supersedes every earlier use of `current` above while retaining tho
 - Final E3 run `019f55d4-25d0-72c1-a0e2-f68d8ab87a96` selected Legacy Code then allowed Refactoring and kept Clean Code absent, preserving the near-neighbor boundary after the final catalog changes.
 - E1b remains the accepted ordinary Clean Code control at `3/3`; E1 remains pressure/application evidence whose disputed product interaction may legitimately trigger focused retrieval; E4 remains the comprehensive control.
 - Final acceptance: **pass** for discovery, proportional application, ordinary/focused/comprehensive progressive disclosure, source fidelity, and near-neighbor exclusion. No pilot rewrite or additional Clean Code retrofit is required before the next conversion batch.
+
+## Inline Reference Map Evaluation
+
+### RM1: Ordinary local-hygiene control
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/clean-code/ordinary-local-hygiene.md`
+- Fixture SHA-256: `f6282cfcb4fb88d1c1e4906b027e6c02e877c4e4d44f3784e5489e34a8c4e92e`
+- Required skills: `{clean-code}`
+- Distinctive judgment: Improve local naming, function focus, and surprise-free behavior using the compact body alone.
+- Neighbor ownership: Refactoring may describe a structural move, but the fixture's central decision is local readability and hygiene.
+- Ownership review: PASS - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; fixture blindness, central ownership, and the ordinary tier premise were accepted.
+- Reference expectation: ordinary
+- Runs: `green-inline-map-1`; selected `clean-code`; `ordinary`; no reference sections
+- Package fidelity trace: exact mini-derived naming and function guidance; router-only change
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: none
+
+### RM2: Focused command-query control
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/clean-code/focused-command-query.md`
+- Fixture SHA-256: `bade0e9ce79858f47d07125e55d2ac72623fb5d89d19580ea2124bbb337646fa`
+- Required skills: `{clean-code}`
+- Distinctive judgment: Resolve hidden cache mutation and the command-query exception boundary without broad cleanup.
+- Neighbor ownership: This is a Clean Code function contract dispute; Legacy Code and Refactoring are not needed to establish current behavior or choose a structural sequence.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture reveals the required source lens and cannot be reused unchanged.
+- Reference expectation: focused
+- Compact-body gap: The fixture asks for the source's strict command-query interpretation and strong-reason exception detail beyond the compact function rule.
+- Intended index destinations: `Function rules` and `Hard rules`
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: the two named canonical full headings and exact mini-derived function guidance
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM2b; the frozen fixture, hash, and required set remain unchanged
+
+### RM2b: Focused concurrency-validation replacement
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/clean-code/focused-concurrency-validation-v2.md`
+- Fixture SHA-256: `6a1dbba1d3b2bb88a9e7178cdfd40383d0cf6929e2213b720f060f75d1783d6f`
+- Required skills: `{clean-code}`
+- Distinctive judgment: Resolve the exact concurrency-validation dispute, including varied schedules, intermittent failures, explicit lifecycle behavior, ownership, and tunability, without widening to a general audit.
+- Neighbor ownership: Code Complete may contribute general construction testing and Release It! runtime resilience, but the disputed local concurrency and async-work guidance is central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, explicit source dispute, and the one-section destination were accepted.
+- Reference expectation: focused
+- Compact-body gap: none; the fixture explicitly disputes the source's concurrency-specific validation and lifecycle requirements and requires canonical checking.
+- Intended index destinations: `Concurrency and async work`
+- Runs: `green-inline-map-1`; selected `clean-code` and compatible `the-pragmatic-programmer`; `focused`; target sections `Concurrency and async work` and `Change Process`
+- Package fidelity trace: canonical full heading `Concurrency and async work` and unchanged mini-derived concurrency guidance
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: one additional relevant target section plus bounded neighboring concurrency guidance; required target and focused access passed
+
+### RM3: Comprehensive Clean Code control
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/clean-code/comprehensive-audit.md`
+- Fixture SHA-256: `114e8945371df220dfdc2cd6c705faf344c5fb5585e06a59c2b351aedea4a201`
+- Required skills: `{clean-code}`
+- Distinctive judgment: Apply the complete Clean Code lens rather than a bounded local subset.
+- Neighbor ownership: The explicit complete-lens request owns this control even if neighboring guidance is compatible.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: comprehensive
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: all canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM3b; the frozen fixture, hash, and required set remain unchanged
+
+### RM3b: Comprehensive local-code replacement
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/clean-code/comprehensive-local-code-audit-v2.md`
+- Fixture SHA-256: `4b677f6c2c16ad5a43b711795830b5181b09770579ebaab3f48ef8e874b24edf`
+- Required skills: `{clean-code}`
+- Distinctive judgment: Apply the complete local readability, function, state, error, boundary, testing, concurrency, smell, and refinement lens end to end.
+- Neighbor ownership: Refactoring or construction guidance may contribute compatible moves, but the fixture's explicit exhaustive local-code objective makes this skill central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and end-to-end comprehensive loading were accepted.
+- Reference expectation: comprehensive
+- Runs: `green-inline-map-1`; selected `clean-code`, `code-complete`, and `refactoring-guru`; each consulted skill reported `sections=["*"]`, including the required target
+- Package fidelity trace: all canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: permitted compatible selections; required target inclusion and end-to-end access passed

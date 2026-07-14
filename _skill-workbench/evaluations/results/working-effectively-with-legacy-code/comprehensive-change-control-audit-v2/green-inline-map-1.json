@@ -1,0 +1,369 @@
+{
+  "case": "_skill-workbench/evaluations/cases/working-effectively-with-legacy-code/comprehensive-change-control-audit-v2.md",
+  "case_sha256": "f54ef1971329b4f1481088efa66f4ca84fcb3de508995ff1e3c6c4cde57aa447",
+  "mode": "green",
+  "run": "green-inline-map-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.4",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "repository",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f604d-3d02-7f51-8e6a-e9b2811a791a",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The right posture is not redesign, and not \u201cedit production code then see what staging says.\u201d Treat the settlement subsystem as legacy code in the Feathers sense: behavior is expensive to change safely because it is poorly characterized and the feedback loops are weak. The audit outcome should be a change-control program that first buys understanding and control, then permits small rules changes.\n\nUse this sequence.\n\n1. Characterize behavior before policy changes.\n- Define the first wave of change points: settlement calculation entrypoints, posting decisions, reversals, exception handling, time/date boundaries, and database write paths.\n- For each change point, state two things explicitly: the requested future behavior and the current behavior that must remain unchanged.\n- Add characterization tests around externally visible outcomes first: persisted settlement records, emitted events, UI-visible statuses, exported reports, and observable side effects.\n- If some ugly behavior might be depended on, lock it with tests before \u201cfixing\u201d it.\n\n2. Build first feedback that is fast enough to use every day.\n- Stop relying on broad slow tests as the primary safety net.\n- Keep a thin set of end-to-end tests at major interception points, but create focused slice tests around the rules you expect to touch this quarter.\n- Select test points by tracing effects outward from each change point: values, fields, writes, callbacks, and emitted side effects.\n- Use pinch points where many behaviors flow through one narrow mechanism, such as a posting service, settlement decision function, or ledger write adapter.\n\n3. Create seams only where they unblock control.\n- Separate sensing seams from separation seams.\n- Sensing seams: let tests observe path selection, computed decisions, and constructed commands without needing a real database or UI.\n- Separation seams: let tests substitute time, file access, database adapters, message publishers, and framework callbacks.\n- Prefer the smallest seam that unlocks repeatable tests. Do not scatter test hooks randomly.\n\n4. Break the actual blocking dependencies.\n- Static clocks and globals: wrap them, move callers to the wrapper, then inject the wrapper where touched.\n- Side-effecting constructors: split construction from use; move I/O and configuration lookup into factories or composition roots.\n- Hidden allocations inside methods: extract factory methods or parameterize collaborators.\n- Database writes inside policy code: separate decision logic from query/mapping/persistence.\n- UI handlers with business rules: move decision logic into a plain service or policy object; keep handlers as thin adapters.\n\n5. Use low-risk legacy techniques instead of deep edits.\n- Sprout method when a new rule can be added beside fragile code with a small insertion point.\n- Sprout class when a new responsibility does not fit the old class or the old class is too risky to reshape first.\n- Wrap method or wrap class when you need pre/post behavior, observation, or mediation around a risky dependency.\n- Extract-and-override or subclass seams only when the language or framework leaves no cleaner option.\n- If a method is too large to test directly, break out pure computation first, isolate side effects second.\n\n6. Apply specialized dependency-breaking techniques selectively.\n- Parameterize constructor or method for time, user context, config, and collaborators.\n- Encapsulate global references or replace global references with getters as transitional seams.\n- Extract interface/implementer where concrete dependencies block substitution.\n- Introduce instance delegators for static behavior that needs an object seam.\n- Extract and override factory method when hard construction is buried in behavior.\n- Break out method object when a large method\u2019s local state blocks extraction.\n- Use link/preprocessor/build seams only as a last resort, and treat them as cleanup debt.\n\n7. Handle the known risky areas explicitly.\n- Databases: keep a few real integration tests for persistence semantics, but test settlement policy without a real database wherever possible.\n- UI/framework code: move rules out of event handlers and callback bodies; keep adapters thin.\n- Globals/statics: reduce direct calls incrementally rather than trying to remove them everywhere.\n- Constructors: objects involved in settlement rules must become cheap to instantiate under test.\n- Large mixed methods: sketch responsibilities, extract pure decisions, then isolate I/O.\n\n8. Refactor locally, not heroically.\n- Work near the change point.\n- Keep behavior changes, structural refactors, and cleanup separate.\n- If a test needs extreme setup, treat that as a design signal and break the first real barrier rather than adding more fixtures.\n- If the same rule logic is edited repeatedly across files, centralize that knowledge incrementally under tests.\n- Do not check in exploratory restructuring done only to understand the code.\n\n9. Forbid the failure modes that usually sink this kind of program.\n- No rewrite-first plan.\n- No production-code edits without a test or explicit observation strategy.\n- No \u201ccleanup\u201d that renames and reformats while leaving globals, constructor I/O, and mixed policy/I/O intact.\n- No mocking around fundamentally untestable structure as a substitute for creating seams.\n- No giant patches that mix rule changes, dependency surgery, and module redesign.\n\n10. Testing policy for the year-long rules program.\n- Keep three layers.\n- Characterization tests for legacy behavior that must not drift.\n- Focused rule tests for new settlement policy decisions.\n- Boundary integration tests for database mappings, transaction behavior, and critical framework wiring.\n- Prefer the highest test level that still isolates the change safely, then drive most day-to-day work with the fast focused layer.\n\n11. Code-generation and implementation choices.\n- Default outputs should be narrow characterization tests, wrappers around hard dependencies, extracted pure logic, and explicit collaborators.\n- Preferred first moves: extract method, inject collaborator, wrap static call, split construction from behavior, move logic out of handlers.\n- Avoid generating large new architecture until basic seams and tests exist.\n\n12. Final review standard.\n- Every reviewed change should answer: what current behavior was characterized, what dependency was broken, what seam was introduced or used, and why the changed area is now easier to test.\n- Reject changes that leave modified logic untested, increase hidden dependencies, or spread edits broadly across poorly understood code.\n\nA practical rollout for this subsystem is:\n- Month 1: map change points, add interception-point characterization tests, identify top dependency knots.\n- Months 2-3: introduce clock/config/db/UI seams only in the hottest rule paths.\n- After that: each rules change must pay for one local testability improvement in the touched area.\n\nThe core audit conclusion is that changeability will come from characterization, seams, and dependency breaking at the rule hotspots, not from a rewrite. The smallest safe change should always be preferred over broader cleanup unless the broader move is what directly creates first feedback and control.",
+    "selected_project_skills": [
+      "working-effectively-with-legacy-code",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+      ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "working-effectively-with-legacy-code",
+        "sections": [
+          "*"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "working-effectively-with-legacy-code"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T11:06:04.096532Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f604d-3d02-7f51-8e6a-e9b2811a791a.1784027102467004000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
+  "evaluation_manifest": {
+    "case": {
+      "path": "_skill-workbench/evaluations/cases/working-effectively-with-legacy-code/comprehensive-change-control-audit-v2.md",
+      "sha256": "f54ef1971329b4f1481088efa66f4ca84fcb3de508995ff1e3c6c4cde57aa447"
+    },
+    "catalog": {
+      "byte_count": 6841,
+      "entries": [
+        {
+          "description": "A Philosophy of Software Design guidance for deep modules and information hiding. Use when cognitive load, shallow wrappers, leaky caller knowledge, tactical patches, or changes spreading across files make module or API design central. Clean Code owns readability; Code Complete, construction; Clean Architecture, policy direction; Refactoring, behavior-preserving change; Pragmatic Programmer, DRY, reversibility, feedback, and engineering practice. Co-invoke for independently central concerns.",
+          "name": "a-philosophy-of-software-design"
+        },
+        {
+          "description": "Clean Architecture guidance for inward dependencies and policy/detail separation. Use when policy independence is central and policy imports details, adapters own business rules, or core code constructs infrastructure. Layers, adapters, tests, and databases alone are insufficient. Clean Code covers readability; Refactoring, protected structural change; Legacy Code, blocked first feedback; Release It, production failure. Co-invoke only when policy dependence is also central.",
+          "name": "clean-architecture"
+        },
+        {
+          "description": "Clean Code guidance for locally readable, low-surprise implementation. Use when vague names, mixed responsibilities, boolean modes, hidden mutation, flow-narrating comments, schedule/rewrite pressure, or framework/concurrency detail obstructs a scoped change. Do not add it to an explicit refactoring-only audit or legacy-control task unless a separate local-readability decision is requested.",
+          "name": "clean-code"
+        },
+        {
+          "description": "Code Complete guidance for construction in implementation/change, review, debugging, refactoring, and tuning. Use when nontrivial work coordinates several concerns, or when solution-first coding, happy-path-only tests, mixed behavior/refactoring, guess-driven debugging drives code changes, or evidence-free tuning threatens defect control. It owns construction coordination; labels alone are insufficient, and another lens needs its own explicit objective rather than shared construction vocabulary.",
+          "name": "code-complete"
+        },
+        {
+          "description": "Designing Data-Intensive Applications guidance for distributed data correctness. Use when source-of-truth ownership, consistency/durability, replay/order, schema evolution, derived-data repair, replication/partitioning, or cross-system write/side-effect, transaction, or coordination semantics are central. A queue, cache, retry, database, or production failure alone is insufficient; Release It! owns operational survival and Clean Architecture policy direction unless data semantics are central.",
+          "name": "designing-data-intensive-applications"
+        },
+        {
+          "description": "Evans-style Domain-Driven Design guidance for discovering and evolving an implementation-driving domain model. Use when business complexity makes Ubiquitous Language conflicts, missing domain concepts, lifecycle rules, Bounded Context or Context Map decisions, Core Domain focus, or deeper-model pressure from awkward procedural behavior central. DDD Distilled owns the smallest-investment/selectivity gate; Implementing DDD owns post-boundary implementation mechanics.",
+          "name": "domain-driven-design"
+        },
+        {
+          "description": "Domain-Driven Design Distilled guidance for the smallest effective DDD investment and anti-ceremony selectivity. Use when domain complexity, language ambiguity, business differentiation, or integration risk makes subdomain investment, Bounded Context boundaries, Ubiquitous Language meaning, or whether tactical patterns earn their cost central. Domain-Driven Design owns deeper model discovery; Implementing Domain-Driven Design owns detailed mechanics after context and model commitment.",
+          "name": "domain-driven-design-distilled"
+        },
+        {
+          "description": "Implementing Domain-Driven Design guidance for implementation-level DDD after context and model commitment. Use when Aggregate boundaries, Value Objects/Entities, Repositories, Domain or Application Services, Domain Events, modules, translations, projections, or renamed-CRUD/anemic-model correction is central. Distilled owns the DDD investment gate; Domain-Driven Design owns strategic discovery and deeper model development; DDIA co-applies only for central distributed-data semantics.",
+          "name": "implementing-domain-driven-design"
+        },
+        {
+          "description": "Patterns of Enterprise Application Architecture guidance for force-based pattern choice and responsibility placement. Use when choosing business-logic, persistence, transaction, concurrency, session-state, or remote-boundary patterns is central, especially Transaction Script vs Table Module vs Domain Model or Repository/Data Mapper/Gateway/Active Record. DDD owns model discovery; Clean Architecture dependency direction; DDIA distributed-data semantics; Code Complete construction.",
+          "name": "patterns-of-enterprise-application-architecture"
+        },
+        {
+          "description": "Refactoring guidance for behavior-preserving structural change once observable behavior is known or protected. Use when renaming, extracting, moving, splitting, or another current code smell drives a behavior-preserving change. Dependency-seam work whose purpose is to gain first feedback belongs to Legacy Code until control exists.",
+          "name": "refactoring"
+        },
+        {
+          "description": "Refactoring.Guru guidance for code-smell classification, catalog treatment selection, and incomplete-library-class decisions. Use when explicit smell classification, choosing among named techniques and their preconditions or tradeoffs, or deciding how to add missing operations to an external class you cannot modify is central after behavior is known or protected. Refactoring owns ordinary behavior-preserving structural change; Clean Code local readability; Legacy Code first feedback.",
+          "name": "refactoring-guru"
+        },
+        {
+          "description": "Use only when production failure behavior is an explicit objective or demonstrated operational problem, such as deciding failure semantics, demand/capacity limits, blast-radius isolation, degraded service, recovery, operability, deployment/startup controls, incident chains, or bounded resilience tests. Do not infer this lens from testability, safe-change work, routine rollout verification, local API design, ordinary errors, in-process concurrency, service/database calls, or money/transactions.",
+          "name": "release-it"
+        },
+        {
+          "description": "The Pragmatic Programmer guidance for accountable, adaptable delivery. Use when outcome ownership, duplicated knowledge, change fan-out, irreversible commitment, prototype fossilization, manual delivery/feedback loops, or blackboard-style coordination are central across a change. Clean Code owns local readability; Code Complete construction; Refactoring behavior-preserving change; Legacy Code blocked first feedback; Release It! production failure; A Philosophy of Software Design module depth.",
+          "name": "the-pragmatic-programmer"
+        },
+        {
+          "description": "Use only when a semantic change is blocked because current behavior is materially unknown, no trustworthy focused tests exist, or a dependency cannot be observed or substituted. The task must require gaining first feedback before changing behavior. Do not use when observable behavior and operational facts are already supplied, or when first feedback is not blocked.",
+          "name": "working-effectively-with-legacy-code"
+        }
+      ],
+      "sha256": "f23977d3f201fc519c399fef75d7ed8d0f3b80e08f56da7a8659ad9c68d71a82",
+      "skill_count": 14
+    },
+    "contract": {
+      "case_id": "RM1b",
+      "evaluation_contract_version": 2,
+      "fixture_sha256": "f54ef1971329b4f1481088efa66f4ca84fcb3de508995ff1e3c6c4cde57aa447",
+      "mapping": "_skill-workbench/working-effectively-with-legacy-code/mapping.md",
+      "mapping_sha256": "590d8cb0123d42670c73efac3b68bc86072257ddfaa8e5ef9c3e78be26796010",
+      "required_project_skills": [
+        "working-effectively-with-legacy-code"
+      ]
+    },
+    "execution": {
+      "configuration": {
+        "baseline_workspace": "temporary directory without project skills",
+        "ephemeral": true,
+        "green_workspace": "repository",
+        "ignore_user_config": true,
+        "sandbox": "read-only"
+      },
+      "mode": "green",
+      "model": "gpt-5.4",
+      "output": "_skill-workbench/evaluations/results/working-effectively-with-legacy-code/comprehensive-change-control-audit-v2/green-inline-map-1.json",
+      "run": "green-inline-map-1",
+      "runner": {
+        "path": "_skill-workbench/scripts/run_skill_eval.py",
+        "sha256": "4fad18e35ac017086205f11b440ec98b6d7b14e3ccba0e690fac3e989255d65b"
+      },
+      "schema": {
+        "path": "_skill-workbench/evaluations/result-v2.schema.json",
+        "sha256": "90060cb6fea3e7b529ea5eda9a294bd7f18e1c266412be41d26b7a5365d8038c"
+      },
+      "timeout": 900
+    },
+    "manifest_version": 2,
+    "packages": {
+      "byte_count": 474958,
+      "entries": [
+        {
+          "byte_count": 7581,
+          "path": ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+          "sha256": "6de13ad8f0488e521f51d1f3126e4cd96e754fd29584c58d3919614af6cf34cc"
+        },
+        {
+          "byte_count": 13561,
+          "path": ".agents/skills/a-philosophy-of-software-design/references/full.md",
+          "sha256": "b521814b9d050d0d12594e13aa291029148a971b6f7d5a5ac3e74219de6c8563"
+        },
+        {
+          "byte_count": 5793,
+          "path": ".agents/skills/a-philosophy-of-software-design/references/index.md",
+          "sha256": "ae83c732dc4227c5d22ddb3e787c6dc7ea036fd5bf261af81399377e9b980130"
+        },
+        {
+          "byte_count": 7011,
+          "path": ".agents/skills/clean-architecture/SKILL.md",
+          "sha256": "2956a4cf0832f37c6e8e2af575db37f2378b37c26f463ee873942026238a4d03"
+        },
+        {
+          "byte_count": 17782,
+          "path": ".agents/skills/clean-architecture/references/full.md",
+          "sha256": "1f0366be1720989c63df6da8f15f12e78f8786f6e712eeb16cf3690b4dab6cc4"
+        },
+        {
+          "byte_count": 4399,
+          "path": ".agents/skills/clean-architecture/references/index.md",
+          "sha256": "2eb51dec1bf08cc2e255e653ffa630e0a68c9dec1db0f763a9699754146da50f"
+        },
+        {
+          "byte_count": 5439,
+          "path": ".agents/skills/clean-code/SKILL.md",
+          "sha256": "93fc140a587c4395d8f71fa73862d585bb026c44d3042fe28cc22a1a731c93a7"
+        },
+        {
+          "byte_count": 13851,
+          "path": ".agents/skills/clean-code/references/full.md",
+          "sha256": "0ec945c383144e2eeb52bdd18cc87668bff73c13421e17cc6e4ba3fc5905965e"
+        },
+        {
+          "byte_count": 5001,
+          "path": ".agents/skills/clean-code/references/index.md",
+          "sha256": "3c8928cd6ab1d40f5b2abac476104257ec020aa1a90378315388a4b050f0f935"
+        },
+        {
+          "byte_count": 8335,
+          "path": ".agents/skills/code-complete/SKILL.md",
+          "sha256": "f732c04127723e6cceb2b3448366d283b7bafa27dcc7b280f353558b1bb2e453"
+        },
+        {
+          "byte_count": 12407,
+          "path": ".agents/skills/code-complete/references/full.md",
+          "sha256": "57ca8fab93baea0761eeeca6c491fe79b093df47feb4172c0917a96f8ddc95a4"
+        },
+        {
+          "byte_count": 6247,
+          "path": ".agents/skills/code-complete/references/index.md",
+          "sha256": "cbe4f2335e90f2c021652045554d9b4d7bf4fa8f06bd452a6047d5872b0169a5"
+        },
+        {
+          "byte_count": 8562,
+          "path": ".agents/skills/designing-data-intensive-applications/SKILL.md",
+          "sha256": "2ba0cedab4860a47e0fe8b345a3646a05e48a2cc680718386344202fa157e0f1"
+        },
+        {
+          "byte_count": 16084,
+          "path": ".agents/skills/designing-data-intensive-applications/references/full.md",
+          "sha256": "8c1bfe1529076fda8f828ed6939b63bc3016830ad3c705071699a250e98b8f25"
+        },
+        {
+          "byte_count": 6226,
+          "path": ".agents/skills/designing-data-intensive-applications/references/index.md",
+          "sha256": "ef9debd7c29f58d4ac45949e64fcc525e195617ecdfe5052ac94216660854d9f"
+        },
+        {
+          "byte_count": 9577,
+          "path": ".agents/skills/domain-driven-design/SKILL.md",
+          "sha256": "0b8ced39807bfabb4749cf0a8f00cee1de7d30c1bd408becb5d52d3ecd162f6f"
+        },
+        {
+          "byte_count": 42424,
+          "path": ".agents/skills/domain-driven-design/references/full.md",
+          "sha256": "de806ceb828df4408e452361ab587d81f213443ad057017b1f6bed2334d5aaa6"
+        },
+        {
+          "byte_count": 8762,
+          "path": ".agents/skills/domain-driven-design/references/index.md",
+          "sha256": "a8aa0af5af02b431eeb5852049688a8a9510d831900ef56b5fb0f3018d8966f8"
+        },
+        {
+          "byte_count": 10960,
+          "path": ".agents/skills/domain-driven-design-distilled/SKILL.md",
+          "sha256": "d2c6d53c61ee6ec3b8afebd06b42e451363e9517c6358b2fd058574fbce2165b"
+        },
+        {
+          "byte_count": 11351,
+          "path": ".agents/skills/domain-driven-design-distilled/references/full.md",
+          "sha256": "d665da3c697df36fe04f8bb266381e5b40d158aad5283c1d233d4c47319e5b1c"
+        },
+        {
+          "byte_count": 4865,
+          "path": ".agents/skills/domain-driven-design-distilled/references/index.md",
+          "sha256": "8df4969caae5c7264c8ceed702516a854b473238f67c8da9c2958061b5d7c60b"
+        },
+        {
+          "byte_count": 12759,
+          "path": ".agents/skills/implementing-domain-driven-design/SKILL.md",
+          "sha256": "7432d11645fbdacd0233c6ad1d7ec4c832de716de2ea6bdc1d47812c9d47590c"
+        },
+        {
+          "byte_count": 12848,
+          "path": ".agents/skills/implementing-domain-driven-design/references/full.md",
+          "sha256": "cd2c1d404f60720cebca17fcffed9d68d94b1eef4a13bed63a4f59f01db005ad"
+        },
+        {
+          "byte_count": 5696,
+          "path": ".agents/skills/implementing-domain-driven-design/references/index.md",
+          "sha256": "8cd00d0f1488fea665e5242c1ebb8a0b06b9b7639f46fcc99167762aea346b72"
+        },
+        {
+          "byte_count": 10350,
+          "path": ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md",
+          "sha256": "46cba281cfb90d03515649820f233bc2152dc2f709cba6c0b47d00de18536aa4"
+        },
+        {
+          "byte_count": 15501,
+          "path": ".agents/skills/patterns-of-enterprise-application-architecture/references/full.md",
+          "sha256": "e7f30e7d65005924ec29cc0c6f032aedd0b1bffa22223d5386c5a3140cd76af0"
+        },
+        {
+          "byte_count": 5740,
+          "path": ".agents/skills/patterns-of-enterprise-application-architecture/references/index.md",
+          "sha256": "ec3fa9607ae5d5da849cf0b52314c2df06b9eb12de485d70c6aff11d3e8b9b6b"
+        },
+        {
+          "byte_count": 6700,
+          "path": ".agents/skills/refactoring/SKILL.md",
+          "sha256": "11ec92d297edee3889b78d666621a254b6e0b41b03beec536d34685c6a7aa165"
+        },
+        {
+          "byte_count": 17866,
+          "path": ".agents/skills/refactoring/references/full.md",
+          "sha256": "d7b9cf2b5ca26f3576943ff59cdeee61b65138213777b0e03bfe1075cbd966fc"
+        },
+        {
+          "byte_count": 4076,
+          "path": ".agents/skills/refactoring/references/index.md",
+          "sha256": "867e940ee226fb1e0152f9f60244c220b73606f325d008387e162a72b19855fb"
+        },
+        {
+          "byte_count": 9710,
+          "path": ".agents/skills/refactoring-guru/SKILL.md",
+          "sha256": "b5ff921636fd00208f7646854a5708a65b7351d6a68afd7df967206d10b12938"
+        },
+        {
+          "byte_count": 62561,
+          "path": ".agents/skills/refactoring-guru/references/full.md",
+          "sha256": "c92bdfcb8fc5d64a21f10fe268a02bf6a9a9ce6228f83ac85743905cba4b2497"
+        },
+        {
+          "byte_count": 4202,
+          "path": ".agents/skills/refactoring-guru/references/index.md",
+          "sha256": "c2600a94ea47a2989f8d57e15a17f586fbdf74e68b78c14b2156d76d68346094"
+        },
+        {
+          "byte_count": 8194,
+          "path": ".agents/skills/release-it/SKILL.md",
+          "sha256": "765f774ae13f8ec8107d27b6e83efcec376c1a8c746bdf2d399cc18b7ed605ce"
+        },
+        {
+          "byte_count": 13542,
+          "path": ".agents/skills/release-it/references/full.md",
+          "sha256": "ac72b846e9584f376090c8508b2bc66f557ea8d14195ea3b20e15a66b27c4aec"
+        },
+        {
+          "byte_count": 5223,
+          "path": ".agents/skills/release-it/references/index.md",
+          "sha256": "1bb0f0389efd6fb9073afbc82392c3a19837dbdae8246829ba31c0d227fb3587"
+        },
+        {
+          "byte_count": 8818,
+          "path": ".agents/skills/the-pragmatic-programmer/SKILL.md",
+          "sha256": "7eb3a409215d879b3ff85864c5e2bdd8683c0558e11a471b4e33ccc834fc4a1b"
+        },
+        {
+          "byte_count": 13398,
+          "path": ".agents/skills/the-pragmatic-programmer/references/full.md",
+          "sha256": "ea10063caff1989c1442c2aff501a942281fb5b06456e822ab856c701fc5e28d"
+        },
+        {
+          "byte_count": 6178,
+          "path": ".agents/skills/the-pragmatic-programmer/references/index.md",
+          "sha256": "715d9e7dc0b3f6b5dff742b2a133fa234934d276cc227f64cafae4f23e2affb6"
+        },
+        {
+          "byte_count": 7507,
+          "path": ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+          "sha256": "0549be029e33e4e34d91e6a955eb7dfff0176c24c4b1b6e112d88faf1d543164"
+        },
+        {
+          "byte_count": 13817,
+          "path": ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+          "sha256": "8b22bfc3d2851509d4cd8e05fbb9aca9e934f4b6915cb65fe8d6d9d241393fce"
+        },
+        {
+          "byte_count": 4054,
+          "path": ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+          "sha256": "8da729dc84b1570542c763a0f265b4e749bf7622a6d6591434994b83b8cb99e0"
+        }
+      ],
+      "file_count": 42,
+      "sha256": "d6f5103739852639aedcc7ec7e2531085b719c631d399896a7902c9485d50d8c"
+    },
+    "required_project_skills": [
+      "working-effectively-with-legacy-code"
+    ]
+  },
+  "evaluation_manifest_sha256": "f5ed9cbea52fe5bd97154cb8d2943450cbc7f2bbcbcf447fd92479a06d70d543",
+  "manifest_errors": []
+}

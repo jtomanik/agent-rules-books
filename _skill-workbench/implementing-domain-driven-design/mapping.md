@@ -102,7 +102,7 @@
 
 - Newly authored technical directives: none.
 - Catalog-routing directive: `Distilled owns the DDD investment gate; Domain-Driven Design owns strategic discovery and deeper model development; DDIA co-applies only for central distributed-data semantics.` This selects among book lenses, derives from the reviewed pairwise compatibility decisions, and adds no domain implementation rule.
-- Progressive-disclosure directives: the four `Reference Router` paragraphs implement the repository's ordinary, focused, and comprehensive loading contract. They govern file reads, not software design.
+- Progressive-disclosure directives: the `Reference Map` stops ordinary work at the compact body, links eight common focused questions directly to canonical full headings, sends every other bounded question through the exhaustive index, and reserves end-to-end loading for an explicit complete-lens request. These govern file reads, not software design.
 - Index routing inventory: every `Read when` cell is manually authored from its same-named canonical full heading. The Client Representation and Scope Discipline row preserves separate predicates for client-shape representations, conditional command/query separation, conditional scope identifiers, and application/integration-layer cross-context composition. The rows describe source questions and symptoms; they do not prescribe a mechanism beyond the linked section.
 - Review: concern headings, description branches, transitions, and routing prose organize canonical guidance only. No new technical mechanism, default, example, guarantee, failure mode, exception, or preference is attributed to the book.
 
@@ -116,10 +116,10 @@
 ## Size Exception
 
 - Canonical mini: 1,511 words.
-- `SKILL.md`: 1,678 words across 79 lines after the later router-only correction.
-- Packaging overhead: 167 words, 17 above the 150-word soft target and within the documented 151-200 allowance.
+- `SKILL.md`: 1,695 words across 86 lines after the inline-map retrofit.
+- Packaging overhead: 184 words, 34 above the 150-word soft target and within the documented 151-200 allowance.
 - Description: 488 characters.
-- Decision: retain the source-driven exception because the canonical mini already exceeds the 500-word target, all 28 rules and 13 checklist items are required for complete ordinary use, and the extra packaging preserves a narrow post-commit catalog boundary plus explicit ordinary/focused/comprehensive routing. Do not paraphrase canonical guidance to reduce the count.
+- Decision: retain the source-driven exception because the canonical mini already exceeds the 500-word target, all 28 rules and 13 checklist items are required for complete ordinary use, and the extra packaging preserves the catalog boundary plus eight direct focused routes and exhaustive fallback. Do not paraphrase canonical guidance to reduce the count.
 
 ## Evaluation Cases
 
@@ -305,3 +305,130 @@ E7 includes both required skills in every `3/3` final-state run; the extra `clea
 - Application evaluation: the historical E1-E6 source-attribution decisions and original E7 non-attribution remain unchanged. The post-retrofit runs are current routing and required-selection evidence; they do not replace the independent semantic verdict.
 - Current-state behavioral verdict: the narrowly frozen post-retrofit gate is `PASS`, while the preserved original Batch 3 gate remains `FAIL (10/11)` and the semantic verdict remains independently accepted.
 - Remaining risks: the original E7 required-skill miss remains a valid nondeterminism signal. E1 final runs 1/2 are focused over-reads at `8/19` and `9/19` headings despite avoiding end-to-end reads; E7 final run 2 reads 18 DDIA headings and run 3 reads DDIA `[*]`. E6's historical focused over-read also remains. General solver mechanisms must remain separated from book attribution. Any later description drift invalidates this behavioral snapshot and requires catalog-contract validation plus affected positive-case reruns.
+
+## Inline Reference Map Evaluation
+
+### RM1: Ordinary committed-implementation control
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/implementing-domain-driven-design/direct-subscription-implementation.md`
+- Fixture SHA-256: `764dfa6f65d2d27d613a86611892b42632439daa0ce126d79ad379f5059e61e7`
+- Required skills: `{implementing-domain-driven-design}`
+- Distinctive judgment: Correct a committed context's Aggregate, identity, Repository, event, application-service, module, and representation choices using the compact body.
+- Neighbor ownership: Distilled's investment gate and Evans discovery are already settled; DDIA applies only if distributed-data semantics become central.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture reveals the required source lens and cannot be reused unchanged.
+- Reference expectation: ordinary
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: exact mini-derived tactical implementation guidance; router-only change
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM1b; the frozen fixture, hash, and required set remain unchanged
+
+### RM1b: Ordinary committed-subscription replacement
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/implementing-domain-driven-design/ordinary-committed-subscription-model-v2.md`
+- Fixture SHA-256: `8a4c5625d406c544fedbc09b172b88de79b452cdc1b695be6db2fe59d94099e3`
+- Required skills: `{implementing-domain-driven-design}`
+- Distinctive judgment: Implement the settled context with a conservative Aggregate, value semantics, Aggregate-oriented Repository, post-commit event, thin Application Service, translation, and separate read representation.
+- Neighbor ownership: Distilled's investment gate and Evans-style discovery are explicitly settled; the central work is tactical implementation within the committed context.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and the ordinary tier premise were accepted.
+- Reference expectation: ordinary
+- Runs: `green-inline-map-1`; selected `implementing-domain-driven-design`, `domain-driven-design`, and `clean-architecture`; reported `focused` access to eight target sections
+- Package fidelity trace: exact mini-derived Aggregate, Entity/Value Object, Repository, event, application-service, translation, and representation guidance
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass with disclosure diagnostic
+- Diagnostics: expected ordinary but read `8/19` target sections across several related tactical concerns; broad nonmaterial over-read requiring monitoring, not end-to-end collapse
+
+### RM2: Focused Repository-query control
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/implementing-domain-driven-design/focused-claim-dashboard-query.md`
+- Fixture SHA-256: `f0e0e555ae7db0a61a75fb7f04879b6b205dbce2292e74de00e9a7d16668c532`
+- Required skills: `{implementing-domain-driven-design}`
+- Distinctive judgment: Distinguish Aggregate Repository semantics from an application-facing read representation.
+- Neighbor ownership: Clean Architecture may place an outer adapter, but Repository and client/query representation semantics belong to Implementing DDD.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: focused
+- Compact-body gap: The fixture asks for detailed Repository-versus-query applicability and client representation scope beyond the compact rules.
+- Intended index destinations: `Repository Rules` and `Client Representation and Scope Discipline`
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: the two named canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: requires a separately named blind focused replacement; the frozen fixture, hash, and required set remain unchanged
+
+### RM2b: Focused Repository-query current-policy replacement
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/implementing-domain-driven-design/focused-claim-dashboard-query-v2.md`
+- Fixture SHA-256: `f0e0e555ae7db0a61a75fb7f04879b6b205dbce2292e74de00e9a7d16668c532`
+- Required skills: `{implementing-domain-driven-design}`
+- Distinctive judgment: Distinguish Aggregate Repository semantics from an application-facing read representation.
+- Neighbor ownership: Clean Architecture may place an outer adapter, but Repository and client/query representation semantics belong to Implementing DDD.
+- Ownership review: REJECTED - post-run contract audit on 2026-07-14 found ordinary team disagreement rather than an explicit source-interpretation dispute; the earlier independent review had recorded `PASS` under the mistaken broader interpretation.
+- Reference expectation: focused
+- Compact-body gap: invalid as recorded; the fixture disputes the design decision but does not state competing source propositions.
+- Intended index destinations: `Repository Rules` and `Client Representation and Scope Discipline`
+- Runs: `green-inline-map-1`; selected `implementing-domain-driven-design`, `patterns-of-enterprise-application-architecture`, and Distilled; `focused`; target read exactly `Repository Rules` and `Client Representation and Scope Discipline`
+- Package fidelity trace: canonical full headings `Repository Rules` and `Client Representation and Scope Discipline`
+- Attribution review: not counted because the focused contract was invalid, although the answer contained no unsupported book attribution
+- Behavioral result: not counted
+- Diagnostics: preserve the exact two-section focused run as invalid-contract evidence; separately named source-dispute replacement RM2c supersedes it
+
+### RM2c: Focused Repository-query source-dispute replacement
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/implementing-domain-driven-design/focused-repository-query-source-dispute-v3.md`
+- Fixture SHA-256: `a57472aec6205c0315a2e02a4bf408d1df0997a6e96ed1d6015bdc2bf4396852`
+- Required skills: `{implementing-domain-driven-design}`
+- Distinctive judgment: Resolve the exact Aggregate-Repository-versus-client-query source proposition and place the dashboard representation without reshaping the domain model.
+- Neighbor ownership: Clean Architecture may place an adapter and PoEAA may name a query pattern, but Repository and client-representation semantics are central here.
+- Ownership review: PASS - independent pre-dispatch review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14 accepted blindness, Implementing DDD ownership, the explicit source dispute, focused tier, and exact two-section destination.
+- Reference expectation: focused
+- Compact-body gap: none; the fixture explicitly disputes whether application needs permit an arbitrary dashboard method on an Aggregate Repository or require a separate projection, DTO, use-case query, adapter, or mediator.
+- Intended index destinations: `Repository Rules` and `Client Representation and Scope Discipline`
+- Runs: `green-inline-map-contract-fix-1`; selected only `implementing-domain-driven-design`; reported `focused`; read exactly `Repository Rules` and `Client Representation and Scope Discipline`
+- Package fidelity trace: canonical full headings `Repository Rules` and `Client Representation and Scope Discipline`
+- Attribution review: PASS - independent final result review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` found no unsupported book attribution; the contextual adapter recommendation remained distinct from source claims
+- Behavioral result: pass
+- Diagnostics: exact two-section focused route passed; separately named source-dispute replacement supersedes post-run-rejected RM2b
+
+### RM3b: Comprehensive tactical-marketplace replacement
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/implementing-domain-driven-design/comprehensive-tactical-marketplace-audit-v2.md`
+- Fixture SHA-256: `d6bb1bbdb38bc4616aa92df8c0779176920ff0a859727010d6f7adbd50190a06`
+- Required skills: `{implementing-domain-driven-design}`
+- Distinctive judgment: Apply the complete strategic-implementation, Aggregate, value, service, Repository, event, application, module, integration, representation, simplicity, and testing lens end to end.
+- Neighbor ownership: Related DDD and architecture skills may contribute compatible findings, but context commitment is fixed and the explicit exhaustive tactical implementation objective makes this skill central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and end-to-end comprehensive loading were accepted.
+- Reference expectation: comprehensive
+- Runs: `green-inline-map-1`; selected all three DDD skills; each reported `sections=["*"]`, including the required target
+- Package fidelity trace: all canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: permitted DDD overlap; required target inclusion and end-to-end access passed
+
+### RM3: Comprehensive Implementing DDD control
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/implementing-domain-driven-design/comprehensive-marketplace-implementation.md`
+- Fixture SHA-256: `6e31bf7a5c155143db4e0cd61c18773f3d3e6281cbde9e41ac48e2fb8fefaad6`
+- Required skills: `{implementing-domain-driven-design}`
+- Distinctive judgment: Apply the complete practical DDD implementation lens end to end.
+- Neighbor ownership: Related DDD and architecture skills may co-apply, but the explicit complete Implementing DDD request owns this control.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: comprehensive
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: all canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM3b; the frozen fixture, hash, and required set remain unchanged

@@ -69,7 +69,7 @@ Evaluation contract version: 2
 - Required skills: `{{alpha}}`.
 - Distinctive judgment: Alpha owns the central decision.
 - Neighbor ownership: Beta may contribute but does not own the decision.
-- Ownership review: pending independent review.
+- Ownership review: PASS - independent review complete.
 - Reference expectation: {reference_expectation}.
 {extra_case_fields}- Runs: pending.
 - Package fidelity trace: pending.
@@ -192,6 +192,23 @@ Evaluation contract version: 2
         errors = validate_evaluation_contracts.validate_repository(root)
 
         self.assertEqual(errors, [])
+
+    def test_versioned_contract_rejects_pending_ownership_review(self) -> None:
+        temporary, root = self.make_fixture("# placeholder\n")
+        self.addCleanup(temporary.cleanup)
+        case_path, digest = self.write_case(root)
+        mapping = root / "_skill-workbench" / "alpha" / "mapping.md"
+        mapping.write_text(
+            self.versioned_mapping(case_path, digest).replace(
+                "Ownership review: PASS - independent review complete.",
+                "Ownership review: pending independent review.",
+            ),
+            encoding="utf-8",
+        )
+
+        errors = validate_evaluation_contracts.validate_repository(root)
+
+        self.assertTrue(any("ownership review must be terminal" in error for error in errors), errors)
 
     def test_versioned_contract_requires_distinctive_judgment(self) -> None:
         temporary, root = self.make_fixture("# placeholder\n")

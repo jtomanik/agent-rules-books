@@ -62,15 +62,21 @@ Construction quality is not accidental. Do not treat typing code, making it work
 - When comments restate obvious mechanics or go stale, rewrite the code or delete the comment; when code cannot express intent, constraints, or usage, add a close accurate comment.
 - When local style starts to diverge, follow shared formatting, naming, file-structure, and idiom conventions instead of creating a module-specific dialect.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched construction work.
+Use this file alone for ordinary matched construction work; do not open references merely to confirm its answer.
 
-Do not open references merely to confirm, elaborate, or report an implementation recommendation already supported here.
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For an explicit dispute about interpreting or applying Code Complete guidance, you must read [references/index.md](references/index.md), then its bounded sections in [references/full.md](references/full.md). Also use that focused route when, after applying this file, you can state one concrete bounded question that the body does not answer.
+- Construction prerequisites: [Construction Prerequisites and Decisions](references/full.md#construction-prerequisites-and-decisions)
+- Routine cohesion and contracts: [Routine Design Rules](references/full.md#routine-design-rules)
+- Types, flags, and representations: [Data Type Rules](references/full.md#data-type-rules)
+- Conditionals and loops: [Statement, Conditional, and Loop Rules](references/full.md#statement-conditional-and-loop-rules)
+- Assertions and defensive boundaries: [Defensive Programming Rules](references/full.md#defensive-programming-rules)
+- Decision tables and data-driven logic: [Table-Driven and Data-Driven Rules](references/full.md#table-driven-and-data-driven-rules)
+- Construction-focused testing: [Testing Rules](references/full.md#testing-rules)
 
-For a comprehensive construction audit, an explicit request for the complete Code Complete lens, or an unresolved system-level decision whose correctness depends on interactions across several independent concern groups, read [references/full.md](references/full.md) end to end.
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive construction audit or complete Code Complete lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

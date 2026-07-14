@@ -16,6 +16,7 @@ SKILL_NON_RULE_HEADINGS = {
     "when to use",
     "primary bias",
     "primary bias to correct",
+    "reference map",
     "reference router",
     "final checklist",
 }

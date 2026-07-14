@@ -58,13 +58,22 @@ Do not optimize only for the local edit, requested feature, or familiar ritual. 
 - When an error or resource crosses a boundary, decide who can recover, what context survives, and who owns cleanup.
 - When shared state, async behavior, locks, ordering, or temporal coupling appears, make ownership, synchronization, cleanup, and ordering requirements explicit.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched work, and stop when it resolves the task.
+Use this file alone for ordinary matched work and stop when it resolves the task; do not open references merely to confirm its answer.
 
-For an explicit dispute about pragmatic stopping, named habits, tool use, resource or coupling mechanisms, project testing scope, or one bounded source question left unresolved after applying this file, read [references/index.md](references/index.md), then the smallest relevant sections of [references/full.md](references/full.md).
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For a comprehensive audit or an explicit request for the complete book lens, read [references/full.md](references/full.md) end to end.
+- Ownership, quality, or stopping: [Core Pragmatic Principles](references/full.md#core-pragmatic-principles)
+- Duplicated knowledge: [DRY Rules](references/full.md#dry-rules)
+- Change fan-out and coupling: [Orthogonality Rules](references/full.md#orthogonality-rules)
+- Thin end-to-end validation: [Tracer Bullets and Iterative Delivery](references/full.md#tracer-bullets-and-iterative-delivery)
+- Reversible commitments and evolving requirements: [Reversibility, Domain Languages, and Requirements](references/full.md#reversibility-domain-languages-and-requirements)
+- Repetitive or tribal work: [Automation Rules](references/full.md#automation-rules)
+- Slow or costly feedback: [Feedback Loop Rules](references/full.md#feedback-loop-rules)
+- Resource ownership, temporal coupling, or blackboards: [Resource and Coupling Rules](references/full.md#resource-and-coupling-rules)
+
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive audit or complete book lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

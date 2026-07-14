@@ -50,6 +50,7 @@ Evaluation contract version: 2
 - Prompt or artifact: `_skill-workbench/evaluations/cases/alpha/positive.md`.
 - Fixture SHA-256: `{case_hash}`.
 - Required skills: `{{zeta, alpha}}`.
+- Ownership review: PASS - independently reviewed.
 """,
             encoding="utf-8",
         )
@@ -103,6 +104,74 @@ Evaluation contract version: 2
         self.assertEqual(manifest["execution"]["timeout"], 123)
         self.assertEqual(manifest["catalog"]["skill_count"], 2)
 
+    def test_manifest_uses_versioned_replacement_after_historical_same_fixture(self) -> None:
+        temporary, root, case = self.make_repository()
+        self.addCleanup(temporary.cleanup)
+        case_hash = hashlib.sha256(case.read_bytes()).hexdigest()
+        mapping = root / "_skill-workbench" / "alpha" / "mapping.md"
+        mapping.write_text(
+            f"""# Mapping
+
+### E1: Historical
+
+- Prompt or artifact: `_skill-workbench/evaluations/cases/alpha/positive.md`.
+- Fixture SHA-256: `{case_hash}`.
+- Required skills: `{{alpha}}`.
+
+### R1: Versioned replacement
+
+- Contract version: 2
+- Prompt or artifact: `_skill-workbench/evaluations/cases/alpha/positive.md`.
+- Fixture SHA-256: `{case_hash}`.
+- Required skills: `{{zeta, alpha}}`.
+- Ownership review: PASS - independently reviewed.
+""",
+            encoding="utf-8",
+        )
+
+        manifest = evaluation_manifest.build_manifest(
+            repo=root,
+            case=case,
+            mode="green",
+            run="green-1",
+            output=root / "results" / "green-1.json",
+            model="gpt-test",
+            schema=root / "_skill-workbench" / "evaluations" / "result-v2.schema.json",
+            runner=root / "_skill-workbench" / "scripts" / "run_skill_eval.py",
+            timeout=123,
+        )
+
+        self.assertEqual(manifest["contract"]["case_id"], "R1")
+        self.assertEqual(manifest["required_project_skills"], ["alpha", "zeta"])
+
+    def test_manifest_rejects_pending_ownership_review(self) -> None:
+        temporary, root, case = self.make_repository()
+        self.addCleanup(temporary.cleanup)
+        mapping = root / "_skill-workbench" / "alpha" / "mapping.md"
+        mapping.write_text(
+            mapping.read_text(encoding="utf-8").replace(
+                "Ownership review: PASS - independently reviewed.",
+                "Ownership review: pending independent review.",
+            ),
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(
+            evaluation_manifest.ManifestError,
+            "no version 2 mapping contract",
+        ):
+            evaluation_manifest.build_manifest(
+                repo=root,
+                case=case,
+                mode="green",
+                run="green-1",
+                output=root / "results" / "green-1.json",
+                model="gpt-test",
+                schema=root / "_skill-workbench" / "evaluations" / "result-v2.schema.json",
+                runner=root / "_skill-workbench" / "scripts" / "run_skill_eval.py",
+                timeout=123,
+            )
+
     def test_manifest_validation_detects_catalog_drift(self) -> None:
         temporary, root, case = self.make_repository()
         self.addCleanup(temporary.cleanup)
@@ -128,6 +197,29 @@ Evaluation contract version: 2
         errors = evaluation_manifest.validate_manifest(root, manifest, runner=runner)
 
         self.assertTrue(any("catalog snapshot" in error for error in errors), errors)
+
+    def test_manifest_validation_detects_skill_body_drift(self) -> None:
+        temporary, root, case = self.make_repository()
+        self.addCleanup(temporary.cleanup)
+        runner = root / "_skill-workbench" / "scripts" / "run_skill_eval.py"
+        schema = root / "_skill-workbench" / "evaluations" / "result-v2.schema.json"
+        manifest = evaluation_manifest.build_manifest(
+            repo=root,
+            case=case,
+            mode="green",
+            run="green-1",
+            output=root / "results" / "green-1.json",
+            model="gpt-test",
+            schema=schema,
+            runner=runner,
+            timeout=123,
+        )
+        alpha = root / ".agents" / "skills" / "alpha" / "SKILL.md"
+        alpha.write_text(alpha.read_text(encoding="utf-8") + "\nChanged body.\n", encoding="utf-8")
+
+        errors = evaluation_manifest.validate_manifest(root, manifest, runner=runner)
+
+        self.assertTrue(any("package snapshot" in error for error in errors), errors)
 
     def test_manifest_validation_detects_required_set_tampering(self) -> None:
         temporary, root, case = self.make_repository()

@@ -111,14 +111,15 @@ The standalone mini invocation sentence is metadata input rather than an authori
 ## Packaging Prose Fidelity
 
 - Newly authored technical directives: none.
+- Inline reference map: six source-backed labels link common focused questions directly to canonical full headings; every other bounded question still uses the exhaustive index. This changes loading only.
 - Review: frontmatter, headings, transitions, and reference-routing prose organize discovery and loading only; independent review found no technical rule beyond canonical guidance.
 
 ## Size Exception
 
 - Canonical mini: 848 words.
-- `SKILL.md`: 1020 words.
-- Packaging overhead: 172 words.
-- Decision: retain the source-driven exception. The canonical mini already exceeds the 500-word target, every mini rule remains required for complete ordinary use, and the documented soft-target overage preserves explicit ordinary stopping, mandatory disputed/hotspot retrieval, and one bounded post-body unresolved route. It remains below the 200-word hard maximum. Do not paraphrase rules or compress routing merely to reduce this count.
+- `SKILL.md`: 1,038 words across 76 lines.
+- Packaging overhead: 190 words.
+- Decision: retain the source-driven exception. The canonical mini already exceeds the 500-word target, every mini rule remains required for complete ordinary use, and the documented 40-word soft-target overage preserves explicit ordinary stopping plus six direct production-detail routes and the exhaustive fallback. It remains below the 200-word hard maximum. Do not paraphrase rules to reduce this count.
 
 ## Evaluation Environment
 
@@ -344,3 +345,75 @@ This section supersedes every earlier use of `current` above while retaining all
 - E1c, `_skill-workbench/evaluations/cases/release-it/ordinary-outbound-deadline.md`, is the replacement ordinary-disclosure control. All three baselines already found the missing timeout, so it is explicitly disclosure calibration rather than a behavioral RED. All three GREEN runs selected only Release It! and used `SKILL.md` alone: `019f55d5-f5ad-7842-a61f-17c398300700`, `019f55d5-f56e-7a10-afe5-93e84eb6a264`, and `019f55d5-f5de-7f13-981f-f01b678903f0`.
 - The 155-word packaging overhead is accepted under the documented 150-word soft target and 200-word hard maximum. The clearer wording is preferable to an arbitrary four-word compression.
 - Final acceptance: **pass** using E1c for ordinary disclosure and E1b as preserved ambiguity evidence. No Release It! pilot rewrite is required before the next conversion batch.
+
+## Inline Reference Map Evaluation
+
+### RM1: Ordinary outbound-deadline control
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/release-it/ordinary-outbound-deadline.md`
+- Fixture SHA-256: `e36fb927113591edb2d1482aec5933927fdcc8ebccd3e522427dc1656910d32b`
+- Required skills: `{release-it}`
+- Distinctive judgment: Bound one optional outbound dependency with explicit timeout and fallback behavior using the compact body alone.
+- Neighbor ownership: DDIA is unnecessary because distributed data semantics are not central; Clean Architecture may place the adapter but does not own production failure behavior.
+- Ownership review: PASS - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; fixture blindness, central ownership, and the ordinary tier premise were accepted.
+- Reference expectation: ordinary
+- Runs: `green-inline-map-1`; selected `release-it`; `ordinary`; no reference sections
+- Package fidelity trace: exact mini-derived dependency-protection guidance; router-only change
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: accepted ordinary replacement remained body-only
+
+### RM2: Focused supervised-consumer control
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/release-it/supervised-consumer.md`
+- Fixture SHA-256: `237a22cc502923e9000e598f9e62108a66cd09ae3611e8ca6519158cf875f976`
+- Required skills: `{release-it}`
+- Distinctive judgment: Separate poison input from dependency failure and choose bounded consumer, load, and visibility behavior.
+- Neighbor ownership: Legacy Code does not own the task because behavior and failure facts are supplied; DDIA is secondary unless data semantics become central.
+- Ownership review: PASS - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; fixture blindness, central ownership, compact-body gap, and bounded destinations were accepted.
+- Reference expectation: focused
+- Compact-body gap: The fixture asks for the source's detailed let-it-crash condition, poison-message handling, and bounded load behavior beyond the compact rules.
+- Intended index destinations: `Dependency Protection Rules`, `Load and Capacity Rules`, `Data Boundary Rules`, and `Operational Visibility Rules`
+- Runs: `green-inline-map-1`; selected `release-it` and compatible DDIA; `focused`; target read `Dependency Protection Rules`, `Load and Capacity Rules`, `Runtime State and Restart Safety Rules`, and `Data Boundary Rules`
+- Package fidelity trace: the named canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: omitted one predeclared optional visibility destination but retrieved a relevant restart-safety section; exact-section equality is not required
+
+### RM3: Comprehensive Release It control
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/release-it/comprehensive-audit.md`
+- Fixture SHA-256: `ce0579ee2ae5a2fbed00809dfd42122dcf4f00bf52303274a2cb5ecaeb23abc6`
+- Required skills: `{release-it}`
+- Distinctive judgment: Apply the complete production-readiness, survivability, load, visibility, and runtime-control lens.
+- Neighbor ownership: Neighboring architecture or data guidance may co-apply, but the explicit complete Release It! request owns this control.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: comprehensive
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: all canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM3b; the frozen fixture, hash, and required set remain unchanged
+
+### RM3b: Comprehensive production-failure replacement
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/release-it/comprehensive-production-failure-audit-v2.md`
+- Fixture SHA-256: `b8cb19fa4f83f3f1b336b51c6423683f46100551bf520584fd52d6bd037a05e5`
+- Required skills: `{release-it}`
+- Distinctive judgment: Apply the complete production-survivability, dependency, overload, state, resource, visibility, deployment, contract, cache, background-work, testing, and runtime-control lens end to end.
+- Neighbor ownership: Architecture and data skills may contribute compatible findings, but the explicit exhaustive production-failure objective makes this skill central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and end-to-end comprehensive loading were accepted.
+- Reference expectation: comprehensive
+- Runs: `green-inline-map-1`; selected `release-it` and compatible DDIA; required target reported `sections=["*"]`, while DDIA remained bounded
+- Package fidelity trace: all canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: permitted distributed-data overlap; required target inclusion and end-to-end access passed

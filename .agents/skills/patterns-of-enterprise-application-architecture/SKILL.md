@@ -52,13 +52,22 @@ Enterprise applications are not improved by inventing architecture for every fea
 
 - Test each responsibility at the level where it owns behavior: domain logic apart from UI and persistence when possible, repositories/mappers/gateways as data infrastructure, services for workflow and transactions, locking where concurrency matters, and DTO/facade mapping at boundaries.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched work, including a bounded pattern choice resolved above. Do not open references merely to restate guidance already present here.
+Use this file alone when it resolves an ordinary bounded pattern choice; do not open references merely to confirm its answer.
 
-For an explicit disputed interpretation, demonstrated pattern hotspot, or one bounded source question left unresolved after applying this file, read [references/index.md](references/index.md), then the smallest named sections in [references/full.md](references/full.md).
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For an exhaustive enterprise application pattern audit or an explicit request for the complete lens, read [references/full.md](references/full.md) end to end.
+- Domain Model, Table Module, or Transaction Script: [Choosing the Business Logic Pattern](references/full.md#choosing-the-business-logic-pattern)
+- Service Layer and workflow placement: [Application Workflow Rules](references/full.md#application-workflow-rules)
+- Gateway, Mapper, or Active Record: [Persistence Pattern Rules](references/full.md#persistence-pattern-rules)
+- Identity Map, cache, and Unit of Work: [Identity, Caching, and Unit-of-Work Rules](references/full.md#identity-caching-and-unit-of-work-rules)
+- Inheritance and association mapping: [Object-Relational Mapping Pattern Index](references/full.md#object-relational-mapping-pattern-index)
+- Locking and transaction boundaries: [Concurrency and Transaction Rules](references/full.md#concurrency-and-transaction-rules)
+- Offline or integration patterns: [Offline and Integration Rules](references/full.md#offline-and-integration-rules)
+- Remote boundaries: [Distribution Rules](references/full.md#distribution-rules)
+
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit exhaustive enterprise application pattern audit or complete lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

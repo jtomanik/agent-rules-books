@@ -141,17 +141,17 @@ Corrected description (488 characters):
 - Description inventory: code-smell classification and named treatment selection trace to `M2-M3`, `M9-M14`, `M25-M35`, `N2`, `N6`, and the full catalog; the corrected incomplete-library-class and external-class-missing-operations branch traces to full lines `401-407`, `Technique Selection Rules`, and `Technique Playbook`; neighbor boundaries come from the reviewed compatibility contract and add no Refactoring.Guru technical guidance.
 - Concern-heading inventory: the four headings only group complete verbatim mini rules by the assignment's approved concern design.
 - Ordinary loading directive: body-only loading when the active rules resolve smell classification, treatment comparison, risk ordering, verification, and stopping is the progressive-disclosure packaging stop condition; references are not opened merely to confirm or elaborate that answer.
-- Focused loading directive: only explicit source detail absent from the compact body routes through the index to the smallest relevant full sections: an exact preferred/fallback/risky triad, named-technique applicability/tradeoff/safe-step/verification, incomplete-library-class migration or vendor-update compatibility, or another bounded canonical question. These are packaging-only routes to existing source detail and add no treatment.
+- Focused loading directive: eight common source-detail questions link directly to canonical full headings, including treatment triads, named-technique conditions, execution safety, and incomplete-library-class detail; every other bounded canonical question uses the exhaustive index. These are packaging-only routes and add no treatment.
 - Comprehensive loading directive: an explicit complete Refactoring.Guru lens or exhaustive catalog audit routes to the full reference end to end.
 - Index inventory: all 20 `Read when` cells route to their same-named canonical H2 sections and introduce no technical mechanism, default, guarantee, or preference beyond those sections.
 
 ## Size Exception
 
 - Canonical mini: 1,142 words.
-- `SKILL.md`: 1,289 words across 79 lines.
-- Packaging overhead: 147 words, within the 150-word target.
+- `SKILL.md`: 1,325 words across 88 lines.
+- Packaging overhead: 183 words, within the documented 151-200 allowance.
 - Description: 488 characters.
-- Decision: retain the source-driven exception to the 500-word skill target because the repaired canonical mini already exceeds it and the assignment requires all 38 canonical mini bullets plus the eight-item checklist verbatim. No packaging-overhead or line-count exception is needed.
+- Decision: retain the source-driven exception to the 500-word skill target because the repaired canonical mini already exceeds it and the assignment requires all 38 canonical mini bullets plus the eight-item checklist verbatim. The 33-word soft-target overage provides eight direct focused routes without duplicating the exhaustive index; no line-count exception is needed.
 
 ## Behavioral Correction
 
@@ -213,11 +213,11 @@ All additional relevant selected skills are permitted. Required inclusion is the
 - Neighbor ownership: Refactoring may be additionally relevant, but explicit smell diagnosis and treatment choice make Refactoring.Guru central.
 - Ownership review: PASS - independently approved pre-run contract supplied with the assignment.
 - Reference expectation: ordinary
-- Runs: initial `green-final-1`, corrected `green-corrected-1`, and accepted post-router `green-disclosure-1` complete.
+- Runs: initial `green-final-1`, corrected `green-corrected-1`, accepted post-router `green-disclosure-1`, and post-map `green-inline-map-1` complete; the latest run selected the target with compatible Clean Code and Refactoring in `ordinary` mode and read no references.
 - Package fidelity trace: `M1-M6`, `M9-M10`, `M15`, `M20-M21`, `M25`, `M28`, `M36`; `N1-N6`, `N11`, `N15`.
-- Attribution review: PASS - accepted answer stayed body-only and used bounded source-compatible treatments and stopping.
-- Behavioral result: PASS.
-- Diagnostics: preserve the corrected seven-section over-read; accepted ordinary use remains in `SKILL.md` when it resolves classification and treatment.
+- Attribution review: original accepted answer `PASS`; post-map `green-inline-map-1` `FAIL` because it presents `Parallel Arrays` as part of the Refactoring.Guru catalog although the packaged canonical catalog contains no such smell. The observation is valid general advice, but the book attribution is unsupported.
+- Behavioral result: original accepted behavior remains `PASS`; the post-map ordinary run has an answer-level attribution failure. Source/package fidelity remains `PASS` because the unsupported catalog name is absent from the package.
+- Diagnostics: preserve the corrected seven-section over-read and the post-map false attribution; do not add an invented `Parallel Arrays` catalog entry to make the solver answer appear supported.
 
 ### E4: Focused Duplicate Observed Data
 
@@ -231,7 +231,7 @@ All additional relevant selected skills are permitted. Required inclusion is the
 - Reference expectation: focused
 - Compact-body gap: `SKILL.md` preserves data-reorganization semantics but intentionally omits Duplicate Observed Data's specific GUI-held-domain-data symptom, use condition, avoid condition, safe steps, and two-way-update verification.
 - Intended index destinations: `Technique Playbook` only.
-- Runs: initial `green-final-1`, corrected `green-corrected-1`, and accepted post-router `green-disclosure-1` complete.
+- Runs: initial `green-final-1`, corrected `green-corrected-1`, accepted post-router `green-disclosure-1`, and post-map `green-inline-map-1` complete; the latest run selected only the target and read exactly `Technique Playbook` in focused mode.
 - Package fidelity trace: `M22`, `N17`; full heading `Technique Playbook`.
 - Attribution review: PASS - accepted answer used exactly focused `Technique Playbook` retrieval and applied the named technique's symptom, conditions, steps, and two-way verification.
 - Behavioral result: PASS.
@@ -263,7 +263,7 @@ All additional relevant selected skills are permitted. Required inclusion is the
 - Neighbor ownership: Refactoring and other neighboring skills may add compatible structural, readability, construction, or design judgment, but none owns exhaustive application of this smell/treatment catalog and none is required.
 - Ownership review: PASS - independently audited before execution against the frozen 14-skill catalog; the fixture reveals no required skill, book, lens, or private evaluation rationale, comprehensive loading is semantically compelled, and Refactoring.Guru's distinctive catalog judgment is central.
 - Reference expectation: comprehensive
-- Runs: initial `green-final-1`, corrected `green-corrected-1`, and accepted post-router `green-disclosure-1` complete.
+- Runs: initial `green-final-1`, corrected `green-corrected-1`, accepted post-router `green-disclosure-1`, and post-map `green-inline-map-1` complete; the latest run selected Refactoring.Guru plus compatible Refactoring and read both references comprehensively, including target `sections=["*"]`.
 - Package fidelity trace: `M1-M36`, `N1-N17`, and all 20 full-reference H2 sections.
 - Attribution review: PASS - accepted answer recorded comprehensive `*` reads and applied the catalog across the requested audit; extra Refactoring selection is permitted.
 - Behavioral result: PASS.
@@ -328,7 +328,7 @@ All additional relevant selected skills are permitted. Required inclusion is the
 - Corrected catalog snapshot: PASS - no remaining ownership, description-boundary, router, source-preservation, required-set, fixture-hash, or disclosure-contract blocker to manifest creation.
 - Corrected-catalog attribution review: source/package fidelity PASS and required discovery PASS `11/11`, but behavioral gate FAIL. E2 run 3 supplied a contradictory numeric threshold without reading required source detail; E1/E3 showed systematic ordinary over-read; one E1 answer invented a named `Remove Comments` technique. E4-E7b passed, including the repaired hierarchy-collapse fallback.
 - Second router review: PASS - independent freeze audit verified the packaging-only body stop, explicit incomplete-library focused branch, bounded canonical catch-all, all seven disclosure expectations, exact 11-record change-impact set, unchanged 38/38 wording, byte-identical full reference, and unchanged 14-row catalog.
-- Final attribution review: PASS - no release blocker. Current E1-E7b all pass; source/package fidelity and required discovery pass, ordinary controls stay compact `5/5`, focused retrieval reaches source detail `4/5` with one preserved E2 miss, comprehensive loading passes `1/1`, and no answer falsely attributes unsupported guidance to Refactoring.Guru.
+- Final attribution review: the previously accepted E1-E7b matrix remains `PASS`, but post-map E3 is `FAIL` because it falsely attributes `Parallel Arrays` to Refactoring.Guru. Independent review confirmed this is an answer-level failure, not unsupported package guidance.
 - Unsupported or altered guidance: none identified in the package. The compact rules and full reference remain unchanged; neither router correction adds a technical treatment or retrofits the solver's invented thresholds or technique name.
 
 ## Validation Evidence
@@ -351,5 +351,5 @@ All additional relevant selected skills are permitted. Required inclusion is the
 
 - Source/package verdict: PASS - deterministic and independent semantic gates accept the repaired canonical compression and package without removed, weakened, strengthened, or imported guidance.
 - Original behavioral observation: FAIL - initial E2 missed required Refactoring.Guru discovery in three valid runs, and initial E7b materially collapsed focused routing and supplied a noncanonical fallback. E1 and E3-E6 passed; E5a/E7a remain immutable NOT-RUN diagnostics.
-- Current-state gate: PASS - accepted post-router matrix, final attribution review, source/package fidelity, stable-ID validation, required-skill discovery, corrected-catalog ownership, and progressive disclosure all pass.
-- Residual diagnostics: preserved E5a/E7a ownership failures; valid initial E2/E7b failures; corrected-catalog E2 tier/threshold failure, E1/E3 over-reads, and E1 invented technique name; accepted E2 numeric heuristics plus one focused miss; accepted E7 broad focused read; repaired initial modality, traceability, and validator findings.
+- Current-state gate: FAIL for post-map answer attribution; source/package fidelity, required-skill inclusion, and progressive disclosure remain `PASS`.
+- Residual diagnostics: preserved E5a/E7a ownership failures; valid initial E2/E7b failures; corrected-catalog E2 tier/threshold failure, E1/E3 over-reads, E1 invented technique name, and post-map E3 false `Parallel Arrays` catalog attribution; accepted E2 numeric heuristics plus one focused miss; accepted E7 broad focused read; repaired initial modality, traceability, and validator findings.

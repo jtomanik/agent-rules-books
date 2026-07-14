@@ -162,6 +162,22 @@ class EvaluationRunnerTests(unittest.TestCase):
 
         self.assertEqual(self.runner.validate_result_integrity(result), [])
 
+    def test_result_accepts_direct_full_section_focused_evidence(self) -> None:
+        result = {
+            "answer": "Use the directly linked dependency guidance.",
+            "selected_project_skills": ["release-it"],
+            "consulted_files": [
+                ".agents/skills/release-it/SKILL.md",
+                ".agents/skills/release-it/references/full.md",
+            ],
+            "consulted_reference_sections": [
+                {"skill": "release-it", "sections": ["Dependency Protection Rules"]},
+            ],
+            "reference_mode": "focused",
+        }
+
+        self.assertEqual(self.runner.validate_result_integrity(result), [])
+
     def test_result_accepts_index_only_focused_evidence(self) -> None:
         result = {
             "answer": "The compact guidance was sufficient after checking the router.",

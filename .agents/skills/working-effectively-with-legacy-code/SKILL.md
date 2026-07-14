@@ -50,13 +50,22 @@ Gain control before improving design. Understand current behavior, protect what 
 - Reject changes that expand hidden dependencies, mock around untestable structure without improving it, rename or format while leaving the real dependency knots intact, or introduce large architecture before basic seams exist.
 - Leave the touched area easier to understand, test, or change; do not mistake test-only seams, wrappers, subclass tricks, or build tricks for design improvement by themselves.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary safe changes in poorly understood or weakly tested code.
+Use this file alone for ordinary safe changes in poorly understood or weakly tested code; do not open references merely to confirm its answer.
 
-For a focused ambiguity about characterization, test points, seam purpose, dependency-breaking technique, or a risky runtime boundary, read [references/index.md](references/index.md), then read the sections it identifies in [references/full.md](references/full.md).
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For a comprehensive legacy-change audit, an explicit request for the complete Feathers lens, or a decision involving several interacting change points, seams, dependencies, and test strategies, read [references/full.md](references/full.md) end to end.
+- Control-to-change sequence: [Default Workflow for Legacy Changes](references/full.md#default-workflow-for-legacy-changes)
+- Characterization and new-behavior tests: [Testing Strategy Rules](references/full.md#testing-strategy-rules)
+- Substitution and observation points: [Seam Rules](references/full.md#seam-rules)
+- Hard collaborators and hidden inputs: [Dependency Breaking Rules](references/full.md#dependency-breaking-rules)
+- Change impact and code understanding: [Test Selection and Understanding Rules](references/full.md#test-selection-and-understanding-rules)
+- Sprout, wrap, or extract-and-override: [Preferred Legacy Techniques](references/full.md#preferred-legacy-techniques)
+- Specialized dependency breaks: [Dependency-Breaking Technique Index](references/full.md#dependency-breaking-technique-index)
+- Databases, UI, globals, or side-effecting constructors: [Handling Risky Areas](references/full.md#handling-risky-areas)
+
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive legacy-change audit or complete Feathers lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

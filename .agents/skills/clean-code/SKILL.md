@@ -49,13 +49,20 @@ Application note: Cache population still mutates. A strict split uses a command 
 - Let design emerge through tests, duplication removal, expressiveness, and minimal structure; do not add needless abstractions or infrastructure.
 - When duplication, repeated switches, or primitive clusters appear, name the concept with an argument object, polymorphism, special case, or other small abstraction.
 
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched work.
+Use this file alone for ordinary matched work; do not open references merely to confirm its answer.
 
-For a disputed interpretation or a decision the guidance above does not resolve about naming, function shape, comments, errors, boundaries, tests, concurrency, or cleanup scope, read [references/index.md](references/index.md), then read the sections it identifies in [references/full.md](references/full.md).
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For a comprehensive audit, a disputed interpretation, an explicit request for the complete Clean Code lens, or a decision involving several interacting concerns, read [references/full.md](references/full.md) end to end.
+- Vague or misleading names: [Naming rules](references/full.md#naming-rules)
+- Function shape, command-query separation, or hidden mutation: [Function rules](references/full.md#function-rules)
+- External APIs and framework boundaries: [Boundaries and external dependencies](references/full.md#boundaries-and-external-dependencies)
+- Test readability and reliability: [Tests](references/full.md#tests)
+- Async state or concurrency structure: [Concurrency and async work](references/full.md#concurrency-and-async-work)
+- Non-negotiable interpretation: [Hard rules](references/full.md#hard-rules)
+
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive audit or complete Clean Code lens, read [the full reference](references/full.md) end to end.
 
 ## Final Checklist
 

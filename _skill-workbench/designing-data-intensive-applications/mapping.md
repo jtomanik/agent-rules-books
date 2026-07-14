@@ -88,15 +88,16 @@
 ## Packaging Prose Fidelity
 
 - Newly authored technical directives: none.
+- Inline reference map: eight source-backed labels link common focused questions directly to canonical full headings; every other bounded question still uses the exhaustive index. This changes loading only.
 - Review: frontmatter, headings, transitions, and reference-routing prose organize discovery and loading only; independent review found no technical rule beyond canonical guidance.
 
 ## Size Exception
 
 - Canonical mini: 890 words.
-- `SKILL.md`: 1,049 words across 75 lines.
-- Packaging overhead: 159 words, within the documented 151-200 allowance.
+- `SKILL.md`: 1,067 words across 82 lines.
+- Packaging overhead: 177 words, within the documented 151-200 allowance.
 - Description: 497 characters.
-- Decision: retain the source-driven exception because the canonical mini already exceeds the 500-word target and every mini rule is required for complete ordinary use. The nine-word soft-target overage keeps the ordinary stop condition visible while preserving cross-system write and neighbor boundaries. Do not paraphrase canonical guidance to reduce the count.
+- Decision: retain the source-driven exception because the canonical mini already exceeds the 500-word target and every mini rule is required for complete ordinary use. The 27-word soft-target overage keeps the ordinary stop visible and adds eight direct correctness-detail routes without duplicating the exhaustive index. Do not paraphrase canonical guidance to reduce the count.
 
 ## Evaluation Cases
 
@@ -441,3 +442,94 @@ The contracts and raw artifacts below preserve the pre-execution record. Their o
 - Official validator: `/Users/jakubtomanik/.codex/skills/.system/skill-creator/scripts/quick_validate.py` reports `Skill is valid!` through `uv run --with pyyaml`.
 - Evaluation contracts: the required-skill contract validator passes; historical allowed/forbidden partitions remain preserved diagnostics.
 - Remaining risk: pretrained DDIA knowledge can cause solvers to import mechanisms absent from this repository's canonical rule even when package fidelity is exact.
+
+## Inline Reference Map Evaluation
+
+### RM1: Ordinary derived-projection control
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/designing-data-intensive-applications/ordinary-derived-projection.md`
+- Fixture SHA-256: `1366abebcdc6d3ef6654c31038a42011a91b4fe79c835bdb99ac97582ccdfc48`
+- Required skills: `{designing-data-intensive-applications}`
+- Distinctive judgment: Preserve authoritative source data and make the derived projection rebuildable using the compact body alone.
+- Neighbor ownership: Clean Architecture may place adapters and Release It! may discuss runtime failure, but data authority and derivation correctness are central.
+- Ownership review: PASS - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; fixture blindness, central ownership, and the ordinary tier premise were accepted.
+- Reference expectation: ordinary
+- Runs: `green-inline-map-1`; selected `designing-data-intensive-applications`; reported `focused` access to `Reliability Rules`, `Derived Data Rules`, and `Batch and Stream Processing Rules`
+- Package fidelity trace: exact mini-derived ownership and derived-data guidance; router-only change
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass with disclosure diagnostic
+- Diagnostics: expected ordinary but read three relevant sections; bounded nonmaterial over-read, not end-to-end tier collapse
+
+### RM2: Focused replica-consistency control
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/designing-data-intensive-applications/focused-replica-read.md`
+- Fixture SHA-256: `d9915d792c20f5c99a85e6af71602659658e196a7a16c2d14e75dddd040d169d`
+- Required skills: `{designing-data-intensive-applications}`
+- Distinctive judgment: Resolve one read-after-write guarantee against replica lag and topology without broad system redesign.
+- Neighbor ownership: This is distributed-data consistency and replication semantics, not general reliability or architecture placement.
+- Ownership review: REJECTED - post-run contract audit on 2026-07-14 found ordinary team disagreement rather than an explicit source-interpretation dispute; the earlier independent review had recorded `PASS` under the mistaken broader interpretation.
+- Reference expectation: focused
+- Compact-body gap: invalid as recorded; the fixture disputes the design decision but does not state competing source propositions.
+- Intended index destinations: `Consistency Rules` and `Replication Rules`
+- Runs: `green-inline-map-1`; selected `designing-data-intensive-applications`; `focused`; read intended `Consistency Rules` and `Replication Rules` plus three related sections
+- Package fidelity trace: the two named canonical full headings
+- Attribution review: not counted because the focused contract was invalid, although the answer contained no unsupported book attribution
+- Behavioral result: not counted
+- Diagnostics: preserve the bounded five-section run as invalid-contract evidence; separately named source-dispute replacement RM2b supersedes it
+
+### RM2b: Focused replica-consistency source-dispute replacement
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/designing-data-intensive-applications/focused-replica-consistency-source-dispute-v2.md`
+- Fixture SHA-256: `de4b1d04e3e2fc782f67b48e2e37fbd7079f058dbe4d779da30bfe8571217b1a`
+- Required skills: `{designing-data-intensive-applications}`
+- Distinctive judgment: Resolve the exact read-your-writes source proposition under asynchronous lag, catch-up, failover, and reconfiguration without widening to general reliability.
+- Neighbor ownership: Release It! owns operational survival, but the disputed consistency contract and replication semantics are central here.
+- Ownership review: PASS - independent pre-dispatch review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14 accepted blindness, DDIA ownership, the explicit source dispute, focused tier, and exact two-section destination.
+- Reference expectation: focused
+- Compact-body gap: none; the fixture explicitly disputes whether source guidance categorically forbids follower reads or permits them only when the design proves the required read-your-writes guarantee under lag and topology changes.
+- Intended index destinations: `Consistency Rules` and `Replication Rules`
+- Runs: `green-inline-map-contract-fix-1`; selected only `designing-data-intensive-applications`; reported `focused`; read exactly `Consistency Rules` and `Replication Rules`
+- Package fidelity trace: canonical full headings `Consistency Rules` and `Replication Rules` plus unchanged mini-derived consistency and topology guidance
+- Attribution review: PASS - independent final result review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` found no unsupported book attribution; application-level implementation deductions remained distinct from source claims
+- Behavioral result: pass
+- Diagnostics: exact two-section focused route passed; separately named source-dispute replacement supersedes post-run-rejected RM2
+
+### RM3: Comprehensive DDIA control
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/designing-data-intensive-applications/comprehensive-audit.md`
+- Fixture SHA-256: `5f1473ea6f13c6431188e079ae4f7ba077f2f7d30eb26c7e3242518a984ee28e`
+- Required skills: `{designing-data-intensive-applications}`
+- Distinctive judgment: Apply the complete distributed-data correctness lens end to end.
+- Neighbor ownership: Compatible operational or architectural guidance may co-apply, but the explicit complete DDIA audit owns this control.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: comprehensive
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: all canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM3b; the frozen fixture, hash, and required set remain unchanged
+
+### RM3b: Comprehensive data-platform replacement
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/designing-data-intensive-applications/comprehensive-data-platform-audit-v2.md`
+- Fixture SHA-256: `0bf8952b5401d2954f3b7c8c59d73a174ec55b382272fd06e2d113b0d15ec285`
+- Required skills: `{designing-data-intensive-applications}`
+- Distinctive judgment: Apply the complete distributed-data correctness lens across authority, models, storage, consistency, replay, ordering, evolution, partitioning, replication, transactions, derivation, faults, and processing.
+- Neighbor ownership: Architecture and production-resilience skills may contribute compatible findings, but the fixture's explicit exhaustive data-system objective makes this skill central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and end-to-end comprehensive loading were accepted.
+- Reference expectation: comprehensive
+- Runs: `green-inline-map-1`; selected `designing-data-intensive-applications` and compatible `release-it`; both reported `sections=["*"]`, including the required target
+- Package fidelity trace: all canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: permitted production-resilience overlap; required target inclusion and end-to-end access passed

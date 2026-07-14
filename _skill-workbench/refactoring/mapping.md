@@ -84,6 +84,7 @@ The required wording checker reports exact fidelity: the primary bias, all 24 mi
 ## Packaging Prose Fidelity
 
 - Newly authored technical directives: none.
+- Inline reference map: eight source-backed labels link common focused questions directly to canonical full headings; every other bounded question still uses the exhaustive index. This changes loading only.
 - Review: frontmatter, headings, transitions, and reference-routing prose organize discovery and loading only; independent review found no technical rule beyond canonical guidance.
 
 ## Size Exception
@@ -91,8 +92,8 @@ The required wording checker reports exact fidelity: the primary bias, all 24 mi
 - Canonical mini: 739 words.
 - Before routing fix: `SKILL.md` 835 words; packaging overhead 96 words.
 - Before final catalog boundary: `SKILL.md` 846 words; packaging overhead 107 words.
-- Current: `SKILL.md` 842 words; packaging overhead 103 words.
-- Decision: retain the source-driven exception. Description-only routing metadata changed while the mini-derived body stayed exact; the canonical mini already exceeds the 500-word target, every mini rule remains required for complete ordinary use, and current packaging overhead remains below the 150-word soft target. Do not paraphrase rules during conversion to reduce this count.
+- Current: `SKILL.md` 897 words across 76 lines; packaging overhead 158 words.
+- Decision: retain the source-driven exception. The mini-derived body stayed exact; the canonical mini already exceeds the 500-word target, every mini rule remains required for complete ordinary use, and the eight-word soft-target overage provides eight direct focused routes without duplicating the exhaustive index. Do not paraphrase rules during conversion to reduce this count.
 
 ## Behavioral Scenarios
 
@@ -329,3 +330,94 @@ This section supersedes every earlier use of `current` above while preserving fr
 - O6 selected Legacy Code plus source-relevant Release It! comprehensively because production duplicate/partial-failure behavior is explicit. O6b selected only Legacy Code comprehensively and remains the local-only replacement.
 - Result-integrity validation caught and preserved one contradictory O3b record and one O2 record before rerun; all final records have consistent selected-skill, consulted-file, and disclosure evidence.
 - Final acceptance: **pass** for the Refactoring pilot's discovery, ordering, application, source fidelity, and progressive-disclosure roles. No body or reference rewrite is required before the next conversion batch.
+
+## Inline Reference Map Evaluation
+
+### RM1: Ordinary structural-control replacement
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/refactoring-legacy-overlap/01-well-tested-structural-cleanup.md`
+- Fixture SHA-256: `06d4ee56aeb1a8fc567fc0558e95480e4ef3d63fb2711754143a633d192b019e`
+- Required skills: `{refactoring}`
+- Distinctive judgment: Make a small behavior-preserving structural improvement with trustworthy tests and stop when the requested change is easy.
+- Neighbor ownership: Legacy Code is unnecessary because behavior is known and focused tests already provide control; Clean Code may be compatible but secondary.
+- Ownership review: PASS - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; fixture blindness, central ownership, and the ordinary tier premise were accepted.
+- Reference expectation: ordinary
+- Runs: `green-inline-map-1`; selected `refactoring`; `ordinary`; no reference sections
+- Package fidelity trace: exact mini-derived safety, local-move, and stopping guidance; router-only change
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: current ordinary stop control passed; preserved historical over-read remains elsewhere in the mapping
+
+### RM2: Focused Legacy-then-Refactoring replacement
+
+- Contract version: 2
+- Class: retrieval, ordering, and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/refactoring-legacy-overlap/03b-mixed-order-choice.md`
+- Fixture SHA-256: `77910ae9a12bdf1ad9e3f0447b1a674065846abd6216011278786247aab66364`
+- Required skills: `{working-effectively-with-legacy-code, refactoring}`
+- Distinctive judgment: Gain deterministic control over hard dependencies before choosing a small behavior-preserving consolidation around the semantic change.
+- Neighbor ownership: Legacy Code owns first feedback and dependency control; Refactoring owns the later structural consolidation. Neither replaces the other.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; one shared case is not an independently owned focused control for both changed maps.
+- Reference expectation: focused
+- Compact-body gap: The fixture asks for detailed seam/dependency-breaking options and a source-supported structural move and stopping boundary beyond the compact summaries.
+- Intended index destinations: Legacy Code `Testing Strategy Rules`, `Seam Rules`, and `Dependency Breaking Rules`; Refactoring `Safety Rules`, `Preferred Refactoring Moves` or `Rules for Working with Conditionals`, and `Testing Rules`
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: the named canonical headings in both skills
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by separately owned Refactoring RM2b and Legacy Code RM3 controls; the frozen fixture, hash, and required set remain unchanged
+
+### RM2b: Focused inheritance-catalog replacement
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/refactoring-legacy-overlap/focused-tease-apart-inheritance-v2.md`
+- Fixture SHA-256: `4662277c4f7fd383454c4802bd23b59a41f64e2e0568d9ce11a9eb35ef8018a6`
+- Required skills: `{refactoring}`
+- Distinctive judgment: Resolve whether Tease Apart Inheritance applies to two independent variation axes, then bound a behavior-preserving sequence, verification points, and stopping condition.
+- Neighbor ownership: Legacy Code is unnecessary because focused tests already establish behavioral control; Refactoring.Guru may classify hierarchy smells but the named Fowler-style catalog move is central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, exact catalog dispute, and the one-section destination were accepted.
+- Reference expectation: focused
+- Compact-body gap: none; the fixture explicitly disputes the source applicability condition for Tease Apart Inheritance and requires canonical checking.
+- Intended index destinations: `Refactoring Catalog Index`
+- Runs: `green-inline-map-1`; selected `refactoring` and compatible `refactoring-guru`; `focused`; target read `Refactoring Catalog Index`, `Testing Rules`, and `Stopping Rules`
+- Package fidelity trace: canonical full heading `Refactoring Catalog Index` plus unchanged mini-derived safety and stopping guidance
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: two additional relevant target sections and bounded smell-catalog guidance; required target and intended catalog destination passed
+
+### RM3: Comprehensive Refactoring control
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/refactoring-legacy-overlap/05-comprehensive-refactoring-audit.md`
+- Fixture SHA-256: `db282b1f375a7c34471b235cfb87c033084598dd0cccc9a8b06b8e2e4b4d4c51`
+- Required skills: `{refactoring}`
+- Distinctive judgment: Apply the complete Fowler-style refactoring lens end to end.
+- Neighbor ownership: Legacy Code is not required for an explicit complete refactoring audit over behavior already under control.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: comprehensive
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: all canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM3b; the frozen fixture, hash, and required set remain unchanged
+
+### RM3b: Comprehensive structural-change replacement
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/refactoring-legacy-overlap/comprehensive-structural-change-audit-v2.md`
+- Fixture SHA-256: `17acd20949f79b31a29be098774707a4aceb5d21666c063434e631b69972b936`
+- Required skills: `{refactoring}`
+- Distinctive judgment: Apply the complete behavior-preserving safety, smell, catalog, function, module, conditional, data, error, testing, and stopping lens end to end.
+- Neighbor ownership: Legacy Code is unnecessary because behavior is already protected; the explicit exhaustive structural-change objective makes Refactoring central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and end-to-end comprehensive loading were accepted.
+- Reference expectation: comprehensive
+- Runs: `green-inline-map-1`; selected `refactoring` and compatible `refactoring-guru`; both reported `sections=["*"]`, including the required target
+- Package fidelity trace: all canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: permitted catalog overlap; required target inclusion and end-to-end access passed

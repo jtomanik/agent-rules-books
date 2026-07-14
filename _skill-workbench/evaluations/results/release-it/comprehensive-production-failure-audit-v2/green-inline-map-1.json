@@ -1,0 +1,383 @@
+{
+  "case": "_skill-workbench/evaluations/cases/release-it/comprehensive-production-failure-audit-v2.md",
+  "case_sha256": "b8cb19fa4f83f3f1b336b51c6423683f46100551bf520584fd52d6bd037a05e5",
+  "mode": "green",
+  "run": "green-inline-map-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.4",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "repository",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f604d-3bd5-76b3-9e44-2ab6a60e612a",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "**Verdict**\n\nThis checkout service is **not production-ready for peak traffic**. The current design will likely fail by amplification rather than by graceful degradation: unbounded queues and pools, immediate retries, weak readiness, malformed success acceptance, shared caches, and manual unaudited controls create strong conditions for cascade failure, silent corruption, and unsafe recovery.\n\n**Highest-Risk Blockers**\n\n1. Unbounded queues and connection pools allow overload to become memory, thread, and dependency collapse.\n2. Immediate retries across provider failures will create retry storms and worsen partial outages.\n3. Accepting malformed downstream success payloads makes false success and data corruption likely.\n4. Weak readiness checks plus rolling migrations can route traffic into partially compatible instances.\n5. Shared caches and manual runtime controls without audit trail expand blast radius and hide operator-induced incidents.\n\n**Required Failure Semantics**\n\n- Every outbound dependency call must have an explicit timeout, bounded retry policy, breaker policy, validation policy, and degraded outcome.\n- `inventory`, `payment`, and `fraud` are correctness-critical. Default them to `fail closed` for new checkout commits unless the business explicitly accepts a pending state.\n- `tax` and `shipping` may degrade to clearly marked estimates before final order submission, but the final commit path must either revalidate or place the order into `PENDING_REPRICE` rather than pretending success.\n- `notification` is optional. It must be asynchronous, bounded, and droppable without affecting order success.\n- `payment` success must mean: provider response validated, local durable state written, idempotency key stored, and downstream state transition recorded. Anything else is `UNKNOWN`, not success.\n- Unknown provider outcome must map to explicit intermediate states such as `PENDING_PAYMENT_CONFIRMATION`, `PENDING_INVENTORY_CONFIRMATION`, or `PENDING_MANUAL_REVIEW`.\n\n**Dependency Protection and Limits**\n\n- Use separate connection pools, concurrency limits, and circuit breakers per dependency and per traffic class. Payment/fraud must not share bulkheads with notifications or reconciliation.\n- Allow retries only for idempotent operations or operations protected by provider-recognized idempotency keys.\n- Ban immediate retries. Use exponential backoff with jitter and a total retry budget bounded by the checkout deadline.\n- Do not retry malformed responses, validation failures, auth failures, or business-rule denials.\n- Put a hard bound on every queue. Full behavior must be explicit: reject, defer, dead-letter, or degrade.\n- Queue age limits matter as much as queue depth. Expired work should fail explicitly rather than execute after business usefulness has passed.\n\n**Overload, Capacity, and Blast Radius**\n\n- Reserve capacity for the core path: order submission, payment confirmation, inventory reservation, fraud decision retrieval.\n- Shed low-value work first: notifications, analytics fan-out, nonessential enrichment, cache refresh, best-effort reconciliation.\n- Apply admission control at the edge before scarce resources are consumed.\n- Isolate synchronous checkout from background jobs, migrations, cache rebuilds, and reconciliation workers.\n- Separate regional, tenant, or merchant traffic where possible so one hot customer or provider incident does not consume the whole fleet.\n\n**Runtime State and Restart Safety**\n\n- All state transitions must be restart-safe and replay-safe. A crash between provider success and local persistence is a normal case, not an exception path.\n- Reconciliation jobs must be idempotent and based on durable identifiers, not inferred from transient logs.\n- Rolling migrations must support mixed-version readers and writers. Do not couple schema rollout to instant fleet convergence.\n- Runtime controls must be authenticated, audited, and reversible. Feature toggles, breaker overrides, queue drains, and replay commands need operator identity and reason capture.\n\n**Resources**\n\n- Bound threads, DB connections, sockets, worker slots, memory-heavy batches, and file descriptors explicitly.\n- Do not hold DB transactions, locks, or scarce connections open while waiting on payment, tax, shipping, or fraud providers.\n- Stream or paginate reconciliation scans and provider backfills. One huge catch-up batch is a failure mode, not an implementation detail.\n\n**Data Boundaries and Contracts**\n\n- Treat all downstream payloads as untrusted input. Validate status, content type, schema, required fields, enum values, currency, amount, identifiers, and semantic plausibility.\n- A malformed downstream \u201csuccess\u201d is a dependency-contract failure. Do not convert it into business success and do not poison caches or queues with it.\n- Define accepted, persisted, applied, and externally confirmed states separately.\n- Version API and message contracts deliberately. Rolling migrations require backward and forward compatibility across old code, new code, and in-flight jobs.\n- Avoid chatty cross-service joins on the hot checkout path.\n\n**Caches and Derived Data**\n\n- Shared caches are a major blast-radius risk. Split by bounded domain and traffic class at minimum.\n- Caches must be treated as derived data, never hidden authority.\n- Define miss, stale, outage, and stampede behavior explicitly. A cache outage must degrade predictably, not trigger fleet-wide synchronous rebuilds.\n- Any cached tax/shipping/inventory derivative needs visible freshness and a repair/rebuild path.\n\n**Background Work**\n\n- Scheduled reconciliation jobs must be staggered, bounded, observable, and cancelable.\n- Do not schedule periodic jobs on the same clock boundary.\n- Background retries need backoff and max age. Replaying old work blindly can duplicate charges, releases, or notifications.\n- Every source-to-sink path must declare at-most-once, at-least-once, or exactly-once semantics. Assume at-least-once unless proven otherwise.\n\n**Visibility, Incidents, and Controls**\n\n- Minimum telemetry: request rate, success/failure by reason, latency percentiles, timeout counts, retry counts, breaker state, pool saturation, queue depth, queue age, dependency health, migration state, reconciliation lag, cache hit/miss/stale, and unknown-outcome counts.\n- Every order needs a correlation ID spanning checkout, provider calls, async jobs, and operator actions.\n- Health checks must prove actual serving ability, not just process liveness.\n- Operator controls need audit logs, safe defaults, blast-radius limits, and explicit stop mechanisms.\n\n**Deployment, Startup, Routing, and Security**\n\n- Startup must fail fast on invalid config, missing secrets, incompatible schema expectations, and unreachable critical dependencies when the mode requires them.\n- Readiness must verify the instance can safely serve this version with current config and migration state.\n- Do not route traffic to nodes that have not completed warm-up, dependency handshake, and compatibility checks.\n- Use canary or phased rollout with fast rollback and migration guardrails.\n- Treat provider credentials, admin endpoints, replay tools, and breaker overrides as production control plane assets.\n\n**Testing Required Before Peak**\n\n- Run bounded overload tests to prove admission control, queue limits, and load shedding.\n- Run dependency-partial-failure tests for slow, malformed, empty, duplicated, and unknown-success responses.\n- Run restart/replay tests around payment, inventory reservation, and reconciliation.\n- Run mixed-version deployment tests with rolling migrations.\n- Run cache-outage and stampede tests.\n- Run game days for provider outage, retry storm, queue saturation, and operator-error scenarios.\n\n**Forbidden Patterns**\n\n- Unbounded queues or pools.\n- Immediate retries.\n- Shared bulkheads across unrelated risk classes.\n- Treating downstream success as trusted without schema and semantic validation.\n- Manual operational changes with no audit trail.\n- Health checks that stay green during dependency or migration failure.\n- Distributed \u201csuccess\u201d inferred from partial side effects with no repair path.\n\n**Final Review**\n\nDo not approve this service for peak traffic until it has: bounded resources and queues, explicit per-dependency failure contracts, validated provider responses, restart-safe order state transitions, auditable runtime controls, meaningful readiness, and telemetry that can distinguish overload, dependency failure, and data-corruption paths. The target operating mode is not \u201calways succeed\u201d; it is \u201cfail explicitly, degrade intentionally, preserve core checkout correctness, and confine blast radius.\u201d",
+    "selected_project_skills": [
+      "release-it",
+      "designing-data-intensive-applications"
+    ],
+    "consulted_files": [
+      ".agents/skills/release-it/SKILL.md",
+      ".agents/skills/release-it/references/full.md",
+      ".agents/skills/designing-data-intensive-applications/SKILL.md",
+      ".agents/skills/designing-data-intensive-applications/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "release-it",
+        "sections": [
+          "*"
+        ]
+      },
+      {
+        "skill": "designing-data-intensive-applications",
+        "sections": [
+          "Reliability Rules",
+          "Consistency Rules",
+          "Idempotency and Replay Rules",
+          "Schema Evolution Rules",
+          "Transaction Rules",
+          "Derived Data Rules",
+          "Batch and Stream Processing Rules",
+          "API and Service Boundary Rules"
+        ]
+      }
+    ],
+    "reference_mode": "comprehensive"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "release-it"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T11:06:40.896347Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f604d-3bd5-76b3-9e44-2ab6a60e612a.1784027102165592000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
+  "evaluation_manifest": {
+    "case": {
+      "path": "_skill-workbench/evaluations/cases/release-it/comprehensive-production-failure-audit-v2.md",
+      "sha256": "b8cb19fa4f83f3f1b336b51c6423683f46100551bf520584fd52d6bd037a05e5"
+    },
+    "catalog": {
+      "byte_count": 6841,
+      "entries": [
+        {
+          "description": "A Philosophy of Software Design guidance for deep modules and information hiding. Use when cognitive load, shallow wrappers, leaky caller knowledge, tactical patches, or changes spreading across files make module or API design central. Clean Code owns readability; Code Complete, construction; Clean Architecture, policy direction; Refactoring, behavior-preserving change; Pragmatic Programmer, DRY, reversibility, feedback, and engineering practice. Co-invoke for independently central concerns.",
+          "name": "a-philosophy-of-software-design"
+        },
+        {
+          "description": "Clean Architecture guidance for inward dependencies and policy/detail separation. Use when policy independence is central and policy imports details, adapters own business rules, or core code constructs infrastructure. Layers, adapters, tests, and databases alone are insufficient. Clean Code covers readability; Refactoring, protected structural change; Legacy Code, blocked first feedback; Release It, production failure. Co-invoke only when policy dependence is also central.",
+          "name": "clean-architecture"
+        },
+        {
+          "description": "Clean Code guidance for locally readable, low-surprise implementation. Use when vague names, mixed responsibilities, boolean modes, hidden mutation, flow-narrating comments, schedule/rewrite pressure, or framework/concurrency detail obstructs a scoped change. Do not add it to an explicit refactoring-only audit or legacy-control task unless a separate local-readability decision is requested.",
+          "name": "clean-code"
+        },
+        {
+          "description": "Code Complete guidance for construction in implementation/change, review, debugging, refactoring, and tuning. Use when nontrivial work coordinates several concerns, or when solution-first coding, happy-path-only tests, mixed behavior/refactoring, guess-driven debugging drives code changes, or evidence-free tuning threatens defect control. It owns construction coordination; labels alone are insufficient, and another lens needs its own explicit objective rather than shared construction vocabulary.",
+          "name": "code-complete"
+        },
+        {
+          "description": "Designing Data-Intensive Applications guidance for distributed data correctness. Use when source-of-truth ownership, consistency/durability, replay/order, schema evolution, derived-data repair, replication/partitioning, or cross-system write/side-effect, transaction, or coordination semantics are central. A queue, cache, retry, database, or production failure alone is insufficient; Release It! owns operational survival and Clean Architecture policy direction unless data semantics are central.",
+          "name": "designing-data-intensive-applications"
+        },
+        {
+          "description": "Evans-style Domain-Driven Design guidance for discovering and evolving an implementation-driving domain model. Use when business complexity makes Ubiquitous Language conflicts, missing domain concepts, lifecycle rules, Bounded Context or Context Map decisions, Core Domain focus, or deeper-model pressure from awkward procedural behavior central. DDD Distilled owns the smallest-investment/selectivity gate; Implementing DDD owns post-boundary implementation mechanics.",
+          "name": "domain-driven-design"
+        },
+        {
+          "description": "Domain-Driven Design Distilled guidance for the smallest effective DDD investment and anti-ceremony selectivity. Use when domain complexity, language ambiguity, business differentiation, or integration risk makes subdomain investment, Bounded Context boundaries, Ubiquitous Language meaning, or whether tactical patterns earn their cost central. Domain-Driven Design owns deeper model discovery; Implementing Domain-Driven Design owns detailed mechanics after context and model commitment.",
+          "name": "domain-driven-design-distilled"
+        },
+        {
+          "description": "Implementing Domain-Driven Design guidance for implementation-level DDD after context and model commitment. Use when Aggregate boundaries, Value Objects/Entities, Repositories, Domain or Application Services, Domain Events, modules, translations, projections, or renamed-CRUD/anemic-model correction is central. Distilled owns the DDD investment gate; Domain-Driven Design owns strategic discovery and deeper model development; DDIA co-applies only for central distributed-data semantics.",
+          "name": "implementing-domain-driven-design"
+        },
+        {
+          "description": "Patterns of Enterprise Application Architecture guidance for force-based pattern choice and responsibility placement. Use when choosing business-logic, persistence, transaction, concurrency, session-state, or remote-boundary patterns is central, especially Transaction Script vs Table Module vs Domain Model or Repository/Data Mapper/Gateway/Active Record. DDD owns model discovery; Clean Architecture dependency direction; DDIA distributed-data semantics; Code Complete construction.",
+          "name": "patterns-of-enterprise-application-architecture"
+        },
+        {
+          "description": "Refactoring guidance for behavior-preserving structural change once observable behavior is known or protected. Use when renaming, extracting, moving, splitting, or another current code smell drives a behavior-preserving change. Dependency-seam work whose purpose is to gain first feedback belongs to Legacy Code until control exists.",
+          "name": "refactoring"
+        },
+        {
+          "description": "Refactoring.Guru guidance for code-smell classification, catalog treatment selection, and incomplete-library-class decisions. Use when explicit smell classification, choosing among named techniques and their preconditions or tradeoffs, or deciding how to add missing operations to an external class you cannot modify is central after behavior is known or protected. Refactoring owns ordinary behavior-preserving structural change; Clean Code local readability; Legacy Code first feedback.",
+          "name": "refactoring-guru"
+        },
+        {
+          "description": "Use only when production failure behavior is an explicit objective or demonstrated operational problem, such as deciding failure semantics, demand/capacity limits, blast-radius isolation, degraded service, recovery, operability, deployment/startup controls, incident chains, or bounded resilience tests. Do not infer this lens from testability, safe-change work, routine rollout verification, local API design, ordinary errors, in-process concurrency, service/database calls, or money/transactions.",
+          "name": "release-it"
+        },
+        {
+          "description": "The Pragmatic Programmer guidance for accountable, adaptable delivery. Use when outcome ownership, duplicated knowledge, change fan-out, irreversible commitment, prototype fossilization, manual delivery/feedback loops, or blackboard-style coordination are central across a change. Clean Code owns local readability; Code Complete construction; Refactoring behavior-preserving change; Legacy Code blocked first feedback; Release It! production failure; A Philosophy of Software Design module depth.",
+          "name": "the-pragmatic-programmer"
+        },
+        {
+          "description": "Use only when a semantic change is blocked because current behavior is materially unknown, no trustworthy focused tests exist, or a dependency cannot be observed or substituted. The task must require gaining first feedback before changing behavior. Do not use when observable behavior and operational facts are already supplied, or when first feedback is not blocked.",
+          "name": "working-effectively-with-legacy-code"
+        }
+      ],
+      "sha256": "f23977d3f201fc519c399fef75d7ed8d0f3b80e08f56da7a8659ad9c68d71a82",
+      "skill_count": 14
+    },
+    "contract": {
+      "case_id": "RM3b",
+      "evaluation_contract_version": 2,
+      "fixture_sha256": "b8cb19fa4f83f3f1b336b51c6423683f46100551bf520584fd52d6bd037a05e5",
+      "mapping": "_skill-workbench/release-it/mapping.md",
+      "mapping_sha256": "2acffd6e35943ba1e853cd9985fe47ec74b3018fe80bbd7003e52eeeac87f798",
+      "required_project_skills": [
+        "release-it"
+      ]
+    },
+    "execution": {
+      "configuration": {
+        "baseline_workspace": "temporary directory without project skills",
+        "ephemeral": true,
+        "green_workspace": "repository",
+        "ignore_user_config": true,
+        "sandbox": "read-only"
+      },
+      "mode": "green",
+      "model": "gpt-5.4",
+      "output": "_skill-workbench/evaluations/results/release-it/comprehensive-production-failure-audit-v2/green-inline-map-1.json",
+      "run": "green-inline-map-1",
+      "runner": {
+        "path": "_skill-workbench/scripts/run_skill_eval.py",
+        "sha256": "4fad18e35ac017086205f11b440ec98b6d7b14e3ccba0e690fac3e989255d65b"
+      },
+      "schema": {
+        "path": "_skill-workbench/evaluations/result-v2.schema.json",
+        "sha256": "90060cb6fea3e7b529ea5eda9a294bd7f18e1c266412be41d26b7a5365d8038c"
+      },
+      "timeout": 900
+    },
+    "manifest_version": 2,
+    "packages": {
+      "byte_count": 474958,
+      "entries": [
+        {
+          "byte_count": 7581,
+          "path": ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+          "sha256": "6de13ad8f0488e521f51d1f3126e4cd96e754fd29584c58d3919614af6cf34cc"
+        },
+        {
+          "byte_count": 13561,
+          "path": ".agents/skills/a-philosophy-of-software-design/references/full.md",
+          "sha256": "b521814b9d050d0d12594e13aa291029148a971b6f7d5a5ac3e74219de6c8563"
+        },
+        {
+          "byte_count": 5793,
+          "path": ".agents/skills/a-philosophy-of-software-design/references/index.md",
+          "sha256": "ae83c732dc4227c5d22ddb3e787c6dc7ea036fd5bf261af81399377e9b980130"
+        },
+        {
+          "byte_count": 7011,
+          "path": ".agents/skills/clean-architecture/SKILL.md",
+          "sha256": "2956a4cf0832f37c6e8e2af575db37f2378b37c26f463ee873942026238a4d03"
+        },
+        {
+          "byte_count": 17782,
+          "path": ".agents/skills/clean-architecture/references/full.md",
+          "sha256": "1f0366be1720989c63df6da8f15f12e78f8786f6e712eeb16cf3690b4dab6cc4"
+        },
+        {
+          "byte_count": 4399,
+          "path": ".agents/skills/clean-architecture/references/index.md",
+          "sha256": "2eb51dec1bf08cc2e255e653ffa630e0a68c9dec1db0f763a9699754146da50f"
+        },
+        {
+          "byte_count": 5439,
+          "path": ".agents/skills/clean-code/SKILL.md",
+          "sha256": "93fc140a587c4395d8f71fa73862d585bb026c44d3042fe28cc22a1a731c93a7"
+        },
+        {
+          "byte_count": 13851,
+          "path": ".agents/skills/clean-code/references/full.md",
+          "sha256": "0ec945c383144e2eeb52bdd18cc87668bff73c13421e17cc6e4ba3fc5905965e"
+        },
+        {
+          "byte_count": 5001,
+          "path": ".agents/skills/clean-code/references/index.md",
+          "sha256": "3c8928cd6ab1d40f5b2abac476104257ec020aa1a90378315388a4b050f0f935"
+        },
+        {
+          "byte_count": 8335,
+          "path": ".agents/skills/code-complete/SKILL.md",
+          "sha256": "f732c04127723e6cceb2b3448366d283b7bafa27dcc7b280f353558b1bb2e453"
+        },
+        {
+          "byte_count": 12407,
+          "path": ".agents/skills/code-complete/references/full.md",
+          "sha256": "57ca8fab93baea0761eeeca6c491fe79b093df47feb4172c0917a96f8ddc95a4"
+        },
+        {
+          "byte_count": 6247,
+          "path": ".agents/skills/code-complete/references/index.md",
+          "sha256": "cbe4f2335e90f2c021652045554d9b4d7bf4fa8f06bd452a6047d5872b0169a5"
+        },
+        {
+          "byte_count": 8562,
+          "path": ".agents/skills/designing-data-intensive-applications/SKILL.md",
+          "sha256": "2ba0cedab4860a47e0fe8b345a3646a05e48a2cc680718386344202fa157e0f1"
+        },
+        {
+          "byte_count": 16084,
+          "path": ".agents/skills/designing-data-intensive-applications/references/full.md",
+          "sha256": "8c1bfe1529076fda8f828ed6939b63bc3016830ad3c705071699a250e98b8f25"
+        },
+        {
+          "byte_count": 6226,
+          "path": ".agents/skills/designing-data-intensive-applications/references/index.md",
+          "sha256": "ef9debd7c29f58d4ac45949e64fcc525e195617ecdfe5052ac94216660854d9f"
+        },
+        {
+          "byte_count": 9577,
+          "path": ".agents/skills/domain-driven-design/SKILL.md",
+          "sha256": "0b8ced39807bfabb4749cf0a8f00cee1de7d30c1bd408becb5d52d3ecd162f6f"
+        },
+        {
+          "byte_count": 42424,
+          "path": ".agents/skills/domain-driven-design/references/full.md",
+          "sha256": "de806ceb828df4408e452361ab587d81f213443ad057017b1f6bed2334d5aaa6"
+        },
+        {
+          "byte_count": 8762,
+          "path": ".agents/skills/domain-driven-design/references/index.md",
+          "sha256": "a8aa0af5af02b431eeb5852049688a8a9510d831900ef56b5fb0f3018d8966f8"
+        },
+        {
+          "byte_count": 10960,
+          "path": ".agents/skills/domain-driven-design-distilled/SKILL.md",
+          "sha256": "d2c6d53c61ee6ec3b8afebd06b42e451363e9517c6358b2fd058574fbce2165b"
+        },
+        {
+          "byte_count": 11351,
+          "path": ".agents/skills/domain-driven-design-distilled/references/full.md",
+          "sha256": "d665da3c697df36fe04f8bb266381e5b40d158aad5283c1d233d4c47319e5b1c"
+        },
+        {
+          "byte_count": 4865,
+          "path": ".agents/skills/domain-driven-design-distilled/references/index.md",
+          "sha256": "8df4969caae5c7264c8ceed702516a854b473238f67c8da9c2958061b5d7c60b"
+        },
+        {
+          "byte_count": 12759,
+          "path": ".agents/skills/implementing-domain-driven-design/SKILL.md",
+          "sha256": "7432d11645fbdacd0233c6ad1d7ec4c832de716de2ea6bdc1d47812c9d47590c"
+        },
+        {
+          "byte_count": 12848,
+          "path": ".agents/skills/implementing-domain-driven-design/references/full.md",
+          "sha256": "cd2c1d404f60720cebca17fcffed9d68d94b1eef4a13bed63a4f59f01db005ad"
+        },
+        {
+          "byte_count": 5696,
+          "path": ".agents/skills/implementing-domain-driven-design/references/index.md",
+          "sha256": "8cd00d0f1488fea665e5242c1ebb8a0b06b9b7639f46fcc99167762aea346b72"
+        },
+        {
+          "byte_count": 10350,
+          "path": ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md",
+          "sha256": "46cba281cfb90d03515649820f233bc2152dc2f709cba6c0b47d00de18536aa4"
+        },
+        {
+          "byte_count": 15501,
+          "path": ".agents/skills/patterns-of-enterprise-application-architecture/references/full.md",
+          "sha256": "e7f30e7d65005924ec29cc0c6f032aedd0b1bffa22223d5386c5a3140cd76af0"
+        },
+        {
+          "byte_count": 5740,
+          "path": ".agents/skills/patterns-of-enterprise-application-architecture/references/index.md",
+          "sha256": "ec3fa9607ae5d5da849cf0b52314c2df06b9eb12de485d70c6aff11d3e8b9b6b"
+        },
+        {
+          "byte_count": 6700,
+          "path": ".agents/skills/refactoring/SKILL.md",
+          "sha256": "11ec92d297edee3889b78d666621a254b6e0b41b03beec536d34685c6a7aa165"
+        },
+        {
+          "byte_count": 17866,
+          "path": ".agents/skills/refactoring/references/full.md",
+          "sha256": "d7b9cf2b5ca26f3576943ff59cdeee61b65138213777b0e03bfe1075cbd966fc"
+        },
+        {
+          "byte_count": 4076,
+          "path": ".agents/skills/refactoring/references/index.md",
+          "sha256": "867e940ee226fb1e0152f9f60244c220b73606f325d008387e162a72b19855fb"
+        },
+        {
+          "byte_count": 9710,
+          "path": ".agents/skills/refactoring-guru/SKILL.md",
+          "sha256": "b5ff921636fd00208f7646854a5708a65b7351d6a68afd7df967206d10b12938"
+        },
+        {
+          "byte_count": 62561,
+          "path": ".agents/skills/refactoring-guru/references/full.md",
+          "sha256": "c92bdfcb8fc5d64a21f10fe268a02bf6a9a9ce6228f83ac85743905cba4b2497"
+        },
+        {
+          "byte_count": 4202,
+          "path": ".agents/skills/refactoring-guru/references/index.md",
+          "sha256": "c2600a94ea47a2989f8d57e15a17f586fbdf74e68b78c14b2156d76d68346094"
+        },
+        {
+          "byte_count": 8194,
+          "path": ".agents/skills/release-it/SKILL.md",
+          "sha256": "765f774ae13f8ec8107d27b6e83efcec376c1a8c746bdf2d399cc18b7ed605ce"
+        },
+        {
+          "byte_count": 13542,
+          "path": ".agents/skills/release-it/references/full.md",
+          "sha256": "ac72b846e9584f376090c8508b2bc66f557ea8d14195ea3b20e15a66b27c4aec"
+        },
+        {
+          "byte_count": 5223,
+          "path": ".agents/skills/release-it/references/index.md",
+          "sha256": "1bb0f0389efd6fb9073afbc82392c3a19837dbdae8246829ba31c0d227fb3587"
+        },
+        {
+          "byte_count": 8818,
+          "path": ".agents/skills/the-pragmatic-programmer/SKILL.md",
+          "sha256": "7eb3a409215d879b3ff85864c5e2bdd8683c0558e11a471b4e33ccc834fc4a1b"
+        },
+        {
+          "byte_count": 13398,
+          "path": ".agents/skills/the-pragmatic-programmer/references/full.md",
+          "sha256": "ea10063caff1989c1442c2aff501a942281fb5b06456e822ab856c701fc5e28d"
+        },
+        {
+          "byte_count": 6178,
+          "path": ".agents/skills/the-pragmatic-programmer/references/index.md",
+          "sha256": "715d9e7dc0b3f6b5dff742b2a133fa234934d276cc227f64cafae4f23e2affb6"
+        },
+        {
+          "byte_count": 7507,
+          "path": ".agents/skills/working-effectively-with-legacy-code/SKILL.md",
+          "sha256": "0549be029e33e4e34d91e6a955eb7dfff0176c24c4b1b6e112d88faf1d543164"
+        },
+        {
+          "byte_count": 13817,
+          "path": ".agents/skills/working-effectively-with-legacy-code/references/full.md",
+          "sha256": "8b22bfc3d2851509d4cd8e05fbb9aca9e934f4b6915cb65fe8d6d9d241393fce"
+        },
+        {
+          "byte_count": 4054,
+          "path": ".agents/skills/working-effectively-with-legacy-code/references/index.md",
+          "sha256": "8da729dc84b1570542c763a0f265b4e749bf7622a6d6591434994b83b8cb99e0"
+        }
+      ],
+      "file_count": 42,
+      "sha256": "d6f5103739852639aedcc7ec7e2531085b719c631d399896a7902c9485d50d8c"
+    },
+    "required_project_skills": [
+      "release-it"
+    ]
+  },
+  "evaluation_manifest_sha256": "b5a0227bac164e2158da4c041d5c6d688901c0050cbc4495b2e81ad09191794d",
+  "manifest_errors": []
+}

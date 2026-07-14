@@ -32,7 +32,7 @@ In the structured result:
 - `selected_project_skills` lists only repository book skills whose `.agents/skills/<name>/SKILL.md` was actually consulted; omit global process skills.
 - `consulted_files` lists every `.agents/skills` skill or reference file read and no canonical source files.
 - `consulted_reference_sections` lists each selected project skill whose `full.md` was read with the exact level-two headings consulted. Use `sections: ["*"]` only for an end-to-end full-reference read. When no `full.md` was read, the entire field must be the empty array `[]`; do not add an entry for a `SKILL.md`-only read. Do not encode the empty list as a section string such as `sections: ["[]"]`.
-- `reference_mode` is `none` when no repository book skill was read, `ordinary` for skill body only, `focused` whenever an index was read (with any bounded `full.md` sections reported separately), or `comprehensive` for an end-to-end full-reference read.
+- `reference_mode` is `none` when no repository book skill was read, `ordinary` for skill body only, `focused` whenever an index or bounded `full.md` section was read, or `comprehensive` for an end-to-end full-reference read.
 
 Task:
 
@@ -194,12 +194,11 @@ def validate_result_integrity(result: dict[str, object]) -> list[str]:
     elif mode == "focused":
         if (
             not selected
-            or not index_skills
+            or not (index_skills or full_skills)
             or comprehensive_skills
-            or not full_skills.issubset(index_skills)
         ):
             errors.append(
-                "reference_mode focused requires SKILL.md and index.md, with any full.md reads named by bounded sections"
+                "reference_mode focused requires SKILL.md plus index.md or bounded full.md sections"
             )
     elif mode == "comprehensive":
         if not selected or not full_skills or not comprehensive_skills:

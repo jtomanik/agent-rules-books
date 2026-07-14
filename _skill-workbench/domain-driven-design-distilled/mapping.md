@@ -130,7 +130,7 @@ The current nano contains eight physical bullets, so the deterministic validator
 - Newly authored technical directives: none.
 - Catalog prose: the 489-character description encodes the canonical activation threshold, smallest-effective-investment lens, tactical-cost branch, and compatibility-supported neighbor split. It adds no DDD mechanism or application sequence.
 - Concern headings: `Investment, Subdomains, and Contexts`, `Language, Relationships, and Integration`, `Tactical Patterns and Consistency`, `Domain Behavior and Technology Boundaries`, and `Collaborative Modeling and Delivery` only group verbatim canonical rules.
-- Newly authored packaging directives: the Reference Router's ordinary branch says to stop with `SKILL.md` when it resolves the bounded DDD question; its focused branch routes an explicit dispute, demonstrated modeling hotspot, or one bounded unresolved source question through `references/index.md` to the smallest named full sections; its comprehensive branch requires end-to-end `full.md` for a complete lens or several independent concern families. These are progressive-disclosure controls required by `_skill-workbench/PROCESS.md`, not DDD advice.
+- Newly authored packaging directives: the Reference Map's ordinary branch stops at `SKILL.md` when it resolves the bounded DDD question; seven source-backed labels link common focused questions directly to canonical full headings; every other bounded question uses the exhaustive index; and an explicit comprehensive end-to-end DDD investment or modeling audit, or complete-lens request, reaches `full.md` end to end. These are progressive-disclosure controls required by `_skill-workbench/PROCESS.md`, not DDD advice.
 - Reference index: the introductory router and nineteen manually authored `Read when` cells select canonical H2 sections only. Each cell is bounded to concepts present in its linked section and introduces no new mechanism, default, guarantee, failure mode, or preference.
 - UI metadata: `short_description` is discovery-only; the default prompt explicitly invokes `$domain-driven-design-distilled` and requests the canonical smallest-effective-investment lens.
 - Review: frontmatter, headings, routing prose, index prose, and UI metadata organize discovery and loading only; no unsupported technical rule was found.
@@ -138,10 +138,10 @@ The current nano contains eight physical bullets, so the deterministic validator
 ## Size Exception
 
 - Canonical mini: 1,316 words.
-- `SKILL.md`: 1,458 words across 75 lines.
-- Packaging overhead: 142 words, within the 150-word target.
+- `SKILL.md`: 1,505 words across 83 lines.
+- Packaging overhead: 189 words, within the documented 151-200 allowance.
 - Description: 489 characters.
-- Decision: retain a source-driven skill-size exception because the canonical mini already exceeds the 500-word target and every mini rule is required for complete ordinary use. No packaging-overhead exception is needed, and canonical guidance must not be paraphrased to reduce the source size.
+- Decision: retain a source-driven skill-size exception because the canonical mini already exceeds the 500-word target and every mini rule is required for complete ordinary use. The 39-word soft-target overage provides seven direct focused routes and an unambiguous blind comprehensive route without duplicating the exhaustive index, and canonical guidance must not be paraphrased to reduce the source size.
 
 ## Evaluation Cases
 
@@ -292,3 +292,113 @@ These seven durable contracts were recorded before any behavioral execution. The
 - Selection diagnostics: three of eleven counted records selected permitted extras: E3 added `implementing-domain-driven-design`, E4 added `implementing-domain-driven-design` and `designing-data-intensive-applications`, and E6 added `implementing-domain-driven-design`. E7 selected exactly its two required skills. No extra selection produced contradictory advice.
 - Attribution review: passed. Source-backed Distilled guidance remained distinguishable from solver-added implementation examples and general engineering judgment. Outbox, event-sourcing, saga/process-manager, exact envelope, unique-constraint, correlation-record, ownership, and concrete topology suggestions are not credited to Domain-Driven Design Distilled.
 - Remaining risks: E2 and E7 retain non-blocking over-reading diagnostics, and three counted cases retain permitted over-selection diagnostics. Any later description drift invalidates the catalog freeze and requires contract validation plus reruns of affected positive cases.
+
+## Inline Reference Map Evaluation
+
+### RM1: Ordinary language-boundary control
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design-distilled/unnamed-customer-meaning-collision.md`
+- Fixture SHA-256: `05b23f1934f2473d70822bdfd1f2d56ec62bb9fe263a1be25403bd402fd22f8c`
+- Required skills: `{domain-driven-design-distilled}`
+- Distinctive judgment: Keep meanings context-local and translate explicitly using the compact selective-DDD guidance.
+- Neighbor ownership: Evans DDD can deepen model discovery and Implementing DDD can supply mechanics, but the smallest effective context/language investment is central.
+- Ownership review: PASS - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; fixture blindness, central ownership, and the ordinary tier premise were accepted.
+- Reference expectation: ordinary
+- Runs: `green-inline-map-1`; selected `domain-driven-design-distilled`; `ordinary`; no reference sections
+- Package fidelity trace: exact mini-derived context, language, and translation guidance; router-only change
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: current ordinary stop control passed; preserved historical over-read remains elsewhere in the mapping
+
+### RM2: Focused vendor-integration control
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design-distilled/focused-vendor-taxonomy-integration.md`
+- Fixture SHA-256: `661a838be12a8026dfd32e1110b5b3472cecbd0455de567cadbf7fdbd4f1c3b6`
+- Required skills: `{domain-driven-design-distilled}`
+- Distinctive judgment: Select the proportionate context relationship and integration style while protecting local language.
+- Neighbor ownership: Implementing DDD and DDIA may add compatible mechanics, but the relationship and selective-investment decision belongs to Distilled.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: focused
+- Compact-body gap: The requested relationship applicability, RPC/messaging conditions, payload/query-back tradeoff, and contract separation exceed the compact summary.
+- Intended index destinations: `Context Relationship Rules` and `Integration Style Rules`, with `Ubiquitous Language Rules` or `Architecture and Infrastructure Rules` only when needed
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: the named canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: requires a separately named blind focused replacement; the frozen fixture, hash, and required set remain unchanged
+
+### RM2b: Focused vendor-integration current-policy replacement
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design-distilled/focused-vendor-taxonomy-integration-v2.md`
+- Fixture SHA-256: `661a838be12a8026dfd32e1110b5b3472cecbd0455de567cadbf7fdbd4f1c3b6`
+- Required skills: `{domain-driven-design-distilled}`
+- Distinctive judgment: Select the proportionate context relationship and integration style while protecting local language.
+- Neighbor ownership: Implementing DDD and DDIA may add compatible mechanics, but the relationship and selective-investment decision belongs to Distilled.
+- Ownership review: REJECTED - post-run contract audit on 2026-07-14 found a generic team disagreement rather than an explicit source-interpretation dispute; the original independent pre-run review had recorded `PASS` under the mistaken broader interpretation.
+- Reference expectation: focused
+- Compact-body gap: none; the fixture explicitly disputes whether the vendor model should be adopted or translated and asks canonical relationship and integration conditions to resolve that proposition.
+- Intended index destinations: `Context Relationship Rules` and `Integration Style Rules`
+- Runs: `green-inline-map-1` selected the required skill but read `full.md` comprehensively; `green-inline-map-recheck-1` selected the required skill but stayed ordinary. Both are preserved as invalid-contract diagnostics.
+- Package fidelity trace: canonical full headings `Context Relationship Rules` and `Integration Style Rules` plus unchanged mini-derived local-language guidance
+- Attribution review: not counted because the focused contract was invalid even though both answers remained source-compatible
+- Behavioral result: not counted
+- Diagnostics: post-run rejection preserves both nondeterministic tier outcomes; separately named source-dispute replacement RM2c supersedes this case
+
+### RM2c: Focused vendor relationship source-dispute replacement
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design-distilled/focused-vendor-relationship-source-dispute-v3.md`
+- Fixture SHA-256: `7a345328a708231e8b69be74e51feaf5a4158cc63a531ebb57b006735612f5b9`
+- Required skills: `{domain-driven-design-distilled}`
+- Distinctive judgment: Resolve the exact Conformist-versus-Anticorruption-Layer source proposition and the bounded RPC, messaging, payload, and query-back conditions while protecting local language.
+- Neighbor ownership: Evans DDD discovery, Implementing DDD mechanics, and DDIA data semantics are secondary; proportionate context-relationship and integration-style selection are central.
+- Ownership review: PASS - independent pre-dispatch review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14 accepted blindness, central ownership, the explicit source dispute, focused tier, and exact two-section destination.
+- Reference expectation: focused
+- Compact-body gap: none; the fixture explicitly disputes the source conditions for Conformist versus Anticorruption Layer and for RPC, messaging, event payload, and query-back choices.
+- Intended index destinations: `Context Relationship Rules` and `Integration Style Rules`
+- Runs: `green-inline-map-router-fix-1`; selected `domain-driven-design-distilled` and compatible `implementing-domain-driven-design`; `focused`; target read exactly `Context Relationship Rules` and `Integration Style Rules`
+- Package fidelity trace: canonical full headings `Context Relationship Rules` and `Integration Style Rules` plus unchanged mini-derived local-language guidance
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: separately named source-dispute replacement passed the exact target-section contract; neighboring context-integration guidance was permitted
+
+### RM3b: Comprehensive modeling-investment replacement
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design-distilled/comprehensive-modeling-investment-audit-v2.md`
+- Fixture SHA-256: `8189f88d97f77287a71b62b87a6401416f66548d7a439d3c797c73b03af4cb3c`
+- Required skills: `{domain-driven-design-distilled}`
+- Distinctive judgment: Apply the complete smallest-effective-investment, strategic, relationship, integration, tactical, collaboration, and delivery lens end to end.
+- Neighbor ownership: Other DDD skills may add discovery or mechanics, but the explicit exhaustive investment-and-modeling objective makes this selective DDD skill central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and end-to-end comprehensive loading were accepted.
+- Reference expectation: comprehensive
+- Runs: pre-fix `green-inline-map-1` and `green-inline-map-recheck-1` both missed target `sections=["*"]`; post-correction `green-inline-map-router-fix-1` selected the required target and reported `comprehensive` access with `sections=["*"]`
+- Package fidelity trace: all canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance; pre-fix answers remain preserved as source-compatible disclosure failures
+- Behavioral result: current-state pass after the documented packaging-only router correction; original pre-fix result remains fail in `2/2`
+- Diagnostics: post-correction run selected compatible `domain-driven-design` and `implementing-domain-driven-design` and read all three references end to end; required target inclusion and `*` access passed
+
+### RM3: Comprehensive Distilled control
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design-distilled/comprehensive-order-to-cash-audit.md`
+- Fixture SHA-256: `5af61604bf76006c4352096a5755f3f5f6033161feba5b1c5398c4b7caa509b8`
+- Required skills: `{domain-driven-design-distilled}`
+- Distinctive judgment: Apply the complete smallest-effective-investment, strategic, tactical, and collaboration lens.
+- Neighbor ownership: Other DDD skills may add depth, but the explicit complete Distilled audit owns this control.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: comprehensive
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: all canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM3b; the frozen fixture, hash, and required set remain unchanged

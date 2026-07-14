@@ -99,19 +99,19 @@
 - Newly authored technical directives: none.
 - Description inventory: the exact 469-character description is catalog-routing prose. Its Evans discovery/evolution branch traces to `M1`, `M7`, `M21`, `N3`, and `N9`; language, lifecycle, and context branches trace to `M2`, `M9`, `M16`, `N1`, `N7`, and `N11`; Core Domain traces to `M11`, `M24`, `N8`, and `N15`. The Distilled and Implementing DDD boundary clauses trace to the reviewed compatibility documents and add no model-design rule.
 - Concern-heading inventory: `Model Discovery, Language, and Deeper Insight`, `Model-Driven Implementation`, `Bounded Contexts and Integration`, `Core Domain and Strategic Structure`, and `Model Tests` only group verbatim mini guidance.
-- Ordinary loading directive: `Use this file alone for ordinary matched work when it resolves the modeling question.` This is a progressive-disclosure stop condition, not technical guidance.
-- Focused loading directive: `For an explicit disputed interpretation or demonstrated model hotspot, read references/index.md, then the smallest named sections in references/full.md.` The follow-on bounded-question condition is limited to canonical concern families and traces to the corresponding index headings.
-- Comprehensive loading directive: `For a comprehensive DDD audit, an explicit request for the complete Evans lens, or a decision spanning several independent concern families, read references/full.md end to end.` This implements the repository loading contract.
+- Ordinary loading directive: stop at `SKILL.md` when it resolves the modeling question. This is a progressive-disclosure condition, not technical guidance.
+- Focused loading directive: eight source-backed labels link common modeling questions directly to canonical full headings; every other bounded source question uses the exhaustive index.
+- Comprehensive loading directive: an explicit comprehensive DDD audit or complete Evans lens reads `references/full.md` end to end. This implements the repository loading contract.
 - Index inventory: all 38 `Read when` cells are manually authored routing summaries tied to their same-named canonical H2 sections. `references/index.md` remains their single source of truth; this mapping does not duplicate the row set.
 - Review: frontmatter, concern headings, loading transitions, index routing, and metadata add no technical mechanism, default, guarantee, example, failure mode, or preference beyond the canonical source.
 
 ## Size Exception
 
 - Canonical mini: 1,061 words.
-- `SKILL.md`: 1,202 words across 66 lines.
-- Packaging overhead: 141 words, within the 150-word target.
+- `SKILL.md`: 1,230 words across 75 lines.
+- Packaging overhead: 169 words, within the documented 151-200 allowance.
 - Description: 469 characters.
-- Decision: retain a source-driven exception to the 500-word skill target because the repaired canonical mini already exceeds it and all 24 rules plus the 6-item final checklist are required for complete ordinary use. No packaging-overhead exception is needed, and canonical guidance was not compressed to reduce size.
+- Decision: retain a source-driven exception to the 500-word skill target because the repaired canonical mini already exceeds it and all 24 rules plus the six-item final checklist are required for complete ordinary use. The 19-word soft-target overage provides eight direct focused routes without duplicating the exhaustive index; canonical guidance was not compressed.
 
 ## Evaluation Cases
 
@@ -344,6 +344,7 @@ R3 and R4 remain immutable failed diagnostics. A second ownership review after t
 - Semantic verdict: independently accepted. The final package contains no unsupported strengthening, weakening, omission, or imported technical guidance.
 - Unsupported or altered guidance: none found in the authored package. The repaired source snapshot and its traceability remain authoritative.
 - Final behavioral reviewer: independent read-only review of R5 and all three R6 artifacts returned `PASS` with no P1/P2/P3 findings. Required subsets, fixture hashes, selected/consulted consistency, disclosure records, and attribution boundaries are clean.
+- Post-map behavioral review: `FAIL` for RM1b required-skill inclusion in `2/2`; both ordinary answers selected sibling DDD skills but omitted `domain-driven-design`. RM2 and RM3b disclosure and all three attribution checks passed. This is a behavioral discovery failure, not a source/package-fidelity defect.
 
 ## Validation Evidence
 
@@ -359,10 +360,118 @@ R3 and R4 remain immutable failed diagnostics. A second ownership review after t
 - Application evaluation: answer attribution was reviewed for all 11 planned records. No unsupported solver addition was credited as Evans guidance, but cases that did not consult the DDD package are not counted as package-application evidence.
 - Historical matrix limitations: the initial `6/11` observation fails its then-assigned unnamed, ordinary, focused, and pressure contracts. Later ownership review reclassified E2-E4 and the generic pressure case as diagnostics rather than rewriting them. E7 is a required-subset pass with a broad-focused neighboring DDIA diagnostic, not automatic tier collapse. Any future description change still requires catalog-contract validation and affected positive-case reruns.
 
-## Post-Retrofit Current-State Verdict
+## 2026-07-13 Post-Retrofit Checkpoint
 
 - Evidence integrity: all eleven retrofit artifacts match their frozen fixture hashes and common `gpt-5.4` GREEN configuration. Every record has `exit_code=0`, `codex_errors=[]`, and `integrity_errors=[]`; the three failed first-round runs are valid required-skill selection misses and remain preserved without retry.
 - Historical accounting: the original `6/11` observation, E2-E4 ownership reclassification, E6/R4 misses, R3 miss, and E7 manual disclosure review remain unchanged above. R3 and R4 are failed diagnostics; R5 and R6 are separately frozen current-state replacements. Their counts are not flattened into one ratio.
 - Current discovery and disclosure: direct DDD remains `3/3`; distinctive unnamed replacement is `3/3`; ordinary replacement is `1/1`; corrected competing-model selection is `1/1`; committed pressure selection is `3/3`; comprehensive remains `1/1`; and E7 remains a required-subset pass with a broad-focused-read diagnostic. Ordinary disclosure is demonstrated repeatedly. Preserved direct run 2 demonstrates bounded focused access through the index and four of 38 sections; R5 stayed ordinary because the compact body resolved it. The comprehensive control reads the full source.
 - Attribution: independent final review found no P1/P2/P3 issue. No answer-level solver invention is credited as Evans guidance. Exact domain types, cardinalities, examples, migration sequences, adapters, operations, and implementation structures remain fixture content, solver hypotheses, or neighboring-skill choices.
-- Verdict: `PASS`. Source and package fidelity remain independently accepted, every corrected current-state required target is included, and progressive disclosure shows no material collapse. No DDD description or technical-guidance change is warranted. Historical misses remain regression evidence rather than being erased by the replacement gate.
+- Checkpoint verdict: `PASS` for the then-current retrofit matrix. Source and package fidelity remained independently accepted and the corrected targets in that snapshot were included. This historical checkpoint is superseded for current behavioral invocation by RM1b below, whose post-map runs miss required DDD inclusion in `2/2`.
+
+## Inline Reference Map Evaluation
+
+### RM1: Ordinary Evans-model control
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design/direct-evans-pricing-brief.md`
+- Fixture SHA-256: `5ec5dbf71bcf410bb48239216f6a5b7d65ae6e8c614df5e8874e4479da3141fb`
+- Required skills: `{domain-driven-design}`
+- Distinctive judgment: Evolve context-local language and explicit concepts from domain evidence using the compact Evans guidance.
+- Neighbor ownership: Distilled owns whether to invest and Implementing DDD owns committed mechanics; this fixture explicitly asks for Evans-style discovery and evolution.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture reveals the required source lens and cannot be reused unchanged.
+- Reference expectation: ordinary
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: exact mini-derived model discovery, language, context, and deeper-insight guidance; router-only change
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM1b; the frozen fixture, hash, and required set remain unchanged
+
+### RM1b: Ordinary hidden-commitment replacement
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design/ordinary-hidden-commitment-model-v2.md`
+- Fixture SHA-256: `0a304b5234ca179431864cd372649c930afa0215a3002f3e41bef5faf791df85`
+- Required skills: `{domain-driven-design}`
+- Distinctive judgment: Use domain-expert language and scenarios to make two materially different allocation commitments explicit, then evolve implementation and tests incrementally from the model.
+- Neighbor ownership: Distilled's investment gate is already settled and Implementing DDD mechanics are secondary; the central judgment is discovering and expressing the missing concept.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and the ordinary tier premise were accepted.
+- Reference expectation: ordinary
+- Runs: `green-inline-map-1` and `green-inline-map-recheck-1`; both reported `ordinary` with no reference sections, but neither selected required `domain-driven-design`
+- Package fidelity trace: exact mini-derived model-discovery, language, missing-concept, and incremental-refactoring guidance
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance; answers remained source-compatible but were produced from sibling skills
+- Behavioral result: fail; required target inclusion missed in `2/2`, and repetition does not erase the original miss
+- Diagnostics: first run selected Distilled plus Implementing DDD; recheck added Refactoring but still omitted the required model-discovery skill
+
+### RM2: Focused hidden-concept control
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design/focused-hidden-fulfillment-concept.md`
+- Fixture SHA-256: `ccc4ce6be7528b8d7fae1b030cd2ab88c77242ac9030b4472468767f4274f70c`
+- Required skills: `{domain-driven-design}`
+- Distinctive judgment: Decide whether overloaded state reveals a missing domain concept and test the proposed deeper model against scenarios.
+- Neighbor ownership: Distilled's investment gate is already settled and Implementing DDD mechanics are out of scope; deeper model discovery is the Evans lens.
+- Ownership review: REJECTED - post-run contract audit on 2026-07-14 found ordinary developer disagreement rather than an explicit source-interpretation dispute; the earlier independent review had recorded `PASS` under the mistaken broader interpretation.
+- Reference expectation: focused
+- Compact-body gap: invalid as recorded; the fixture disputes the model decision but does not state competing source propositions.
+- Intended index destinations: `Knowledge Crunching and Deep Models` and `Making Implicit Concepts Explicit`
+- Runs: `green-inline-map-1`; selected `domain-driven-design` and compatible `domain-driven-design-distilled`; `focused`; target read `Making Implicit Concepts Explicit`
+- Package fidelity trace: the named canonical full headings
+- Attribution review: not counted because the focused contract was invalid, although the answer contained no unsupported book attribution
+- Behavioral result: not counted
+- Diagnostics: preserve the one-section focused run as invalid-contract evidence; separately named source-dispute replacement RM2b supersedes it
+
+### RM2b: Focused missing-concept source-dispute replacement
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design/focused-missing-concept-source-dispute-v2.md`
+- Fixture SHA-256: `21165bfd547c70d9c6b913554d10e375a4b3b5bb6774d69c30b0fd15d30e4ec7`
+- Required skills: `{domain-driven-design}`
+- Distinctive judgment: Resolve the exact rename-versus-missing-concept source proposition using deeper-model explanatory gain and implicit-concept criteria, then test it against domain-language scenarios.
+- Neighbor ownership: Distilled's investment gate is settled and Implementing DDD mechanics remain secondary; deeper model discovery is central.
+- Ownership review: PASS - independent pre-dispatch review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14 accepted blindness, DDD ownership, the explicit source dispute, focused tier, and exact two-section destination.
+- Reference expectation: focused
+- Compact-body gap: none; the fixture explicitly disputes whether source guidance supports a rename or requires an explicit missing concept when that distinction increases explanatory power and removes procedural special cases.
+- Intended index destinations: `Knowledge Crunching and Deep Models` and `Making Implicit Concepts Explicit`
+- Runs: `green-inline-map-contract-fix-1`; selected only `domain-driven-design`; reported `focused`; read intended `Knowledge Crunching and Deep Models` and `Making Implicit Concepts Explicit` plus relevant `Ubiquitous Language` and `Refactoring Rules`
+- Package fidelity trace: canonical full headings `Knowledge Crunching and Deep Models` and `Making Implicit Concepts Explicit` plus unchanged mini-derived deeper-model guidance
+- Attribution review: PASS - independent final result review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` found no unsupported book attribution
+- Behavioral result: pass
+- Diagnostics: two intended sections plus two bounded relevant sections passed; separately named source-dispute replacement supersedes post-run-rejected RM2
+
+### RM3: Comprehensive Evans control
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design/comprehensive-multi-context-audit.md`
+- Fixture SHA-256: `69e426c19b4508f2473ff1d4327e22433535989d3a34aa5ad5d38fedbea4855b`
+- Required skills: `{domain-driven-design}`
+- Distinctive judgment: Apply the complete Evans model-discovery, strategic, tactical, and deeper-insight lens.
+- Neighbor ownership: Related DDD skills may co-apply, but the explicit complete Evans request owns this control.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: comprehensive
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: all canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM3b; the frozen fixture, hash, and required set remain unchanged
+
+### RM3b: Comprehensive domain-model replacement
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/domain-driven-design/comprehensive-domain-model-audit-v2.md`
+- Fixture SHA-256: `c56478a3d5ea9b92b2d24b7d277d5110631e6b7aa5a25d4a74e5d269efda4c70`
+- Required skills: `{domain-driven-design}`
+- Distinctive judgment: Apply the complete model-discovery, language, context, strategic, tactical, translation, supple-design, testing, and deeper-insight lens end to end.
+- Neighbor ownership: Distilled and Implementing DDD may contribute investment or mechanics, but the explicit exhaustive domain-model objective makes this discovery-and-evolution skill central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and end-to-end comprehensive loading were accepted.
+- Reference expectation: comprehensive
+- Runs: `green-inline-map-1`; selected `domain-driven-design`, both neighboring DDD skills, and `clean-architecture`; all consulted references reported `sections=["*"]`, including the required target
+- Package fidelity trace: all canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: permitted compatible overlap; required target inclusion and end-to-end access passed

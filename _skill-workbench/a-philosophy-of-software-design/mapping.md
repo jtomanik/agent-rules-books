@@ -109,17 +109,17 @@ Candidate description (496 characters):
 - Description inventory: module depth and shallow wrappers trace to `M3`, `M15`, `N2`, and `N9`; information hiding and caller knowledge trace to `M4-M6`, `M16`, `N3`, `N4`, and `N10`; cognitive load, tactical patches, and change spread trace to `M1`, `M2`, `M14`, `N1`, `N5`, and `N12`. Neighbor boundaries come from reviewed compatibility documents and add no book guidance.
 - Concern-heading inventory: the four concern headings only group verbatim mini guidance.
 - Ordinary loading directive: body-only loading is a progressive-disclosure stop condition, not technical guidance.
-- Focused loading directive: explicit dispute, demonstrated hotspot, or one bounded unresolved canonical question routes through the index to the smallest named full sections.
+- Focused loading directive: six common bounded questions link directly to their canonical full headings; every other unresolved canonical question routes through the exhaustive index. The labels are source-backed loading predicates, not design advice.
 - Comprehensive loading directive: an exhaustive module/API complexity audit or explicit complete-lens request routes to an end-to-end full-reference read.
 - Index inventory: all 24 `Read when` cells route to their same-named canonical H2 sections and add no technical mechanism beyond those sections.
 
 ## Size Exception
 
 - Canonical mini: 841 words.
-- `SKILL.md`: 981 words across 61 lines.
-- Packaging overhead: 140 words, within the 150-word target.
+- `SKILL.md`: 1,011 words across 68 lines.
+- Packaging overhead: 170 words, within the documented 151-200 allowance.
 - Description: 496 characters.
-- Decision: retain the source-driven exception to the 500-word skill target because the repaired canonical mini already exceeds it and all 23 rules plus the five-item final checklist are required for complete ordinary use. No packaging-overhead exception is needed.
+- Decision: retain the source-driven exception to the 500-word skill target because the repaired canonical mini already exceeds it and all 23 rules plus the five-item final checklist are required for complete ordinary use. The 20-word soft-target overage provides six direct source-detail routes while keeping the exhaustive index as fallback; canonical guidance was not compressed.
 
 ## Evaluation Cases
 
@@ -167,7 +167,7 @@ These seven raw fixtures were frozen before package authoring. The complete 11-r
 - Neighbor ownership: Code Complete and Clean Code can inform implementation details, but no multi-concern construction or local-hygiene problem is central.
 - Ownership review: PASS - independent corrected Batch 4 catalog audit against 13-skill snapshot `5d8299b7aa84498bc11c4120b790b07edd6485ebc21c60a0f280b541e4432e4d`
 - Reference expectation: ordinary
-- Runs: `green-batch4-1`; required target included; `ordinary`
+- Runs: `green-batch4-1`; required target included; `ordinary`; post-map `green-inline-map-1` again selected only the target in `ordinary` mode with no reference sections
 - Package fidelity trace: `M3-M7`, `M9`, `M12`, `M16-M17`, `M23`, `N2-N4`, `N8-N10`
 - Attribution review: PASS; the answer chooses the deep semantic operation, hides codec/workflow mechanics, isolates diagnostics, and tests the stable contract.
 - Behavioral result: pass
@@ -185,7 +185,7 @@ These seven raw fixtures were frozen before package authoring. The complete 11-r
 - Reference expectation: focused
 - Compact-body gap: `SKILL.md` requires plausible alternatives and contract comments but intentionally omits the exact at-least-two count and the source's comments-before-implementation technique and comparison criteria.
 - Intended index destinations: `Design Alternatives and Comments-First Design`
-- Runs: `green-batch4-1`; required target included; `focused`
+- Runs: `green-batch4-1`; required target included; `focused`; post-map `green-inline-map-1` selected only the target and read exactly `Design Alternatives and Comments-First Design`
 - Package fidelity trace: `M2`, `M10`, `M21`, `N7`; full heading `Design Alternatives and Comments-First Design`
 - Attribution review: PASS; retrieves the exact at-least-two count, comments-before-implementation technique, comparison criteria, and complicated-comment signal from the packaged source.
 - Behavioral result: pass
@@ -201,7 +201,7 @@ These seven raw fixtures were frozen before package authoring. The complete 11-r
 - Neighbor ownership: Other skills may provide compatible local, construction, architecture, or refactoring judgment, but the fixture's exhaustive objective is the complete target design lens.
 - Ownership review: PASS - independent corrected Batch 4 catalog audit against 13-skill snapshot `5d8299b7aa84498bc11c4120b790b07edd6485ebc21c60a0f280b541e4432e4d`
 - Reference expectation: comprehensive
-- Runs: `green-batch4-1`; required target included; `comprehensive` with `sections=["*"]`
+- Runs: `green-batch4-1`; required target included; `comprehensive` with `sections=["*"]`; post-map `green-inline-map-1` repeated target-only comprehensive `*` access
 - Package fidelity trace: `M1-M23`, `N1-N14`, and all 24 full-reference headings
 - Attribution review: PASS; applies the complete APoSD lens across depth, hidden knowledge, decomposition, exceptions, comments, names, performance, tests, and final review without false source attribution.
 - Behavioral result: pass

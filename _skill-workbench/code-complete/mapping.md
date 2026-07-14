@@ -123,15 +123,16 @@
 ## Packaging Prose Fidelity
 
 - Newly authored technical directives: none.
+- Inline reference map: seven source-backed labels link common focused questions directly to canonical full headings; every other bounded question still uses the exhaustive index. This changes loading only.
 - Review: frontmatter, headings, transitions, and reference-routing prose organize discovery and loading only; independent review found no technical rule beyond canonical guidance.
 
 ## Size Exception
 
 - Canonical mini: 921 words.
-- `SKILL.md`: 1,083 words across 82 lines.
-- Packaging overhead: 162 words.
+- `SKILL.md`: 1,096 words across 88 lines.
+- Packaging overhead: 175 words.
 - Frontmatter description: 500 characters, excluding the terminating newline.
-- Decision: retain the source-driven exception because the canonical mini already exceeds 500 words. Every mini rule remains required for complete ordinary use; the twelve-word soft-target overage preserves the ordinary stop, narrow interpretation-dispute route, nano-derived pressure branches, construction ownership, and compatible co-invocation boundary.
+- Decision: retain the source-driven exception because the canonical mini already exceeds 500 words. Every mini rule remains required for complete ordinary use; the 25-word soft-target overage preserves the ordinary stop and adds seven direct construction-detail routes while retaining the exhaustive fallback.
 
 ## Evaluation Environment
 
@@ -569,3 +570,94 @@
 - Official validator: `/Users/jakubtomanik/.codex/skills/.system/skill-creator/scripts/quick_validate.py` reports `Skill is valid!` through `uv run --with pyyaml`.
 - Evaluation contracts: the required-skill contract validator passes, including the E12b target set; historical allowed/forbidden partitions remain preserved diagnostics.
 - Remaining risk: the broad construction lens still attracts neighboring book skills and model answers still invent fixture requirements even when no source wording supports them.
+
+## Inline Reference Map Evaluation
+
+### RM1: Ordinary construction control
+
+- Contract version: 2
+- Class: application and disclosure
+- Prompt or artifact: `_skill-workbench/evaluations/cases/code-complete/ordinary-construction-slice.md`
+- Fixture SHA-256: `0407afe21a100769edf2be14d0b3657137abc01bf2447bd9c53a8f5f25a955d4`
+- Required skills: `{code-complete}`
+- Distinctive judgment: Build a bounded, verifiable construction slice using the compact construction guidance alone.
+- Neighbor ownership: Clean Code may improve local readability, but construction coordination and verification are central.
+- Ownership review: PASS - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; fixture blindness, central ownership, and the ordinary tier premise were accepted.
+- Reference expectation: ordinary
+- Runs: `green-inline-map-1`; selected `code-complete`; `ordinary`; no reference sections
+- Package fidelity trace: exact mini-derived construction and verification guidance; router-only change
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: none
+
+### RM2: Focused table-driven control
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/code-complete/focused-table-driven-decision.md`
+- Fixture SHA-256: `d38e6595f090da1a24c56128db5647bd37c837cdabb2e412530cee872e0be641`
+- Required skills: `{code-complete}`
+- Distinctive judgment: Decide whether a table-driven representation is clearer and safer than branching, with bounded construction tests.
+- Neighbor ownership: Clean Code can critique branch readability, but the explicit table-driven construction choice belongs here.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture reveals the required source lens and cannot be reused unchanged.
+- Reference expectation: focused
+- Compact-body gap: The fixture needs detailed applicability and testing guidance for table-driven logic that the compact body intentionally summarizes.
+- Intended index destinations: `Statement, Conditional, and Loop Rules`, `Table-Driven and Data-Driven Rules`, and `Testing Rules`
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: the three named canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM2b; the frozen fixture, hash, and required set remain unchanged
+
+### RM2b: Focused construction-prerequisite replacement
+
+- Contract version: 2
+- Class: retrieval and application
+- Prompt or artifact: `_skill-workbench/evaluations/cases/code-complete/focused-prerequisite-decisions-v2.md`
+- Fixture SHA-256: `666e1de1f33b16be6383d4867875069514889ea7b00ecda0b234b5a8c2331870`
+- Required skills: `{code-complete}`
+- Distinctive judgment: Resolve which construction decisions must precede a large irreversible integration and where a small validated slice should reduce remaining uncertainty.
+- Neighbor ownership: Clean Architecture may shape boundary placement, but the explicit prerequisite-versus-construction decision belongs to this construction lens.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, explicit source dispute, and the one-section destination were accepted.
+- Reference expectation: focused
+- Compact-body gap: none; the fixture explicitly disputes the source's prerequisite decisions and validated-slice requirement and requires canonical checking.
+- Intended index destinations: `Construction Prerequisites and Decisions`
+- Runs: `green-inline-map-1`; selected `code-complete`; `focused`; target read `Construction Prerequisites and Decisions` plus six related construction and testing sections
+- Package fidelity trace: canonical full heading `Construction Prerequisites and Decisions` and unchanged mini-derived construction guidance
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: broad but still bounded `7/27` target-section read; below the one-third manual-collapse threshold and includes the exact intended section
+
+### RM3: Comprehensive construction control
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/code-complete/comprehensive-construction-audit.md`
+- Fixture SHA-256: `64cc13323b5397115605d14b946c3e98c8af55ee4d44fcfdd4b0265b61ac40f2`
+- Required skills: `{code-complete}`
+- Distinctive judgment: Apply every canonical construction concern to an explicit complete audit.
+- Neighbor ownership: Other implementation books may co-apply, but the requested complete Code Complete lens owns this control.
+- Ownership review: REJECTED - independent inline-map pre-dispatch audit by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; the fixture exposes the required source lens and cannot be reused unchanged.
+- Reference expectation: comprehensive
+- Runs: not run; rejected before dispatch and preserved as contract evidence
+- Package fidelity trace: all canonical full headings
+- Attribution review: not run
+- Behavioral result: not run
+- Diagnostics: replaced by blind control RM3b; the frozen fixture, hash, and required set remain unchanged
+
+### RM3b: Comprehensive construction replacement
+
+- Contract version: 2
+- Class: retrieval
+- Prompt or artifact: `_skill-workbench/evaluations/cases/code-complete/comprehensive-construction-audit-v2.md`
+- Fixture SHA-256: `ea9c122f104ddff3e6ea2fc27664ea310955d59ddaa7ba599ec301c22a14087e`
+- Required skills: `{code-complete}`
+- Distinctive judgment: Apply the complete prerequisite, routine, data, control-flow, defensive, error, table, module, debugging, performance, tooling, and testing lens end to end.
+- Neighbor ownership: Other implementation skills may contribute compatible observations, but the explicit exhaustive construction objective makes this skill central.
+- Ownership review: PASS - independent current-policy inline-map review by agent `019f601d-5d0c-7133-99bd-40ed2cc9a304` on 2026-07-14; blindness, central ownership, and end-to-end comprehensive loading were accepted.
+- Reference expectation: comprehensive
+- Runs: `green-inline-map-1`; selected `code-complete` and compatible `clean-code`; required target reported `comprehensive` access with `sections=["*"]`
+- Package fidelity trace: all canonical full headings
+- Attribution review: PASS - independent final result review found no unsupported book attribution; general solver additions remained separate from packaged guidance
+- Behavioral result: pass
+- Diagnostics: compatible extra selection without extra reference access; required target inclusion and end-to-end access passed

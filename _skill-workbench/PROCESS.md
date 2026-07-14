@@ -24,15 +24,15 @@ Map the three rule versions onto Codex's three loading tiers:
 | --- | --- | --- |
 | `nano` | Invocation and salience source | Distilled into the description, guidance order, and reference-routing triggers |
 | `mini` | Complete normal-use guidance | Manually reshaped into `SKILL.md` |
-| `full` | Exhaustive guidance | Preserved in `references/full.md` and loaded selectively or end to end |
+| `full` | Exhaustive guidance | Preserved in `references/full.md` and loaded through the inline fast map, exhaustive index, or end to end |
 
 The skill package does not need separate copies of `mini.md` or `nano.md`. Their canonical files remain in the book directory as independent rule artifacts and conversion inputs.
 
 Progressive disclosure must not become progressive omission:
 
 - Ordinary matched work should be handled by `SKILL.md` alone.
-- Focused ambiguity or a specific hotspot should route through `references/index.md` to the relevant full sections.
-- A comprehensive audit, disputed interpretation, or explicit request for the complete book lens must route to an end-to-end read of `references/full.md`.
+- An explicit source-interpretation dispute or focused source-detail question should use a direct link in `SKILL.md` when the inline fast map covers it; otherwise it should route through `references/index.md` to the relevant full sections.
+- A comprehensive audit or explicit request for the complete book lens must route to an end-to-end read of `references/full.md`.
 
 ## Source of Truth
 
@@ -82,6 +82,7 @@ An agent must perform these decisions manually:
 - Preserve each mini rule exactly once without splitting its meaning across distant sections.
 - Co-locate each concept's rule, trigger, caveat, and tradeoff.
 - Write the `Read when` guidance for every full section.
+- Select three to eight commonly needed full sections for the compact inline reference map.
 - Decide when targeted reading is enough and when the full reference must be read end to end.
 - Design positive required-skill, application, and routing evaluation scenarios.
 - Inventory every newly authored prescriptive sentence so it can be distinguished from packaging-only prose and traced to canonical source.
@@ -101,6 +102,7 @@ Scripts may:
 - Merge section metadata with manually authored `Read when` guidance.
 - Detect new, removed, renamed, or unrouted full sections.
 - Validate skill names, frontmatter, links, and `agents/openai.yaml`.
+- Validate the inline map's direct anchors against the canonical full headings and enforce its size bounds.
 - Check UI field lengths and required `$skill-name` references.
 - Check that every `M*` and `N*` identifier has a skill mapping.
 - Detect duplicate mappings, stale ranges, missing files, and unresolved placeholders.
@@ -356,9 +358,9 @@ description: <model-facing capability and invocation branches>
 
 <Complete mini-derived rules and colocated triggers.>
 
-## Reference Router
+## Reference Map
 
-<Focused and comprehensive reference-loading conditions.>
+<Compact direct links for common focused questions, exhaustive-index fallback, and comprehensive loading condition.>
 
 ## Final Checklist
 
@@ -379,29 +381,35 @@ Constraints:
 - Do not add a workflow merely to satisfy a generic skill template.
 - Do not add examples unless evaluation shows that an important rule is otherwise applied inconsistently.
 
-## Reference Router
+## Reference Map
 
 `SKILL.md` must link directly to both reference files so references remain one level deep.
 
 Required routing branches:
 
 1. `ordinary`: use `SKILL.md` guidance without loading references.
-2. `focused`: read `references/index.md`, then the named sections of `references/full.md`.
+2. `focused`: use a direct inline link for a mapped question, or read `references/index.md` and then its smallest matching sections for any other bounded question.
 3. `comprehensive`: read `references/full.md` end to end.
 
 Suggested wording:
 
 ```markdown
-## Reference Router
+## Reference Map
 
-Use this file alone for ordinary matched work.
+Use this file alone for ordinary matched work; do not open references merely to confirm its answer.
 
-For an explicit disputed interpretation or demonstrated hotspot, read [references/index.md](references/index.md), then read the sections it identifies in [references/full.md](references/full.md). Also use that focused route when, after applying this file, one bounded book-specific question remains unresolved.
+For an explicit source dispute or bounded detail absent above, open the smallest matching section:
 
-For a comprehensive audit or an explicit request for the complete book lens, read [references/full.md](references/full.md) end to end.
+- <Common source-detail question>: [Canonical section](references/full.md#canonical-section)
+- <Common source-detail question>: [Canonical section](references/full.md#canonical-section)
+- <Common source-detail question>: [Canonical section](references/full.md#canonical-section)
+
+For any other bounded source question, use [the exhaustive index](references/index.md). For an explicit comprehensive audit or complete book lens, read [the full reference](references/full.md) end to end.
 ```
 
 Tailor the conditions to the book. A pointer's wording determines whether the full guidance is actually reached.
+
+Keep the inline map to three through eight unique direct links. Choose common, high-value destinations from nano salience, focused evaluation probes, and demonstrated retrieval needs. Link directly to the canonical `references/full.md#anchor`; do not copy section summaries or attempt to reproduce the exhaustive index in `SKILL.md`.
 
 Do not use bare `ambiguity`, `detail`, `decision`, or `hotspot` as generic focused triggers. Agents can treat any nontrivial implementation detail as satisfying them. State the evidence threshold, require ordinary work to stop after `SKILL.md` when it resolves the task, make the post-body unresolved condition explicit, and say that references are not opened merely to confirm or elaborate a body-supported answer.
 
@@ -411,7 +419,7 @@ Evaluation must name the concrete source-detail question for focused cases, veri
 
 ## references/index.md
 
-The index is a semantic router, not merely a table of contents.
+The index is the exhaustive semantic router, not merely a table of contents. The inline map is only a fast path and must not duplicate the complete row set.
 
 For every level-two heading in `full.md`, include:
 
@@ -525,7 +533,7 @@ Evaluation contract version: 2
 ## Packaging Prose Fidelity
 
 - Newly authored technical directives: <none | listed below>
-- Review: <confirm that description, headings, transitions, and routing prose add no unsupported technical rule>
+- Review: <confirm that description, headings, transitions, and reference-map prose add no unsupported technical rule>
 
 <When directives are listed, give each exact text plus its M*, N*, or full-heading source trace and explain why it is packaging rather than a duplicate active rule.>
 
@@ -592,7 +600,7 @@ Each positive case names the minimum required skill set. Do not classify every o
 
 After all batch descriptions exist and before behavioral execution, require an independent fixture-ownership audit against the complete catalog. Each required skill must contribute a distinctive central judgment, not merely share topic vocabulary with the prompt. If the pre-run audit rejects a frozen fixture, preserve its content, hash, and contract as a not-run diagnostic, then freeze a separately named replacement. If later evidence rejects a fixture, preserve its runs too. Never rewrite evidence or retroactively relax a required set.
 
-Record each new case's distinctive judgment, neighboring ownership boundary, independent ownership verdict, exact fixture hash, and intended disclosure mode using evaluation contract version 2. A focused probe also names the source-detail need absent from `SKILL.md` and its intended index destinations; a narrow implementation decision alone does not qualify.
+Record each new case's distinctive judgment, neighboring ownership boundary, independent ownership verdict, exact fixture hash, and intended disclosure mode using evaluation contract version 2. A focused probe also names either the source-detail need absent from `SKILL.md` or `none` plus the exact disputed source proposition, and its intended index destinations; generic disagreement or a narrow implementation decision alone does not qualify.
 
 Completion criterion: the conversion has a source-fidelity inventory, every positive case has an explicit required set and completed ownership review, fixture hashes validate, and the three progressive-disclosure tiers have representative probes.
 
@@ -622,7 +630,7 @@ Completion criterion: every mini ID has exactly one authoritative destination, r
 
 ### 6. Build reference routing
 
-Write `Read when` guidance for every full section. Define ordinary, focused, and comprehensive branches. Complete the activation coverage audit against the resulting full-section inventory, then finalize the description before the catalog freeze.
+Write `Read when` guidance for every full section. Select three to eight common destinations for the inline fast map, leaving the index as the exhaustive router. Define ordinary, focused, and comprehensive branches. Complete the activation coverage audit against the resulting full-section inventory, then finalize the description before the catalog freeze.
 
 Completion criterion: every full section is reachable, focused scenarios identify a bounded set of sections, comprehensive scenarios require the full reference, and every full-only activation candidate has a source-traced promote/reject decision.
 
@@ -668,9 +676,10 @@ Use fresh agents with the same prompts, artifacts, model, and configuration. Whe
 After catalog and ownership review, create one immutable evaluation manifest per
 acceptance run with `_skill-workbench/scripts/evaluation_manifest.py`. The builder
 derives the exact required set from the version 2 mapping contract and freezes the
-catalog payload, case and mapping hashes, runner and schema hashes, model,
-configuration, run name, and output path. Review the generated required sets and
-catalog hash before dispatch. Run each manifest through
+catalog payload, the complete skill-package snapshot (`SKILL.md`, `index.md`, and
+`full.md` for every live skill), case and mapping hashes, runner and schema hashes,
+model, configuration, run name, and output path. Review the generated required
+sets, catalog hash, and package hash before dispatch. Run each manifest through
 `run_skill_eval.py --manifest <path>`; do not repeat those fields manually.
 
 Before parallel dispatch, require one live GREEN preflight through the current CLI, model, result schema, and manifest path using a stable direct positive fixture as specified in `EVALUATION.md`. Preserve any failed harness record, repair the evaluator, and verify a uniquely named successful replacement before treating later runs as behavioral evidence. A valid required-skill miss is catalog evidence, not a harness failure; preserve it and stop parallel dispatch for diagnosis.
@@ -740,7 +749,7 @@ Completion criterion: the independent reviewer finds no unsupported strengthenin
 - Every full heading appears in the index.
 - Every index heading, anchor, and line range resolves correctly.
 - Every `Read when` condition is specific and actionable.
-- The router distinguishes ordinary, focused, and comprehensive use.
+- The reference map and exhaustive index distinguish ordinary, focused, and comprehensive use.
 - Focused cases name the semantic source detail they need without imposing an exact section set.
 - A route selecting one-third or more of the full sections receives manual tier-collapse review.
 
@@ -764,7 +773,7 @@ Completion criterion: the independent reviewer finds no unsupported strengthenin
 - The final checklist catches missed applicable guidance.
 - A focused issue reaches relevant full sections without material tier collapse.
 - A comprehensive request loads the full reference end to end.
-- Focused fixtures identify information absent from `SKILL.md` and the intended index destinations before execution.
+- Focused fixtures identify information absent from `SKILL.md`, or an exact disputed source proposition requiring canonical checking, and the intended index destinations before execution.
 
 ### Behavioral evaluation checks
 
@@ -775,7 +784,7 @@ Completion criterion: the independent reviewer finds no unsupported strengthenin
 - The evaluator is not told expected skills, source IDs, or suspected weaknesses.
 - An agent other than the converter performs final semantic review.
 - Rerun scope follows the documented change-impact class; different models are never combined into one repetition count.
-- Every acceptance run uses a mapping-derived manifest whose catalog, case, mapping, runner, and schema hashes validate before dispatch.
+- Every acceptance run uses a mapping-derived manifest whose catalog, complete skill-package snapshot, case, mapping, runner, and schema hashes validate before dispatch.
 - Every result embeds the manifest and its hash, preserves the configured output name, and has no manifest-envelope error.
 - Source/package, original behavioral, current-state, and residual-diagnostic verdicts remain separate.
 

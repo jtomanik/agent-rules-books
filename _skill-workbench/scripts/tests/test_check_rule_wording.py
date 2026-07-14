@@ -54,9 +54,11 @@ description: Use when an example is needed.
 - When the trigger appears, apply the second rule.
 - Keep the first rule unchanged.
 
-## Reference Router
+## Reference Map
 
 Use this file alone.
+
+- Focused detail: [Full section](references/full.md#full-section)
 
 ## Final Checklist
 
