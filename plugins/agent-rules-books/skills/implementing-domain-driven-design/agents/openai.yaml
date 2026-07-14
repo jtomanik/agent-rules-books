@@ -1,0 +1,7 @@
+interface:
+  display_name: "Implementing Domain-Driven Design"
+  short_description: "Apply implementation-level DDD guidance"
+  default_prompt: "Use $implementing-domain-driven-design to review this committed DDD implementation."
+
+policy:
+  allow_implicit_invocation: true

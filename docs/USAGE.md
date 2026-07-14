@@ -53,6 +53,79 @@ project/
 
 Keep the active skill concise. Put long examples, full rule files, and traceability material in reference files or retrieval, not in always-on project instructions.
 
+## Install the Codex Plugin
+
+The repository marketplace packages all fourteen skills as one plugin.
+
+Install from the current shareable branch:
+
+```bash
+codex plugin marketplace add jtomanik/agent-rules-books --ref codex/rule-book-skills-checkpoint
+codex plugin add agent-rules-books@agent-rules-books --json
+```
+
+For local development, run this from the repository root instead:
+
+```bash
+codex plugin marketplace add "$PWD"
+codex plugin add agent-rules-books@agent-rules-books --json
+```
+
+Plugin skills use namespaced names:
+
+```text
+Use $agent-rules-books:clean-code to review this implementation.
+Use $agent-rules-books:release-it to review this failure path.
+```
+
+Check installation with:
+
+```bash
+codex plugin list --marketplace agent-rules-books --json
+```
+
+### Migrate from direct copies
+
+Installing the plugin does not delete unmanaged copies in `~/.codex/skills`.
+Keep them until the plugin is installed, its cache matches the committed
+package, all installed skills validate, and a fresh task successfully invokes a
+namespaced skill. Then remove only the fourteen direct directories listed in
+the [plugin design](superpowers/specs/2026-07-14-agent-rules-books-plugin-design.md#package-shape).
+
+If the post-removal inventory or invocation check fails, restore the direct
+copies from `.agents/skills`.
+
+### Update or remove
+
+Bump the plugin version when skill bytes or plugin metadata changes. Then
+refresh the marketplace and reinstall:
+
+```bash
+codex plugin marketplace upgrade agent-rules-books --json
+codex plugin remove agent-rules-books@agent-rules-books --json
+codex plugin add agent-rules-books@agent-rules-books --json
+```
+
+Remove the plugin and marketplace with:
+
+```bash
+codex plugin remove agent-rules-books@agent-rules-books --json
+codex plugin marketplace remove agent-rules-books --json
+```
+
+### Maintain the package
+
+`.agents/skills/` is authoritative. Rebuild the committed plugin copy without
+rewriting file contents:
+
+```bash
+rm -rf plugins/agent-rules-books/skills
+cp -R .agents/skills plugins/agent-rules-books/skills
+diff -qr .agents/skills plugins/agent-rules-books/skills
+```
+
+An empty `diff -qr` result proves that every path and byte is identical.
+
 ## Mini vs Nano
 
 `mini` is the optimal default for most agent work and the best starting point for skills. It usually contains enough of the book's decision pressure, trigger rules, and tradeoff handling to change implementation choices without bringing in the full source.

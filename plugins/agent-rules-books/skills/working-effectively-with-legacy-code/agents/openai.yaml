@@ -1,0 +1,7 @@
+interface:
+  display_name: "Working Effectively with Legacy Code"
+  short_description: "Make poorly tested legacy code safer to change"
+  default_prompt: "Use $working-effectively-with-legacy-code to make this risky existing-code change safe and testable."
+
+policy:
+  allow_implicit_invocation: true

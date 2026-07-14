@@ -1,0 +1,7 @@
+interface:
+  display_name: "Domain-Driven Design Distilled"
+  short_description: "Choose the smallest effective DDD investment"
+  default_prompt: "Use $domain-driven-design-distilled to choose the smallest effective DDD investment for this change."
+
+policy:
+  allow_implicit_invocation: true

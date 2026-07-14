@@ -1,0 +1,7 @@
+interface:
+  display_name: "Refactoring"
+  short_description: "Refactor structure without changing behavior"
+  default_prompt: "Use $refactoring to improve this structure without changing observable behavior."
+
+policy:
+  allow_implicit_invocation: true

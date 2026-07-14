@@ -13,6 +13,8 @@
     ·
     <a href="#release-matrix">Rules / Skills</a>
     ·
+    <a href="#codex-plugin">Codex Plugin</a>
+    ·
     <a href="#books-list">Books List</a>
     ·
     <a href="docs/USAGE.md">Usage</a>
@@ -37,6 +39,20 @@ Each rule set is released in three tool-agnostic Markdown versions:
 For constructive criticism from Reddit, see [CRITICISM.md](docs/CRITICISM.md).
 
 For release history, see [CHANGELOG.md](CHANGELOG.md).
+
+## Codex Plugin
+
+Install all fourteen skills as one namespaced Codex plugin:
+
+```bash
+codex plugin marketplace add jtomanik/agent-rules-books --ref codex/rule-book-skills-checkpoint
+codex plugin add agent-rules-books@agent-rules-books
+```
+
+Invoke a bundled skill as `$agent-rules-books:clean-code`,
+`$agent-rules-books:release-it`, or another namespaced skill from the
+collection. See [USAGE.md](docs/USAGE.md#install-the-codex-plugin) for local
+installation, updates, migration from direct copies, and package maintenance.
 
 ## Release Matrix
 

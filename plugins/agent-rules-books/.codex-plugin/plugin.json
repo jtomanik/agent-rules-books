@@ -1,0 +1,37 @@
+{
+  "name": "agent-rules-books",
+  "version": "0.1.0",
+  "description": "Source-faithful software engineering guidance distilled from fourteen books and references.",
+  "author": {
+    "name": "Maciej Ciemborowicz",
+    "url": "https://maciej-ciemborowicz.eu"
+  },
+  "homepage": "https://github.com/ciembor/agent-rules-books",
+  "repository": "https://github.com/ciembor/agent-rules-books",
+  "license": "MIT",
+  "keywords": [
+    "software-engineering",
+    "architecture",
+    "refactoring",
+    "domain-driven-design",
+    "reliability"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agent Rules Books",
+    "shortDescription": "Source-faithful engineering guidance from fourteen books.",
+    "longDescription": "Install fourteen focused skills for code quality, architecture, refactoring, domain modeling, data systems, production resilience, and legacy-code work.",
+    "developerName": "Maciej Ciemborowicz",
+    "category": "Engineering",
+    "capabilities": [
+      "Skills",
+      "Code",
+      "Architecture"
+    ],
+    "defaultPrompt": [
+      "Use the relevant book skills to review this change.",
+      "Apply source-faithful guidance to this architecture decision.",
+      "Choose the smallest relevant book lens for this task."
+    ]
+  }
+}
