@@ -1,0 +1,142 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-guru/direct-catalog-treatment.md",
+  "case_sha256": "a3062883ef19a20652b61f7f18a85f05af216434307c49aa96f84537687b5f8f",
+  "mode": "green",
+  "run": "green-disclosure-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.4",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "repository",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5fe0-8ae6-7981-9fdd-bb25a161cddf",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The primary smell is `Comments`, with a secondary mild `Long Method` trigger that is not yet severe. The inline comments are narrating straightforward code structure (`Build the customer part`, `Build the amount part`) rather than preserving rationale or constraints. In Refactoring.Guru terms, that points first to clarifying the code so the comments become unnecessary, not to redesigning the API or introducing new domain objects.\n\nThe smallest suitable treatment is `Extract Method`, splitting the two commented regions into named helpers such as `formatCustomer(...)` and `formatAmount(...)`. That directly replaces explanatory comments with intention-revealing names and keeps behavior unchanged. A plausible alternative is `Replace Temp with Query` for `totalCents`, but that is weaker here because the temp is not the real problem and inlining or querying would not eliminate the narrative comments. `Introduce Parameter Object` is also plausible on paper because there are several related customer fields, but it would be too large for this case: there is no demonstrated duplication, no recurring concept in the supplied snippet alone, and using it here would risk speculative abstraction.\n\nI would not recommend `Inline Temp`, `Extract Class`, or any money/address modeling. Those go beyond the diagnosed smell and are not justified by the observable code.\n\nVerification path: keep the existing tests as the behavioral oracle, perform the extraction in very small steps, and run the relevant tests after each extraction or at least after both helpers are introduced. Because this is structural only, any test failure means the refactoring changed behavior and should be corrected before proceeding.\n\nStopping condition: stop once the comments are removed and the function reads clearly through helper names alone. If the next improvement requires a different diagnosis, such as repeated customer formatting elsewhere or primitive obsession across the codebase, that should be recorded separately rather than folded into this refactoring.",
+    "selected_project_skills": [
+      "refactoring-guru"
+    ],
+    "consulted_files": [
+      ".agents/skills/refactoring-guru/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "refactoring-guru"
+  ],
+  "selection_errors": [],
+  "stderr": "",
+  "evaluation_manifest": {
+    "case": {
+      "path": "_skill-workbench/evaluations/cases/refactoring-guru/direct-catalog-treatment.md",
+      "sha256": "a3062883ef19a20652b61f7f18a85f05af216434307c49aa96f84537687b5f8f"
+    },
+    "catalog": {
+      "byte_count": 6841,
+      "entries": [
+        {
+          "description": "A Philosophy of Software Design guidance for deep modules and information hiding. Use when cognitive load, shallow wrappers, leaky caller knowledge, tactical patches, or changes spreading across files make module or API design central. Clean Code owns readability; Code Complete, construction; Clean Architecture, policy direction; Refactoring, behavior-preserving change; Pragmatic Programmer, DRY, reversibility, feedback, and engineering practice. Co-invoke for independently central concerns.",
+          "name": "a-philosophy-of-software-design"
+        },
+        {
+          "description": "Clean Architecture guidance for inward dependencies and policy/detail separation. Use when policy independence is central and policy imports details, adapters own business rules, or core code constructs infrastructure. Layers, adapters, tests, and databases alone are insufficient. Clean Code covers readability; Refactoring, protected structural change; Legacy Code, blocked first feedback; Release It, production failure. Co-invoke only when policy dependence is also central.",
+          "name": "clean-architecture"
+        },
+        {
+          "description": "Clean Code guidance for locally readable, low-surprise implementation. Use when vague names, mixed responsibilities, boolean modes, hidden mutation, flow-narrating comments, schedule/rewrite pressure, or framework/concurrency detail obstructs a scoped change. Do not add it to an explicit refactoring-only audit or legacy-control task unless a separate local-readability decision is requested.",
+          "name": "clean-code"
+        },
+        {
+          "description": "Code Complete guidance for construction in implementation/change, review, debugging, refactoring, and tuning. Use when nontrivial work coordinates several concerns, or when solution-first coding, happy-path-only tests, mixed behavior/refactoring, guess-driven debugging drives code changes, or evidence-free tuning threatens defect control. It owns construction coordination; labels alone are insufficient, and another lens needs its own explicit objective rather than shared construction vocabulary.",
+          "name": "code-complete"
+        },
+        {
+          "description": "Designing Data-Intensive Applications guidance for distributed data correctness. Use when source-of-truth ownership, consistency/durability, replay/order, schema evolution, derived-data repair, replication/partitioning, or cross-system write/side-effect, transaction, or coordination semantics are central. A queue, cache, retry, database, or production failure alone is insufficient; Release It! owns operational survival and Clean Architecture policy direction unless data semantics are central.",
+          "name": "designing-data-intensive-applications"
+        },
+        {
+          "description": "Evans-style Domain-Driven Design guidance for discovering and evolving an implementation-driving domain model. Use when business complexity makes Ubiquitous Language conflicts, missing domain concepts, lifecycle rules, Bounded Context or Context Map decisions, Core Domain focus, or deeper-model pressure from awkward procedural behavior central. DDD Distilled owns the smallest-investment/selectivity gate; Implementing DDD owns post-boundary implementation mechanics.",
+          "name": "domain-driven-design"
+        },
+        {
+          "description": "Domain-Driven Design Distilled guidance for the smallest effective DDD investment and anti-ceremony selectivity. Use when domain complexity, language ambiguity, business differentiation, or integration risk makes subdomain investment, Bounded Context boundaries, Ubiquitous Language meaning, or whether tactical patterns earn their cost central. Domain-Driven Design owns deeper model discovery; Implementing Domain-Driven Design owns detailed mechanics after context and model commitment.",
+          "name": "domain-driven-design-distilled"
+        },
+        {
+          "description": "Implementing Domain-Driven Design guidance for implementation-level DDD after context and model commitment. Use when Aggregate boundaries, Value Objects/Entities, Repositories, Domain or Application Services, Domain Events, modules, translations, projections, or renamed-CRUD/anemic-model correction is central. Distilled owns the DDD investment gate; Domain-Driven Design owns strategic discovery and deeper model development; DDIA co-applies only for central distributed-data semantics.",
+          "name": "implementing-domain-driven-design"
+        },
+        {
+          "description": "Patterns of Enterprise Application Architecture guidance for force-based pattern choice and responsibility placement. Use when choosing business-logic, persistence, transaction, concurrency, session-state, or remote-boundary patterns is central, especially Transaction Script vs Table Module vs Domain Model or Repository/Data Mapper/Gateway/Active Record. DDD owns model discovery; Clean Architecture dependency direction; DDIA distributed-data semantics; Code Complete construction.",
+          "name": "patterns-of-enterprise-application-architecture"
+        },
+        {
+          "description": "Refactoring guidance for behavior-preserving structural change once observable behavior is known or protected. Use when renaming, extracting, moving, splitting, or another current code smell drives a behavior-preserving change. Dependency-seam work whose purpose is to gain first feedback belongs to Legacy Code until control exists.",
+          "name": "refactoring"
+        },
+        {
+          "description": "Refactoring.Guru guidance for code-smell classification, catalog treatment selection, and incomplete-library-class decisions. Use when explicit smell classification, choosing among named techniques and their preconditions or tradeoffs, or deciding how to add missing operations to an external class you cannot modify is central after behavior is known or protected. Refactoring owns ordinary behavior-preserving structural change; Clean Code local readability; Legacy Code first feedback.",
+          "name": "refactoring-guru"
+        },
+        {
+          "description": "Use only when production failure behavior is an explicit objective or demonstrated operational problem, such as deciding failure semantics, demand/capacity limits, blast-radius isolation, degraded service, recovery, operability, deployment/startup controls, incident chains, or bounded resilience tests. Do not infer this lens from testability, safe-change work, routine rollout verification, local API design, ordinary errors, in-process concurrency, service/database calls, or money/transactions.",
+          "name": "release-it"
+        },
+        {
+          "description": "The Pragmatic Programmer guidance for accountable, adaptable delivery. Use when outcome ownership, duplicated knowledge, change fan-out, irreversible commitment, prototype fossilization, manual delivery/feedback loops, or blackboard-style coordination are central across a change. Clean Code owns local readability; Code Complete construction; Refactoring behavior-preserving change; Legacy Code blocked first feedback; Release It! production failure; A Philosophy of Software Design module depth.",
+          "name": "the-pragmatic-programmer"
+        },
+        {
+          "description": "Use only when a semantic change is blocked because current behavior is materially unknown, no trustworthy focused tests exist, or a dependency cannot be observed or substituted. The task must require gaining first feedback before changing behavior. Do not use when observable behavior and operational facts are already supplied, or when first feedback is not blocked.",
+          "name": "working-effectively-with-legacy-code"
+        }
+      ],
+      "sha256": "f23977d3f201fc519c399fef75d7ed8d0f3b80e08f56da7a8659ad9c68d71a82",
+      "skill_count": 14
+    },
+    "contract": {
+      "case_id": "E1",
+      "evaluation_contract_version": 2,
+      "fixture_sha256": "a3062883ef19a20652b61f7f18a85f05af216434307c49aa96f84537687b5f8f",
+      "mapping": "_skill-workbench/refactoring-guru/mapping.md",
+      "mapping_sha256": "32a4e10c49537f0357c30b8b1ad202e2b322342af5497571511940c952b36a7b",
+      "required_project_skills": [
+        "refactoring-guru"
+      ]
+    },
+    "execution": {
+      "configuration": {
+        "baseline_workspace": "temporary directory without project skills",
+        "ephemeral": true,
+        "green_workspace": "repository",
+        "ignore_user_config": true,
+        "sandbox": "read-only"
+      },
+      "mode": "green",
+      "model": "gpt-5.4",
+      "output": "_skill-workbench/evaluations/results/refactoring-guru/direct-catalog-treatment/green-disclosure-2.json",
+      "run": "green-disclosure-2",
+      "runner": {
+        "path": "_skill-workbench/scripts/run_skill_eval.py",
+        "sha256": "42614eceebe328b1812058ac8e5a134f5faefa5c9305ea234262ff0724043ffd"
+      },
+      "schema": {
+        "path": "_skill-workbench/evaluations/result-v2.schema.json",
+        "sha256": "90060cb6fea3e7b529ea5eda9a294bd7f18e1c266412be41d26b7a5365d8038c"
+      },
+      "timeout": 900
+    },
+    "manifest_version": 1,
+    "required_project_skills": [
+      "refactoring-guru"
+    ]
+  },
+  "evaluation_manifest_sha256": "4c8a389c2a970adc15fdeb125a11a5b52a94dc25b8aedc893f033500229af245",
+  "manifest_errors": []
+}

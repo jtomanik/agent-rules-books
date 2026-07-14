@@ -252,6 +252,8 @@ Mini is the semantic inventory for `SKILL.md`.
 
 Every `M*` item must appear exactly once as authoritative guidance in the skill body, unless the mapping document explicitly records a faithful merge with another `M*` item.
 
+Traceability IDs are authoritative; physical mini bullets are not implicit ID ordinals. When one stable `M*` ID intentionally spans multiple separate mini bullets, map that ID once, record every represented bullet in the mapping, and preserve each bullet verbatim in `SKILL.md`. Do not merge or delete a bullet, or invent new IDs, merely to make the physical bullet count equal the traceability-ID count. The wording checker still validates every physical bullet independently.
+
 A final checklist may intentionally restate a rule as a check. Record that as `final-check`, not as a second authoritative definition.
 
 ### Organization rule
@@ -401,11 +403,11 @@ For a comprehensive audit or an explicit request for the complete book lens, rea
 
 Tailor the conditions to the book. A pointer's wording determines whether the full guidance is actually reached.
 
-Do not use bare `ambiguity`, `detail`, `decision`, or `hotspot` as generic focused triggers. Agents can treat any nontrivial implementation detail as satisfying them. State the evidence threshold, require ordinary work to stop after `SKILL.md` when it resolves the task, and make the post-body unresolved condition explicit.
+Do not use bare `ambiguity`, `detail`, `decision`, or `hotspot` as generic focused triggers. Agents can treat any nontrivial implementation detail as satisfying them. State the evidence threshold, require ordinary work to stop after `SKILL.md` when it resolves the task, make the post-body unresolved condition explicit, and say that references are not opened merely to confirm or elaborate a body-supported answer.
 
 Do not use the number of implicated rules, sections, or concern families as a proxy for comprehensive loading. A multi-concern implementation decision can still need only a bounded coherent subset. Reserve end-to-end loading for an explicitly exhaustive objective.
 
-Evaluation must name the concrete source-detail question for focused cases, verify that `SKILL.md` does not already resolve it, identify the index destination before execution, and record the headings actually consulted. A narrow decision is not automatically a focused-reference case. Do not require an exact section set. If a focused route reads one-third or more of the full sections or spans several independent concern families, review it manually for material tier collapse; keep the bounded subset when it is coherent, and use an end-to-end read only when the task is explicitly exhaustive.
+Evaluation must name the concrete source-detail question for focused cases, verify that `SKILL.md` does not already resolve it, identify the index destination before execution, and record the headings actually consulted. Classify every requested output: when the compact body resolves the central choice but a requested migration, compatibility, precondition, exact triad, or other source detail exists only in full, the whole case is focused. A narrow decision is not automatically a focused-reference case. Do not require an exact section set. If a focused route reads one-third or more of the full sections or spans several independent concern families, review it manually for material tier collapse; keep the bounded subset when it is coherent, and use an end-to-end read only when the task is explicitly exhaustive.
 
 ## references/index.md
 

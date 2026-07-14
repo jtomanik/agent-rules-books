@@ -61,7 +61,7 @@ Metrics:
 | [Release It!](release-it/) | [full](release-it/release-it.md) | 382 | 204 | 13542 B | [mini](release-it/release-it.mini.md) | 48 | 30 | 6372 B | [nano](release-it/release-it.nano.md) | 38 | 20 | 2205 B |
 | [The Pragmatic Programmer](the-pragmatic-programmer/) | [full](the-pragmatic-programmer/the-pragmatic-programmer.md) | 359 | 179 | 13398 B | [mini](the-pragmatic-programmer/the-pragmatic-programmer.mini.md) | 65 | 47 | 7037 B | [nano](the-pragmatic-programmer/the-pragmatic-programmer.nano.md) | 44 | 26 | 2241 B |
 | [Working Effectively with Legacy Code](working-effectively-with-legacy-code/) | [full](working-effectively-with-legacy-code/working-effectively-with-legacy-code.md) | 371 | 193 | 13817 B | [mini](working-effectively-with-legacy-code/working-effectively-with-legacy-code.mini.md) | 50 | 32 | 5707 B | [nano](working-effectively-with-legacy-code/working-effectively-with-legacy-code.nano.md) | 35 | 17 | 1792 B |
-| [Refactoring.Guru](refactoring-guru/) | [full](refactoring-guru/refactoring-guru.md) | 765 | 478 | 62561 B | [mini](refactoring-guru/refactoring-guru.mini.md) | 64 | 46 | 6287 B | [nano](refactoring-guru/refactoring-guru.nano.md) | 41 | 23 | 2593 B |
+| [Refactoring.Guru](refactoring-guru/) | [full](refactoring-guru/refactoring-guru.md) | 765 | 478 | 62561 B | [mini](refactoring-guru/refactoring-guru.mini.md) | 64 | 46 | 7902 B | [nano](refactoring-guru/refactoring-guru.nano.md) | 41 | 23 | 2980 B |
 
 ## Books List
 

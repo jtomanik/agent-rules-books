@@ -29,10 +29,12 @@ class ConversionSizeBudgetTests(unittest.TestCase):
         name = "example"
         source = root / name
         skill = root / ".agents" / "skills" / name
+        rule_workbench = root / "_rule-workbench" / name
         workbench = root / "_skill-workbench" / name
         source.mkdir(parents=True)
         (skill / "agents").mkdir(parents=True)
         (skill / "references").mkdir(parents=True)
+        rule_workbench.mkdir(parents=True)
         workbench.mkdir(parents=True)
 
         long_rule = " ".join(["preserved"] * 510) + "."
@@ -101,6 +103,16 @@ Use this file alone for ordinary work. Read [references/index.md](references/ind
 | --- | --- |
 | `M1` | Guidance |
 """
+        traceability = """# Traceability
+
+## Mini mapping
+
+- `M1` Preserve the complete mini guidance.
+
+## Nano mapping
+
+- `N1` Preserve the nano guidance.
+"""
         if packaging_fidelity:
             mapping += """
 
@@ -129,6 +141,7 @@ The canonical mini source already exceeds the 500-word target. The skill preserv
         (source / f"{name}.md").write_text(full, encoding="utf-8")
         (source / f"{name}.mini.md").write_text(mini, encoding="utf-8")
         (source / f"{name}.nano.md").write_text(nano, encoding="utf-8")
+        (rule_workbench / "traceability.md").write_text(traceability, encoding="utf-8")
         (skill / "SKILL.md").write_text(skill_text, encoding="utf-8")
         (skill / "agents" / "openai.yaml").write_text(
             'interface:\n  display_name: "Example"\n  short_description: "Apply preserved example guidance"\n  default_prompt: "Use $example for this task."\n\npolicy:\n  allow_implicit_invocation: true\n',
@@ -141,6 +154,31 @@ The canonical mini source already exceeds the 500-word target. The skill preserv
         )
         (workbench / "mapping.md").write_text(mapping, encoding="utf-8")
         return temporary, root
+
+    def test_traceability_id_may_cover_multiple_verbatim_mini_rules(self) -> None:
+        temporary, root = self.make_fixture(size_exception=True)
+        self.addCleanup(temporary.cleanup)
+
+        mini = root / "example" / "example.mini.md"
+        mini.write_text(
+            mini.read_text(encoding="utf-8").replace(
+                "## Trigger rules\n",
+                "- Keep the second rule.\n\n## Trigger rules\n",
+            ),
+            encoding="utf-8",
+        )
+        skill = root / ".agents" / "skills" / "example" / "SKILL.md"
+        skill.write_text(
+            skill.read_text(encoding="utf-8").replace(
+                "\n\n## Reference Router",
+                "\n- Keep the second rule.\n\n## Reference Router",
+            ),
+            encoding="utf-8",
+        )
+
+        result = validate_conversion.validate_one(root, "example")
+
+        self.assertEqual(result.errors, [])
 
     def test_oversized_skill_without_documented_exception_fails(self) -> None:
         temporary, root = self.make_fixture(size_exception=False)

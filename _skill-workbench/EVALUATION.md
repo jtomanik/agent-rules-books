@@ -137,6 +137,13 @@ contains everything needed, record the run as ordinary and treat the mistaken
 fixture expectation as a design diagnostic rather than forcing a reference
 read.
 
+Classify the complete requested deliverable, not only its central decision. A
+case is focused when the compact body resolves the main choice but the prompt
+also requires source detail available only in the full reference, such as a
+migration sequence, compatibility condition, technique precondition, or exact
+treatment triad. Record that exact secondary gap and its bounded destination in
+the mapping before execution.
+
 Keep the compact-body gap private in the mapping. The raw blind fixture may ask
 for the concrete detail and a bounded reference read, but must not tell the
 solver that `SKILL.md` omits it or reveal suspected conversion weaknesses.

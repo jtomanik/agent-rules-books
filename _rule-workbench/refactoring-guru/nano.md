@@ -13,9 +13,9 @@ Refactoring is not cleanup for its own sake: diagnose one smell, treat it with t
 - Separate structural refactoring from feature and bug behavior; if behavior changes, name and isolate it.
 - Diagnose the smell before choosing a technique: symptom, cost, smallest treatment, verification, and stop condition.
 - Prefer small named transformations over broad redesign.
-- Keep the program runnable and run relevant checks after risky movement, state-flow changes, public API changes, or algorithm replacement.
-- Stop when the diagnosed smell is reduced; do not chase new smells unless they block the current change.
-- Prefer extraction, naming, movement, inlining, and encapsulation before adding hierarchy, polymorphism, wrappers, or method objects.
+- Before risky refactoring, identify the relevant tests or checks; keep the program runnable, run relevant checks after risky movement, state-flow changes, public API changes, or algorithm replacement, and never delete failing tests to make refactoring appear successful.
+- Refactoring succeeds only if the touched code becomes cleaner; you should pause and re-diagnose if clarity is not improving. Stop when the diagnosed smell is reduced and before crossing ownership, public API, or feature scope without explicit approval; do not chase new smells unless they block the current change.
+- Prefer extraction, naming, movement, inlining, and encapsulation before adding hierarchy, polymorphism, or method objects.
 - Do not create abstractions from coincidental similarity, random parameter bags, simple conditionals, or speculative future needs.
 - Keep behavior with the data it changes unless separation intentionally supports interchangeable behavior.
 - Preserve public compatibility when changing signatures, constructors, visibility, hierarchy, or externally reachable code.
@@ -26,7 +26,7 @@ Refactoring is not cleanup for its own sake: diagnose one smell, treat it with t
 - When a method needs comments or local-state reconstruction, extract a named method after checking inputs, outputs, and mutated variables.
 - When a class changes for unrelated reasons, extract the responsibility; use subclass/interface only for stable variants or real client subsets.
 - When conditionals repeat by type or state, isolate the decision before using polymorphism; leave simple honest conditionals alone.
-- When duplicate code appears the third time, refactor unless the similarity is likely to diverge.
+- When duplicate code appears the third time, consider refactoring; do not abstract coincidental similarity before the repeated responsibility is clear.
 - When parameter lists or primitive clumps carry one concept, model the concept; do not pass a huge object to hide dependency.
 - When clients navigate chains or internals, hide the delegate or move behavior; remove pass-through middle men that add no policy.
 - When null, error code, assertion, value/reference, or association changes are considered, verify semantics before changing structure.

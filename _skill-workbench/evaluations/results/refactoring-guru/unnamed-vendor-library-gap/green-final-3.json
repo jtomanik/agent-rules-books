@@ -1,0 +1,146 @@
+{
+  "case": "_skill-workbench/evaluations/cases/refactoring-guru/unnamed-vendor-library-gap.md",
+  "case_sha256": "fdb10c9c150501ca8963e74cb00c6d568f71d2302c4ee30ba0ab8debf7ef7aea",
+  "mode": "green",
+  "run": "green-final-3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "repository",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5fb1-b6d8-7bc2-8f00-a8e203011a0b",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Choose one local helper now, scoped to the billing use case, for example `nextBusinessChargeDate(date, holidays)` near the current caller or in a small billing-date utilities module owned by your code. That is the smallest justified structure because there is exactly one required operation, the vendor type already exposes the needed primitives, and a wrapper around every `BillingDate` would add system-wide surface area before it hides any real complexity. A fork is even less justified: it creates permanent upgrade and maintenance cost to solve a single local gap.\n\nA larger local extension becomes justified only when you have concrete evidence that the missing behavior is becoming a stable concept in your codebase rather than a one-off calculation. The evidence to require is specific:\n- Two or more approved call sites needing the same semantic operation, not just similar loops.\n- Repeated business rules around `BillingDate` plus local domain concepts like holidays, grace windows, statement cycles, or collection cutoffs.\n- Duplication that is causing change amplification: one rule change requires edits in several places.\n- Callers starting to know too much vendor detail, such as repeated `plusDays` / `isWeekend` choreography or inconsistent holiday handling.\n- A small coherent vocabulary emerging, for example \u201ccharge date\u201d, \u201cstatement alignment\u201d, \u201ccollection window\u201d, that can form a meaningful local API.\n\nIf that happens, prefer a local extension type or focused domain module over a universal wrapper. Keep the vendor `BillingDate` as the stored/interchange type, and add a narrow local abstraction only for the operations your domain actually owns. Do not wrap every instance by default. Migrate callers incrementally:\n1. Introduce the local API alongside the helper.\n2. Reimplement the helper in terms of that API.\n3. Move only the call sites that need the shared semantics.\n4. Leave simple vendor-type usage alone unless the abstraction clearly reduces caller knowledge.\n\nThat migration keeps the boundary reversible. If the broader abstraction never proves out, you have only a helper; if it does, the helper becomes the compatibility seam.\n\nWhen `@vendor/billing-date` changes, the important compatibility checks are behavioral and boundary-focused:\n- Constructor/value semantics: equality, immutability, timezone/calendar assumptions, and whether `plusDays(1)` still means the same thing.\n- Weekend/business-day semantics: confirm `isWeekend()` still matches your policy.\n- Formatting/parsing/serialization if your code persists or exchanges these values.\n- Interop at the seam: ensure your helper or local extension still compiles and still returns the vendor type expected by callers.\n- Regression tests around your owned semantics: weekend skipping, holiday skipping, consecutive holidays, month/year boundaries, leap day, and any future grace/cycle/window rules.\n\nSo the recommendation is: add a single local helper now, treat it as the seam, and only grow into a local extension once multiple approved use cases demonstrate a stable domain abstraction worth owning.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design",
+      "clean-code"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/clean-code/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "refactoring-guru"
+  ],
+  "selection_errors": [
+    "required project skill not selected: refactoring-guru"
+  ],
+  "stderr": "2026-07-14T08:15:39.506627Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5fb1-b6d8-7bc2-8f00-a8e203011a0b.1784016910040303000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }",
+  "evaluation_manifest": {
+    "case": {
+      "path": "_skill-workbench/evaluations/cases/refactoring-guru/unnamed-vendor-library-gap.md",
+      "sha256": "fdb10c9c150501ca8963e74cb00c6d568f71d2302c4ee30ba0ab8debf7ef7aea"
+    },
+    "catalog": {
+      "byte_count": 6789,
+      "entries": [
+        {
+          "description": "A Philosophy of Software Design guidance for deep modules and information hiding. Use when cognitive load, shallow wrappers, leaky caller knowledge, tactical patches, or changes spreading across files make module or API design central. Clean Code owns readability; Code Complete, construction; Clean Architecture, policy direction; Refactoring, behavior-preserving change; Pragmatic Programmer, DRY, reversibility, feedback, and engineering practice. Co-invoke for independently central concerns.",
+          "name": "a-philosophy-of-software-design"
+        },
+        {
+          "description": "Clean Architecture guidance for inward dependencies and policy/detail separation. Use when policy independence is central and policy imports details, adapters own business rules, or core code constructs infrastructure. Layers, adapters, tests, and databases alone are insufficient. Clean Code covers readability; Refactoring, protected structural change; Legacy Code, blocked first feedback; Release It, production failure. Co-invoke only when policy dependence is also central.",
+          "name": "clean-architecture"
+        },
+        {
+          "description": "Clean Code guidance for locally readable, low-surprise implementation. Use when vague names, mixed responsibilities, boolean modes, hidden mutation, flow-narrating comments, schedule/rewrite pressure, or framework/concurrency detail obstructs a scoped change. Do not add it to an explicit refactoring-only audit or legacy-control task unless a separate local-readability decision is requested.",
+          "name": "clean-code"
+        },
+        {
+          "description": "Code Complete guidance for construction in implementation/change, review, debugging, refactoring, and tuning. Use when nontrivial work coordinates several concerns, or when solution-first coding, happy-path-only tests, mixed behavior/refactoring, guess-driven debugging drives code changes, or evidence-free tuning threatens defect control. It owns construction coordination; labels alone are insufficient, and another lens needs its own explicit objective rather than shared construction vocabulary.",
+          "name": "code-complete"
+        },
+        {
+          "description": "Designing Data-Intensive Applications guidance for distributed data correctness. Use when source-of-truth ownership, consistency/durability, replay/order, schema evolution, derived-data repair, replication/partitioning, or cross-system write/side-effect, transaction, or coordination semantics are central. A queue, cache, retry, database, or production failure alone is insufficient; Release It! owns operational survival and Clean Architecture policy direction unless data semantics are central.",
+          "name": "designing-data-intensive-applications"
+        },
+        {
+          "description": "Evans-style Domain-Driven Design guidance for discovering and evolving an implementation-driving domain model. Use when business complexity makes Ubiquitous Language conflicts, missing domain concepts, lifecycle rules, Bounded Context or Context Map decisions, Core Domain focus, or deeper-model pressure from awkward procedural behavior central. DDD Distilled owns the smallest-investment/selectivity gate; Implementing DDD owns post-boundary implementation mechanics.",
+          "name": "domain-driven-design"
+        },
+        {
+          "description": "Domain-Driven Design Distilled guidance for the smallest effective DDD investment and anti-ceremony selectivity. Use when domain complexity, language ambiguity, business differentiation, or integration risk makes subdomain investment, Bounded Context boundaries, Ubiquitous Language meaning, or whether tactical patterns earn their cost central. Domain-Driven Design owns deeper model discovery; Implementing Domain-Driven Design owns detailed mechanics after context and model commitment.",
+          "name": "domain-driven-design-distilled"
+        },
+        {
+          "description": "Implementing Domain-Driven Design guidance for implementation-level DDD after context and model commitment. Use when Aggregate boundaries, Value Objects/Entities, Repositories, Domain or Application Services, Domain Events, modules, translations, projections, or renamed-CRUD/anemic-model correction is central. Distilled owns the DDD investment gate; Domain-Driven Design owns strategic discovery and deeper model development; DDIA co-applies only for central distributed-data semantics.",
+          "name": "implementing-domain-driven-design"
+        },
+        {
+          "description": "Patterns of Enterprise Application Architecture guidance for force-based pattern choice and responsibility placement. Use when choosing business-logic, persistence, transaction, concurrency, session-state, or remote-boundary patterns is central, especially Transaction Script vs Table Module vs Domain Model or Repository/Data Mapper/Gateway/Active Record. DDD owns model discovery; Clean Architecture dependency direction; DDIA distributed-data semantics; Code Complete construction.",
+          "name": "patterns-of-enterprise-application-architecture"
+        },
+        {
+          "description": "Refactoring guidance for behavior-preserving structural change once observable behavior is known or protected. Use when renaming, extracting, moving, splitting, or another current code smell drives a behavior-preserving change. Dependency-seam work whose purpose is to gain first feedback belongs to Legacy Code until control exists.",
+          "name": "refactoring"
+        },
+        {
+          "description": "Refactoring.Guru guidance for code-smell classification and catalog treatment selection. Use when explicit smell classification, choosing between named refactoring techniques and their preconditions or tradeoffs, or a foreign-method-versus-local-extension decision is central after behavior is known or protected. Refactoring owns ordinary behavior-preserving structural change; Clean Code local readability; Legacy Code first feedback.",
+          "name": "refactoring-guru"
+        },
+        {
+          "description": "Use only when production failure behavior is an explicit objective or demonstrated operational problem, such as deciding failure semantics, demand/capacity limits, blast-radius isolation, degraded service, recovery, operability, deployment/startup controls, incident chains, or bounded resilience tests. Do not infer this lens from testability, safe-change work, routine rollout verification, local API design, ordinary errors, in-process concurrency, service/database calls, or money/transactions.",
+          "name": "release-it"
+        },
+        {
+          "description": "The Pragmatic Programmer guidance for accountable, adaptable delivery. Use when outcome ownership, duplicated knowledge, change fan-out, irreversible commitment, prototype fossilization, manual delivery/feedback loops, or blackboard-style coordination are central across a change. Clean Code owns local readability; Code Complete construction; Refactoring behavior-preserving change; Legacy Code blocked first feedback; Release It! production failure; A Philosophy of Software Design module depth.",
+          "name": "the-pragmatic-programmer"
+        },
+        {
+          "description": "Use only when a semantic change is blocked because current behavior is materially unknown, no trustworthy focused tests exist, or a dependency cannot be observed or substituted. The task must require gaining first feedback before changing behavior. Do not use when observable behavior and operational facts are already supplied, or when first feedback is not blocked.",
+          "name": "working-effectively-with-legacy-code"
+        }
+      ],
+      "sha256": "93d0f9b418a7071997419765278f894a5415bc397085f473b265aca678c6fd4a",
+      "skill_count": 14
+    },
+    "contract": {
+      "case_id": "E2",
+      "evaluation_contract_version": 2,
+      "fixture_sha256": "fdb10c9c150501ca8963e74cb00c6d568f71d2302c4ee30ba0ab8debf7ef7aea",
+      "mapping": "_skill-workbench/refactoring-guru/mapping.md",
+      "mapping_sha256": "dfedf7cb1e2ffd7f81264b705d191709bc29a654b783ca28e54c14a3ede98b2c",
+      "required_project_skills": [
+        "refactoring-guru"
+      ]
+    },
+    "execution": {
+      "configuration": {
+        "baseline_workspace": "temporary directory without project skills",
+        "ephemeral": true,
+        "green_workspace": "repository",
+        "ignore_user_config": true,
+        "sandbox": "read-only"
+      },
+      "mode": "green",
+      "model": "gpt-5.4",
+      "output": "_skill-workbench/evaluations/results/refactoring-guru/unnamed-vendor-library-gap/green-final-3.json",
+      "run": "green-final-3",
+      "runner": {
+        "path": "_skill-workbench/scripts/run_skill_eval.py",
+        "sha256": "42614eceebe328b1812058ac8e5a134f5faefa5c9305ea234262ff0724043ffd"
+      },
+      "schema": {
+        "path": "_skill-workbench/evaluations/result-v2.schema.json",
+        "sha256": "90060cb6fea3e7b529ea5eda9a294bd7f18e1c266412be41d26b7a5365d8038c"
+      },
+      "timeout": 900
+    },
+    "manifest_version": 1,
+    "required_project_skills": [
+      "refactoring-guru"
+    ]
+  },
+  "evaluation_manifest_sha256": "66d4f7219a707b85f7a2e77f287b8b2841ad1a5455e77669ae0e8d76362589ef",
+  "manifest_errors": []
+}

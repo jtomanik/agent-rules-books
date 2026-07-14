@@ -10,13 +10,13 @@ Refactoring is not general cleanup or pattern application. It is a small, smell-
 
 ## Decision rules
 
-- Separate refactoring from feature work and bug fixes. If behavior changes, name it as behavior change and isolate it from structural edits.
-- Diagnose the smell before choosing a technique: symptom, maintenance cost, scope, expected cleaner end state, verification path, and stop condition.
-- Prefer the smallest treatment that directly reduces the diagnosed smell; escalate only when the smaller technique is blocked.
+- Separate refactoring from feature work and bug fixes; if behavior changes, name it as behavior change and isolate it from structural edits. You should refactor before feature work when existing code is too dirty to understand the change safely or makes the feature awkward, and reshape the local structure so the feature becomes straightforward. You should refactor after feature work when the feature leaves new duplication, awkward names, or unnecessary structure. For bugs, you should clean the structure that allowed the bug to hide when cleanup is small and local. In review, you should fix simple smells immediately when context and ownership allow, estimate and isolate larger smells instead of smuggling them into the reviewed change, and collaborate with the author when a smell needs judgment about intent.
+- Diagnose the smell before choosing a technique: symptom, maintenance cost, scope, expected cleaner end state, verification path, and stop condition; check whether the smell is real or only a style preference.
+- Prefer the smallest treatment that directly reduces the diagnosed smell; escalate only when the smaller technique is blocked, and reject a treatment if its own tradeoff is worse than the smell.
 - Keep the code runnable and understandable through small named transformations rather than broad redesign.
-- Run relevant checks after risky moves, public interface changes, state-flow changes, or algorithm substitution.
-- Stop when the named smell is gone or materially reduced; record new smells separately unless they block the current change.
-- Use the Rule of Three: tolerate uncertain duplication early, but refactor the third similar occurrence unless the similarity is coincidental.
+- Before risky refactoring, identify the relevant tests or checks. Run all relevant existing tests after refactoring, and run relevant checks after each risky move, public interface change, state-flow change, or algorithm substitution; diagnose failures as behavior changes, refactoring mistakes, or tests coupled to implementation details, and fix refactoring mistakes before continuing. You should replace or lift brittle low-level tests when they block behavior-preserving structure changes; never delete failing tests to make a refactoring appear successful.
+- Refactoring succeeds only if the touched code becomes cleaner; you should pause and re-diagnose when small edits are not improving clarity. Stop when the named smell is gone or materially reduced, before crossing ownership, public API, or feature scope without explicit approval, and when the next improvement needs a different smell diagnosis; record new smells separately unless they block the current change.
+- Use the Rule of Three: tolerate uncertain duplication early and consider refactoring on the third similar occurrence, but do not abstract coincidental similarity before the repeated responsibility is clear.
 - Treat technical debt as compounding cost; pay down the debt that slows current change speed, correctness, or team understanding.
 - Scan smells by category: bloaters, object-orientation abusers, change preventers, dispensables, couplers, and incomplete library gaps.
 - For bloaters, prefer extraction, parameter/data modeling, and responsibility splits before creating method objects, subclasses, or interfaces.
@@ -27,7 +27,7 @@ Refactoring is not general cleanup or pattern application. It is a small, smell-
 - Use comments for rationale, constraints, contracts, or hard algorithms; use names, variables, methods, or assertions when comments explain unclear code.
 - Keep behavior with the data it changes unless separation deliberately supports interchangeable behavior.
 - Encapsulation is not finished by adding getters and setters; move behavior inward when callers are still manipulating exposed data.
-- Avoid speculative abstractions: do not create wrappers, parameter objects, interfaces, superclasses, or hierarchy variants without a real concept or client.
+- Avoid speculative abstractions: do not create parameter objects, interfaces, superclasses, or hierarchy variants without a real concept, shared behavior, or client.
 - Preserve public compatibility or provide a transition path when changing signatures, constructors, visibility, type hierarchy, or externally reachable APIs.
 - Before extraction or movement, identify inputs, outputs, mutated variables, callers, visibility, construction paths, and invariants.
 - Before condition consolidation or algorithm substitution, verify side effects, ordering, truth tables, edge cases, and performance-sensitive behavior.

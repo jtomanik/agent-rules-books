@@ -135,6 +135,21 @@ def extract_mapping_ids(text: str, heading: str, prefix: str) -> list[str]:
     return ids
 
 
+def extract_traceability_ids(text: str, heading: str, prefix: str) -> list[str]:
+    active = False
+    ids: list[str] = []
+    row_pattern = re.compile(rf"^-\s+`({prefix}\d+)`(?:\s|$)")
+    for line in text.splitlines():
+        if line.startswith("## "):
+            active = line[3:].strip().casefold() == heading.casefold()
+            continue
+        if active:
+            match = row_pattern.match(line)
+            if match:
+                ids.append(match.group(1))
+    return ids
+
+
 def markdown_section(text: str, heading: str) -> str:
     active = False
     values: list[str] = []
@@ -215,6 +230,7 @@ def validate_one(root: Path, name: str) -> Validation:
         "openai.yaml": skill_dir / "agents" / "openai.yaml",
         "full reference": skill_dir / "references" / "full.md",
         "reference index": skill_dir / "references" / "index.md",
+        "traceability": root / "_rule-workbench" / name / "traceability.md",
         "mapping": workbench_dir / "mapping.md",
     }
     for label, path in paths.items():
@@ -228,6 +244,7 @@ def validate_one(root: Path, name: str) -> Validation:
     index_text = read_text(paths["reference index"], validation)
     mini_text = read_text(paths["mini source"], validation)
     nano_text = read_text(paths["nano source"], validation)
+    traceability_text = read_text(paths["traceability"], validation)
     mapping_text = read_text(paths["mapping"], validation)
 
     frontmatter = extract_frontmatter(skill_text, validation)
@@ -313,10 +330,28 @@ def validate_one(root: Path, name: str) -> Validation:
     nano_count = len(extract_rules(nano_text))
     expected_mini_ids = [f"M{number}" for number in range(1, mini_count + 1)]
     expected_nano_ids = [f"N{number}" for number in range(1, nano_count + 1)]
+    traced_mini_ids = extract_traceability_ids(traceability_text, "Mini mapping", "M")
+    traced_nano_ids = extract_traceability_ids(traceability_text, "Nano mapping", "N")
     actual_mini_ids = extract_mapping_ids(mapping_text, "Mini Mapping", "M")
     actual_nano_ids = extract_mapping_ids(mapping_text, "Nano Mapping", "N")
-    validation.require(actual_mini_ids == expected_mini_ids, "Mini Mapping must contain every M ID exactly once and in source order")
-    validation.require(actual_nano_ids == expected_nano_ids, "Nano Mapping must contain every N ID exactly once and in source order")
+    validation.require(bool(traced_mini_ids), "traceability.md Mini mapping must contain M IDs")
+    validation.require(bool(traced_nano_ids), "traceability.md Nano mapping must contain N IDs")
+    validation.require(
+        len(traced_mini_ids) == len(set(traced_mini_ids)),
+        "traceability.md Mini mapping contains duplicate M IDs",
+    )
+    validation.require(
+        len(traced_nano_ids) == len(set(traced_nano_ids)),
+        "traceability.md Nano mapping contains duplicate N IDs",
+    )
+    validation.require(
+        actual_mini_ids in (expected_mini_ids, traced_mini_ids),
+        "Mini Mapping must contain every physical or traceability M ID exactly once and in source order",
+    )
+    validation.require(
+        actual_nano_ids in (expected_nano_ids, traced_nano_ids),
+        "Nano Mapping must contain every physical or traceability N ID exactly once and in source order",
+    )
     validation.require(
         not re.search(r"^## Full Reference Routing\s*$", mapping_text, re.MULTILINE),
         "references/index.md must remain the single source of truth; remove duplicated ## Full Reference Routing from mapping.md",
@@ -327,7 +362,8 @@ def validate_one(root: Path, name: str) -> Validation:
         [
             f"SKILL.md {skill_lines} lines",
             f"{skill_words} words ({packaging_overhead} beyond mini)",
-            f"{mini_count} mini rules and {nano_count} nano rules mapped",
+            f"{mini_count} mini rules represented by {len(actual_mini_ids)} M IDs; "
+            f"{nano_count} nano rules represented by {len(actual_nano_ids)} N IDs",
             f"{len(expected_sections)} full-reference sections indexed",
         ]
     )
