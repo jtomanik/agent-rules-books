@@ -1,0 +1,40 @@
+{
+  "name": "agent-rules-books",
+  "owner": {
+    "name": "Maciej Ciemborowicz"
+  },
+  "metadata": {
+    "description": "Source-faithful software engineering guidance from fourteen books.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "agent-rules-books",
+      "displayName": "Agent Rules Books",
+      "source": "./plugins/agent-rules-books",
+      "description": "Install fourteen focused skills for code quality, architecture, refactoring, domain modeling, data systems, production resilience, and legacy-code work.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Maciej Ciemborowicz"
+      },
+      "homepage": "https://github.com/ciembor/agent-rules-books",
+      "repository": "https://github.com/ciembor/agent-rules-books",
+      "license": "MIT",
+      "keywords": [
+        "software-engineering",
+        "architecture",
+        "refactoring",
+        "domain-driven-design",
+        "clean-code",
+        "reliability"
+      ],
+      "category": "engineering",
+      "tags": [
+        "skills",
+        "code-quality",
+        "architecture",
+        "source-faithful-guidance"
+      ]
+    }
+  ]
+}

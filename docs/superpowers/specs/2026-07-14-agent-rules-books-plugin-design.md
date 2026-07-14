@@ -6,9 +6,10 @@ Status: Approved for implementation, simplified after scope review
 
 ## Goal
 
-Distribute all fourteen accepted rule-book skills as one shareable Codex plugin,
-install it from the user's fork, and remove the duplicate direct installations
-only after the plugin is proven usable.
+Distribute all fourteen accepted rule-book skills from one source-faithful
+repository through four channels: GitHub, skills.sh, the Codex marketplace,
+and a Claude Code marketplace. Remove duplicate direct installations only
+after the native package is proven usable.
 
 ## Package Shape
 
@@ -19,9 +20,14 @@ only after the plugin is proven usable.
   skills/
     <authoritative skill packages>
 
+  .claude-plugin/
+    marketplace.json
+
 plugins/
   agent-rules-books/
     .codex-plugin/
+      plugin.json
+    .claude-plugin/
       plugin.json
     skills/
       <exact copies of .agents/skills>
@@ -58,9 +64,13 @@ the project's author, upstream repository, and MIT license attribution. It
 declares only `./skills/`; it has no MCP server, app, hook, authentication,
 credential, or runtime dependency.
 
-The repository marketplace contains one local entry named
+The Codex repository marketplace contains one local entry named
 `agent-rules-books`, pointing to `./plugins/agent-rules-books` with category
-`Engineering`.
+`Engineering`. The Claude repository marketplace contains one entry with the
+same stable plugin identity and points to the same package directory.
+
+skills.sh consumes `.agents/skills/` directly. It needs no additional manifest
+or runtime dependency in this repository.
 
 ## Packaging And Validation
 
@@ -83,8 +93,10 @@ Acceptance requires:
 - the existing workbench unit tests pass;
 - all fourteen existing conversion and exact-wording checks pass;
 - all fourteen plugin copies pass the official skill validator;
+- `npx skills add . --list` discovers all fourteen skills;
+- Claude validates both the repository marketplace and plugin package;
 - Codex can load the repository marketplace and install the plugin;
-- a fresh task explicitly invokes a namespaced bundled skill.
+- a fresh task explicitly invokes a namespaced bundled skill in Codex or Claude.
 
 The forty-two-case behavioral matrix is not rerun because packaging does not
 change skill bytes or behavior. The focused fresh-task smoke covers the only new
@@ -104,19 +116,21 @@ Installation order:
 3. Register `jtomanik/agent-rules-books` at the explicit implementation ref as
    a Codex marketplace.
 4. Install `agent-rules-books@agent-rules-books`.
-5. Compare the installed cache with the committed plugin package.
-6. Run the fresh-task namespaced invocation smoke.
-7. Remove only the fourteen duplicate direct directories under
+5. Register the same fork/ref as a Claude marketplace.
+6. Install `agent-rules-books@agent-rules-books` in Claude Code.
+7. Compare the installed native package with the committed plugin package.
+8. Run the fresh-task namespaced invocation smoke.
+9. Remove only the fourteen duplicate direct directories under
    `~/.codex/skills`.
-8. Repeat inventory and invocation checks.
+10. Repeat inventory and invocation checks.
 
-Any failure before step 7 leaves the direct copies untouched. If a check fails
-after step 7, restore all fourteen direct copies from `.agents/skills` before
+Any failure before step 9 leaves the direct copies untouched. If a check fails
+after step 9, restore all fourteen direct copies from `.agents/skills` before
 ending the task. Unrelated global skills, plugins, marketplaces, caches, and
 configuration remain untouched.
 
 ## Documentation
 
-`README.md` provides the short install path. `docs/USAGE.md` records remote and
-local installation, namespaced invocation, update, removal, direct-copy
-migration, and the direct copy plus `diff -qr` maintenance workflow.
+`README.md` provides the short distribution pointer. `docs/USAGE.md` records
+the Codex entry point. `docs/DISTRIBUTION.md` records GitHub, skills.sh, Codex,
+and Claude installation, update, release, and migration guidance.

@@ -1,0 +1,20 @@
+{
+  "name": "agent-rules-books",
+  "description": "Source-faithful software engineering guidance from fourteen books.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Maciej Ciemborowicz"
+  },
+  "homepage": "https://github.com/ciembor/agent-rules-books",
+  "repository": "https://github.com/ciembor/agent-rules-books",
+  "license": "MIT",
+  "keywords": [
+    "software-engineering",
+    "architecture",
+    "refactoring",
+    "domain-driven-design",
+    "clean-code",
+    "reliability"
+  ],
+  "skills": "./skills/"
+}

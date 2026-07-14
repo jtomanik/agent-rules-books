@@ -55,6 +55,9 @@ Keep the active skill concise. Put long examples, full rule files, and traceabil
 
 ## Install the Codex Plugin
 
+The complete distribution plan and the equivalent skills.sh and Claude Code
+installations are documented in [DISTRIBUTION.md](DISTRIBUTION.md).
+
 The repository marketplace packages all fourteen skills as one plugin.
 
 Install from the current shareable branch:

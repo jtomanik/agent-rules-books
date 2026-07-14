@@ -13,6 +13,8 @@
     ·
     <a href="#release-matrix">Rules / Skills</a>
     ·
+    <a href="docs/DISTRIBUTION.md">Distribution</a>
+    ·
     <a href="#codex-plugin">Codex Plugin</a>
     ·
     <a href="#books-list">Books List</a>
@@ -39,6 +41,14 @@ Each rule set is released in three tool-agnostic Markdown versions:
 For constructive criticism from Reddit, see [CRITICISM.md](docs/CRITICISM.md).
 
 For release history, see [CHANGELOG.md](CHANGELOG.md).
+
+## Distribution
+
+GitHub is the canonical, versioned source. The same source-faithful skill
+packages are also available through [skills.sh](docs/DISTRIBUTION.md#skillssh),
+the Codex marketplace, and the Claude Code marketplace. See
+[DISTRIBUTION.md](docs/DISTRIBUTION.md) for installation, update, and release
+instructions.
 
 ## Codex Plugin
 

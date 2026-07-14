@@ -5,3 +5,4 @@ _rule-workbench/_resources/books/
 .DS_Store
 __pycache__/
 *.py[cod]
+.superpowers/
