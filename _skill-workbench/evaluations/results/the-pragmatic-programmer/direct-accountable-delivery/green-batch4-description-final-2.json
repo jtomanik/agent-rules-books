@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/direct-accountable-delivery.md",
+  "case_sha256": "f417b32d5bf76be34dc02066185cc491faa87283bdc43f5ae7afb83bb9808fa6",
+  "mode": "green",
+  "run": "green-batch4-description-final-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5df3-1486-70a0-85bb-2a05cdc72ddf",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposal has three pragmatic failures, and they reinforce each other.\n\n1. `validation.ui/api/batch: copied_tax_rules` makes tax knowledge ownerless. Every rule change becomes a three-way edit, so the team is paying permanent DRY debt on day one.\n2. `vendor.format: hard_coded_into_domain_objects` turns a 14-day external contract into an internal irreversible commitment, even though the deadline is 12 days. That is the wrong place to freeze vendor shape; it guarantees change fan-out when the vendor moves.\n3. `verification.local: manual_spreadsheet_check`, `ci: none`, `rollout.steps: tribal_knowledge`, `owner: unclear` means no fast feedback and no accountable delivery path. Even if the feature ships, the team cannot cheaply prove it still works.\n\nThe smallest correction that still fits the deadline is a thin end-to-end slice with one owner for each volatile fact:\n\n- Put tax rule knowledge in one shared export-validation module or data file used by UI, API, and batch.\n- Move vendor formatting into a dedicated export adapter/serializer at the boundary, not into domain objects.\n- Add one automated golden-file test in CI that generates the export and compares it to an approved sample.\n- Replace `manual_spreadsheet_check` with a repo script such as `verify-regional-tax-export` that runs the same generation and fixture check locally.\n- Replace `tribal_knowledge` and `owner: unclear` with a short checked-in rollout note naming one owner and exact steps.\n\nThat is enough to keep copied knowledge, vendor lock-in, and manual verification from becoming permanent, without asking for a broader redesign. If time gets tight, cut scope in feature coverage, not in shared knowledge ownership, boundary isolation, or automated feedback.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/the-pragmatic-programmer/references/index.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [
+    "reference_mode ordinary requires SKILL.md files and no references"
+  ],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:07:22.205571Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}"
+}

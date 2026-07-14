@@ -1,0 +1,53 @@
+{
+  "case": "_skill-workbench/evaluations/cases/a-philosophy-of-software-design/pressure-launch-flag-wrapper.md",
+  "case_sha256": "ef4b17bc233b2f091b2821d70ed3d79084531a2283e51c5d771fd262b5c0e65c",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc9-c99b-7ea2-9483-cb7c16743191",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Do not approve the patch as proposed, even under schedule pressure. It is small only in typing cost; design-wise it adds exactly the kind of complexity that is hardest to remove later: a mode flag on public APIs, a pass-through helper, and conditional spread into callers.\n\nThe current shape has three concrete design faults:\n1. `enterpriseMode` on four public methods leaks an internal workflow choice to callers. Callers now need to know about alternate eligibility and the extra post-invoice document.\n2. `EnterpriseInvoiceHelper` is shallow if it only forwards to the existing service. It adds a name and another hop without hiding complexity.\n3. Six caller conditionals spread one special case across the system, which is how one-off behavior stops being one-off.\n\nThe smallest correction is to move the enterprise variation down into the invoice service behind one internal variation point, while keeping the public caller contract unchanged.\n\nA minimal acceptable shape is:\n1. Keep existing public methods unchanged; remove `enterpriseMode` from them.\n2. At the start of the invoice flow, have the service derive the invoicing variant from existing domain data if possible, or from one new domain-level request object if absolutely necessary.\n3. Inside the service, encapsulate the two differences behind a policy/strategy such as `InvoiceProcessingMode` or `InvoicePolicy` with two responsibilities: `isEligible(...)` and `afterSuccessfulInvoice(...)`.\n4. Let the default policy do today\u2019s behavior; let the enterprise policy apply the alternate eligibility rule and emit the extra document after success.\n\nThat is not a broad rewrite. It is one localized design correction: branch once inside the owning module, not repeatedly in callers. It prevents caller coordination, avoids the shallow helper, and keeps the special case from spreading further.\n\nDecision: reject as-is, but ask for this minimal redesign before merge. Under deadline, this is still the faster safe choice because it localizes the change without reopening four public APIs and six call sites.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/a-philosophy-of-software-design/references/index.md",
+      ".agents/skills/a-philosophy-of-software-design/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "a-philosophy-of-software-design",
+        "sections": [
+          "Primary Directive",
+          "Module Depth Rules",
+          "Information Hiding Rules",
+          "Interface Design Rules",
+          "Strategic Programming over Tactical Programming",
+          "Pull Complexity Downward",
+          "Special-General Decomposition",
+          "Review Rules",
+          "Forbidden Patterns",
+          "Final Instruction"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "a-philosophy-of-software-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:22:59.713850Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc9-c99b-7ea2-9483-cb7c16743191.1783984933276008000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

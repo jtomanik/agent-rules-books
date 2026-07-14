@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/patterns-of-enterprise-application-architecture/distinctive-unnamed-review.md",
+  "case_sha256": "231196d81d61306de28c4d61386dc6d52cc4629068036383499f0ffbefb173fa",
+  "mode": "green",
+  "run": "green-batch4-3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc8-e302-7551-b6f2-0d9e6515c677",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current design collapses transport, workflow, pricing, SQL, transaction ownership, and remote integration into one controller. For the forces you described, the bounded correction is not a full Domain Model yet. It is a `Service Layer` with a `Transaction Script` per checkout use case, plus small persistence/integration boundaries.\n\nUse this shape:\n\n- `CheckoutController`: HTTP mapping only.\n- `CheckoutService.checkout(command)`: owns the use-case workflow.\n- `CartRepository`: loads cart lines and cart state in domain terms.\n- `PurchaseRepository`: inserts purchase and updates checkout state.\n- `CouponPolicy` or `CouponService`: computes discount/eligibility rules behind a focused interface so lifecycle rules can grow without leaking into controllers.\n- `ShippingGateway`: exposes one coarse internal shipment operation and hides the vendor's six-call conversation.\n\nThat maps to the actual forces:\n\n- `Transaction Script` fits the checkout workflow because this is still a short use-case flow, not yet a committed rich model.\n- A small coupon policy/service is justified because coupon rules are the part gaining lifecycle and eligibility complexity.\n- Repositories/gateway fit better than raw JDBC in the controller because SQL and remote protocol details are currently scattered into application flow.\n\nThe transaction belongs in `CheckoutService`, around local database work only. Do not hold a DB transaction open across the shipping vendor calls. A remote six-call exchange inside the DB transaction creates a long transaction, couples DB success to partner latency/failure, and makes tests expensive.\n\nBounded flow:\n\n1. Controller translates HTTP request to `CheckoutCommand`.\n2. Service starts transaction.\n3. Load cart, calculate total, apply coupon policy.\n4. Persist purchase plus a shipment intent/state such as `PENDING_SHIPMENT`.\n5. Commit transaction.\n6. Call `ShippingGateway.createShipment(...)` after commit.\n7. Update shipment status in a second local transaction, or publish work asynchronously if acceptable.\n\nIf checkout must return immediately, return purchase confirmation with shipment status like `PENDING` or `REQUESTED`. If the business insists on synchronous shipment creation, still keep the remote call outside the main DB transaction and model failure explicitly, for example `shipmentStatus=FAILED` with retry/compensation.\n\nThe remote contract should be a coarse `Remote Facade`, not six chatty calls leaking vendor steps into your app. Internally expose something like:\n\n```java\ninterface ShippingGateway {\n  ShipmentResult createShipment(ShipmentRequest request);\n}\n```\n\n`ShipmentRequest` should contain only checkout-relevant data: purchase id, destination, parcels/items, declared value, and service options. `ShipmentResult` should return stable internal fields such as shipment id, status, label/reference, and failure reason. Do not let the controller or service know the vendor's step sequence or payload format.\n\nA minimal sketch:\n\n```java\nfinal class CheckoutController {\n  CheckoutResponse checkout(HttpRequest request) {\n    return checkoutService.checkout(toCommand(request));\n  }\n}\n\nfinal class CheckoutService {\n  CheckoutResponse checkout(CheckoutCommand cmd) {\n    var draft = tx.inTransaction(() -> {\n      var cart = cartRepository.loadForCheckout(cmd.cartId());\n      var pricing = couponPolicy.price(cart, cmd.coupon());\n      var purchase = purchaseRepository.create(cart, pricing.total(), ShipmentStatus.PENDING);\n      return new CheckoutDraft(purchase, cart, pricing);\n    });\n\n    var shipment = shippingGateway.createShipment(ShipmentRequest.from(draft));\n    tx.inTransaction(() -> purchaseRepository.recordShipmentResult(draft.purchaseId(), shipment));\n    return CheckoutResponse.from(draft, shipment);\n  }\n}\n```\n\nThis also fixes testability:\n\n- Unit test `CheckoutService` with stub repositories and a service stub for `ShippingGateway`.\n- Test coupon behavior without DB or vendor sandbox.\n- Keep repository integration tests and shipping gateway contract tests separate.\n\nNet recommendation: move to `Controller -> Service Layer (Transaction Script) -> Repositories/Gateway`, keep transaction ownership in the service, keep remote shipping outside the main DB transaction, and define one coarse shipment facade that hides the vendor's six-call protocol.",
+    "selected_project_skills": [
+      "patterns-of-enterprise-application-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "patterns-of-enterprise-application-architecture"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:21:51.297496Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc8-e302-7551-b6f2-0d9e6515c677.1783984874242952000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

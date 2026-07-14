@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/direct-accountable-delivery.md",
+  "case_sha256": "f417b32d5bf76be34dc02066185cc491faa87283bdc43f5ae7afb83bb9808fa6",
+  "mode": "green",
+  "run": "green-batch4-description-final-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5def-bd38-7060-bafe-83f5194fff01",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposal as written hardens three bad habits at once: copied rules, an irreversible vendor format decision, and verification that only exists in one person\u2019s head. Under a Pragmatic Programmer lens, the smallest correction is to ship a thin vertical slice with one authoritative tax-rule source, one scripted export contract boundary, and one automated fixture check in CI.\n\nRecommended correction:\n1. Create a single tax-rule definition owned in one place, then have `ui`, `api`, and `batch` read from it instead of copying rules three times.\n2. Move the vendor export format out of domain objects into a dedicated adapter or serializer module. Keep the domain model vendor-neutral so a 14-day notice period does not become an architectural trap.\n3. Replace `manual_spreadsheet_check` with one executable golden-file check: given fixed input data, generate the export and compare it to a reviewed expected file locally and in CI.\n4. Write rollout as a short versioned runbook in the repo with a named owner for execution and rollback.\n\nWhy this is the smallest viable fix:\n- It does not demand a broad redesign; it only introduces one source of truth, one boundary, one automated check, and one explicit runbook.\n- It preserves reversibility: vendor format changes stay isolated to the adapter.\n- It restores orthogonality: tax rules remain domain knowledge; vendor encoding remains integration knowledge.\n- It creates fast feedback before deadline: the golden-file check is cheap to add and prevents manual verification from becoming permanent.\n- It establishes ownership: both system knowledge and rollout responsibility become explicit.\n\nConcrete revised shape:\n- `validation`: `shared_tax_rules_module`\n- `vendor.format`: `export_adapter`\n- `verification.local`: `scripted_fixture_export_check`\n- `verification.ci`: `fixture_export_check`\n- `rollout.steps`: `repo_runbook`\n- `rollout.owner`: `named_engineer_or_team`\n\nIf the team truly has only 12 days, do not add more than that. Anything less leaves duplicated knowledge, vendor lock-in, and tribal/manual release behavior as the permanent system design.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:03:50.431504Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}"
+}

@@ -30,6 +30,6 @@ Pattern reuse is not pattern choice. Make responsibilities, persistence, transac
 ## Final checklist
 
 - Right business logic and persistence pattern for actual complexity?
-- Explicit layer, transaction, identity, loading, lock, session, and integration ownership?
+- Explicit layer, transaction, identity, loading, lock, integration, and session-state cost decisions?
 - Business rules kept out of UI, DTOs, integration, and serialization?
 - Remote boundary coarse, translated, version-aware, and failure-aware?

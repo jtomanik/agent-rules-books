@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/patterns-of-enterprise-application-architecture/nano-pressure-orm-capture-v2.md",
+  "case_sha256": "e0b4285296d79d773aacbf4fb67286f94dc31c80dfa1ee9ebcd6d9411e989e63",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dcc-e9ea-7373-8dd7-5a002fdd028a",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The smallest defensible correction before merge is to make `approve` an explicit service-layer use case that owns the transaction and loads `Invoice` together with `lines` for that operation. Right now the controller contains business rules, and the generic CRUD repository hides a loading decision that matters because the returned object is serialized through a lazy collection.\n\nA minimal shape is:\n- `InvoiceController.approve(...)` only translates input and calls `service.approve(id, jurisdiction)`.\n- `InvoiceService.approve(...)` loads the invoice with `lines`, computes tax and approval status, updates the entity, and saves/commits.\n- Add a use-case-specific repository method such as `findForApproval(id)` or an entity graph/fetch join equivalent. Do not rely on generic `findById` here.\n\nWhy this is the merge blocker:\n- Approval and tax branching are business logic, and they are already expected to grow by jurisdiction. Leaving that in the controller guarantees policy leakage at the boundary.\n- `lines` is `LAZY`, but serialization traverses it. That makes loading behavior part of the use case, not an incidental ORM detail.\n\nWhat to defer because it does not earn its cost today:\n- Do not introduce a full Domain Model rewrite yet.\n- Do not add a custom repository abstraction layer over every CRUD operation.\n- Do not add extra ports/adapters, DTO tax engines, or workflow machinery just for this path.\n\nIf you want one sentence for the release manager: generated entities and generic CRUD are not enough here because this endpoint already has use-case logic plus an explicit loading requirement; the minimum fix is a real `approve` application service method with a targeted load strategy.",
+    "selected_project_skills": [
+      "patterns-of-enterprise-application-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "patterns-of-enterprise-application-architecture"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:26:29.924330Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dcc-e9ea-7373-8dd7-5a002fdd028a.1783985138155698000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

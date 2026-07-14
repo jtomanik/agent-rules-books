@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/a-philosophy-of-software-design/unnamed-shallow-wrapper-spread.md",
+  "case_sha256": "acd6f765d1b76bbe359c038c37c2b59cb154d4db2c7cca238d0c6eeac124e954",
+  "mode": "green",
+  "run": "green-batch4-3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc6-9a33-7033-be1e-17aa3e0dd7aa",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current split is shallow in exactly the wrong places: it exposes workflow facts upward while the lower layers mostly rename calls.\n\nA better boundary is:\n\n- `OrderController` keeps only transport concerns: parse HTTP input, call one application operation, map domain/application result to HTTP.\n- `OrderCreation` (or `OrderService` if you keep the name) becomes the deep module that owns the entire create-order use case.\n- One persistence adapter owns storage representation and database error translation.\n\nWhat earns its existence:\n\n- `OrderController`: yes. Transport is a real boundary.\n- A create-order application/domain module: yes, if it owns validation, creation rules, duplicate handling policy, and result semantics.\n- A persistence boundary: yes, if it hides SQL, row shape, duplicate-key detection, and database-specific details.\n\nWhat does not earn its existence as shown:\n\n- `OrderRepository` if it only renames `insert`.\n- `SqlOrderGateway` if it only renames `executeInsert`.\n- `OrderMapper` as a separate public collaborator if its only job is translating the persistence shape for one write path.\n- `validateOnly` as a mode flag on the main write operation. It leaks an internal branch to callers.\n\nThe main design problem is not \u201ctoo few layers\u201d or \u201ctoo much in one class\u201d; it is that the caller must coordinate facts that should be internal:\n\n- validation must happen before mapping\n- duplicate-key errors must become a domain result\n- normal writes require `validateOnly=false`\n- adding one required field requires synchronized edits across multiple thin modules\n\nThat knowledge should move behind one interface, for example:\n\n```text\nOrderController\n  -> OrderCreation.create(command)\n        -> validate business rules\n        -> build persistence data internally\n        -> save through OrderStore\n        -> translate duplicate-key/storage errors to domain result\n\nOrderStore.save(newOrderData)\n  -> SQL + row mapping + DB error classification\n```\n\nOr, if validation-only is a real use case, make it explicit instead of a flag:\n\n```text\nOrderCreation.validate(command)\nOrderCreation.create(command)\n```\n\nThat removes temporal coupling from callers. An ordinary caller should not need to know the workflow stages or which boolean means \u201creal write\u201d. It should choose between two meaningful operations, not steer one operation through internal modes.\n\nRecommended consolidation:\n\n- Fold `OrderValidator` into the order-creation module unless it is a substantial, independently meaningful policy object reused across multiple workflows.\n- Fold `OrderMapper` into the persistence adapter.\n- Collapse `OrderRepository` and `SqlOrderGateway` unless one of them hides materially different complexity than \u201crun this insert\u201d. If there is only one database operation, one adapter is enough.\n\nThe target is a deeper module with a small interface and more hidden internals, not fewer files for their own sake. After the change, adding a required order field should usually touch:\n\n- the input command/request shape\n- the creation rules\n- the persistence mapping inside the store\n\nNot six separate forwarding layers.\n\nIn short: keep the transport boundary, keep one real storage boundary, and move the entire order-creation choreography behind a single application/domain interface. The right simplification is to reduce the number of facts the caller must coordinate, not to preserve every named layer.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "a-philosophy-of-software-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:19:21.918786Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc6-9a33-7033-be1e-17aa3e0dd7aa.1783984724589971000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

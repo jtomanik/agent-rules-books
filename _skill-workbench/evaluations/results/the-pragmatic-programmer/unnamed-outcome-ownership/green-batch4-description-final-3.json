@@ -1,0 +1,39 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/unnamed-outcome-ownership.md",
+  "case_sha256": "d869553f51c12d27bb19473b82db8448dc7c3c58408000fcda992863b5071a60",
+  "mode": "green",
+  "run": "green-batch4-description-final-3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5e00-9ef6-7161-bcba-6fb3018df69c",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The delivery manager\u2019s position is not defensible. The problem is not \u201cthree unrelated issues\u201d; it is one export capability with split ownership, duplicated knowledge, and no reliable feedback loop.\n\n`Ownership`\n- One person or small export group must own the end-to-end result: rules, vendor translation boundary, and release repeatability. Entry-point teams can own adapters, but they should not each own their own copy of export policy.\n- \u201cThe framework default\u201d and \u201cthe release engineer knows it\u201d are not ownership models. They are excuses for unmanaged risk.\n\n`One Authority`\n- Eligibility calculation needs one authoritative implementation and one test corpus. API, nightly job, and admin preview should call the same policy module/service.\n- Vendor format should have one authority at the export boundary, not inside domain records. Writing vendor-shaped data into domain state turns a reversible integration detail into a domain commitment.\n- Release procedure should have one authority as versioned automation: one checked-in command/script/pipeline, not six tribal commands and manual visual comparison.\n\n`Reversible Commitment`\n- Keep the internal export model vendor-neutral. Translate to the new vendor format in a dedicated adapter/writer.\n- Do not commit to all three entry points first. Commit to a shared core plus one real caller, then fan out.\n- Do not accept the current manual release ritual as \u201cgood enough\u201d; wrap it behind one command now, even if the internals are still crude for the first slice.\n\n`Thin First Slice`\n- Build a shared `ExportEligibility` component that returns a neutral export decision/result.\n- Build a `VendorExportWriter` that maps that neutral result into the new vendor file format.\n- Wire that pipeline into the admin preview first, because it gives the fastest human feedback on real output before the deadline.\n- Add a checked-in `export:verify` command that runs the slice on fixed fixtures and compares output to approved golden files automatically.\n\nThat first slice is thin, reviewable, and architectural: it proves the shared rule owner, the vendor boundary, and the release feedback path before the team duplicates the wrong shape three times.\n\n`Feedback Before Day 10`\n- By day 2: domain examples and contract tests for eligibility.\n- By day 3: admin preview producing real vendor output from the shared pipeline.\n- By day 4: automated fixture diff replacing manual eyeballing for that path.\n- After that: nightly job and API become adapter work against a proven core, not fresh design exercises.\n\nArchitecture feedback cannot wait until all three entry points are complete, because by then the duplicated rule and vendor coupling are already the architecture. The right review point is the first end-to-end tracer slice.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design",
+      "the-pragmatic-programmer",
+      "code-complete"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/code-complete/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:22:08.346431Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}\n2026-07-14T00:22:54.429363Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5e00-9ef6-7161-bcba-6fb3018df69c.1783988526855894000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/ordinary-version-release-duplication.md",
+  "case_sha256": "bfa0fbe8216743c3d9602a0985b95213d6893eac3c269ed76a465c2e3976d4f0",
+  "mode": "green",
+  "run": "green-batch4-description-final-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5e01-af10-7dd0-9813-918dce2f57ff",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Make `package.json` the single owner of the version, and treat packaging and release promotion as separate concerns.\n\nThe scoped correction is:\n- Stop setting `VERSION` in both `scripts/build-package.sh` and `.github/workflows/release.yml`.\n- Build from the checked-in package metadata instead of templating a second version source into `package.json`.\n- Keep the packaging script focused on `npm test` and `npm pack` only.\n- Keep the release workflow focused on taking the already-built archive, uploading it, and promoting it.\n\nThat removes the duplicated version fact and restores orthogonality: packaging decides what artifact exists; promotion decides whether an existing artifact becomes \"latest\". The workflow should not restate the package version unless it is validating the artifact it received.\n\nAutomation should replace the manual RELEASE.md steps that currently require editing two files and rerunning the same commands in two places. The useful minimum is one release entrypoint that:\n1. Reads the version from `package.json`.\n2. Runs `npm test`.\n3. Runs `npm pack`.\n4. Uploads that exact archive.\n5. Promotes that exact uploaded archive.\n\nFastest useful verification:\n- Run the packaging path once.\n- Check that the generated `.tgz` filename version matches `package.json`.\n- Before promotion, inspect the uploaded archive filename on the release host and confirm it is the same artifact.\n\nThat is enough to prevent a repeat of the mislabeled archive without broad process redesign.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "release-it",
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [
+    "required project skill not selected: release-it"
+  ],
+  "stderr": ""
+}

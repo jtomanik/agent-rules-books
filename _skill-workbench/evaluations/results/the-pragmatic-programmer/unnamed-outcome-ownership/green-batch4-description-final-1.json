@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/unnamed-outcome-ownership.md",
+  "case_sha256": "d869553f51c12d27bb19473b82db8448dc7c3c58408000fcda992863b5071a60",
+  "mode": "green",
+  "run": "green-batch4-description-final-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dfe-cddb-7520-a4a4-23b63843a859",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The delivery manager\u2019s position is not defensible. These are not separate local issues; they are one outcome problem with three symptoms:\n\n- Copying eligibility logic into the API, nightly job, and admin preview means the rule has no single owner. That guarantees drift and turns every change into a three-place edit.\n- Writing the new vendor format directly into domain records is an unnecessary irreversible commitment. It leaks an external representation into core data and makes vendor change expensive.\n- A six-command manual release known by one engineer is not \u201cacceptable\u201d; it is unowned system knowledge and a deadline risk.\n- Waiting on architecture until all three entry points are built locks in the worst version of the solution and multiplies rework.\n\nThe result needs a single owner at the export capability level, not three entry-point owners acting independently. One responsible engineer or tech lead should own the end-to-end export outcome across API, batch, admin preview, vendor mapping, and release path. Other teams can implement pieces, but one person must own the rule authority, integration shape, and feedback loop.\n\nThe knowledge that needs one authority is:\n\n- Eligibility calculation: one module/service/policy, reused by all entry points.\n- Vendor format mapping: derived at the boundary from domain data, not stored as domain truth.\n- Release procedure: one scripted, versioned command path, not tribal knowledge.\n\nThe commitment that should remain reversible is the vendor integration. Keep the domain model vendor-neutral and put the vendor format behind an export adapter so a format change or second vendor does not force domain churn. In the next ten days, do not redesign the world; just refuse to bake vendor-specific structure into durable domain records unless there is a proven requirement that cannot be met another way.\n\nA thin, reviewable first slice should be:\n\n1. Extract a single eligibility authority behind a small interface.\n2. Wire only one real path end to end, preferably admin preview because it is visible and lower blast radius.\n3. Generate the vendor payload from domain data in an adapter layer, without persisting vendor-shaped fields into core records.\n4. Capture one or two representative fixtures/golden outputs for review.\n5. Replace the six undocumented release steps with one checked-in script or task runner command that builds the payload, runs validation, and diffs against expected output.\n\nThat slice is thin because it completes one entry point, one rule authority, one vendor boundary, and one automated release path. It is reviewable because people can inspect the shared eligibility module, the adapter, the fixture output, and the scripted command. It also creates the template for the nightly job and API instead of duplicating first and cleaning up later.\n\nFeedback should arrive before the deadline through a tracer-bullet path, not after all three entry points are \u201cdone\u201d:\n\n- Product/domain review of eligibility cases against the shared authority.\n- Technical review of whether the vendor adapter fully contains format-specific concerns.\n- Automated comparison of generated output to approved fixtures instead of visual eyeballing.\n- A dry-run release using the scripted command by someone other than the release engineer.\n\nIf that first slice fails, the team learns while the commitment is still cheap to change. If it succeeds, the remaining two entry points become integration work, not architecture guesswork.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design",
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/the-pragmatic-programmer/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:20:13.648840Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}"
+}

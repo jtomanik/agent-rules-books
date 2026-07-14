@@ -14,11 +14,11 @@ Local code changes still have system-level consequences. Own the result beyond t
 - Keep one authoritative source for each piece of system knowledge.
 - Preserve orthogonality so unrelated concerns, business rules, views, and volatile details do not change together.
 - Keep important choices reversible until evidence justifies commitment.
-- Learn through thin working slices, prototypes, examples, tests, and fast feedback without fossilizing shortcuts.
-- Automate repeatable work, keep it versioned, and favor inspectable text or scripts where longevity and recovery matter.
+- Learn through thin working slices, prototypes, tests, and fast feedback without fossilizing shortcuts.
+- Automate repeatable work, keep it versioned, and favor inspectable text or scripts where longevity and integration matter.
 - Make assumptions, contracts, failure boundaries, diagnostics, resource ownership, cleanup, and ordering explicit.
 - Treat shared mutable state, globals, ambient context, and async complexity as visible costs.
-- Debug from reproduced facts and measured behavior, not coincidence or blame.
+- Debug by reproducing and observing behavior, not by guessing.
 - Run relevant automatic tests before calling work done.
 - Dig for real requirements behind stated solutions and current implementation details.
 - Leave touched code, docs, tests, tooling, and process in a condition you can stand behind.

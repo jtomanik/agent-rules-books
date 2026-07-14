@@ -3,8 +3,10 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 SCRIPT = Path(__file__).parents[1] / "run_skill_eval.py"
@@ -160,6 +162,20 @@ class EvaluationRunnerTests(unittest.TestCase):
 
         self.assertEqual(self.runner.validate_result_integrity(result), [])
 
+    def test_result_accepts_index_only_focused_evidence(self) -> None:
+        result = {
+            "answer": "The compact guidance was sufficient after checking the router.",
+            "selected_project_skills": ["release-it"],
+            "consulted_files": [
+                ".agents/skills/release-it/SKILL.md",
+                ".agents/skills/release-it/references/index.md",
+            ],
+            "consulted_reference_sections": [],
+            "reference_mode": "focused",
+        }
+
+        self.assertEqual(self.runner.validate_result_integrity(result), [])
+
     def test_focused_result_requires_named_reference_sections(self) -> None:
         result = {
             "answer": "Use focused guidance.",
@@ -207,6 +223,152 @@ class EvaluationRunnerTests(unittest.TestCase):
         }
 
         self.assertEqual(self.runner.validate_result_integrity(result), [])
+
+    def test_record_manifest_comparison_detects_required_set_drift(self) -> None:
+        manifest = {
+            "case": {"path": "cases/positive.md", "sha256": "abc"},
+            "required_project_skills": ["alpha"],
+            "execution": {
+                "mode": "green",
+                "run": "green-1",
+                "model": "gpt-test",
+                "configuration": {"sandbox": "read-only"},
+            },
+        }
+        record = {
+            "case": "cases/positive.md",
+            "case_sha256": "abc",
+            "mode": "green",
+            "run": "green-1",
+            "model": "gpt-test",
+            "configuration": {"sandbox": "read-only"},
+            "required_project_skills": ["alpha", "beta"],
+        }
+
+        errors = self.runner.validate_record_against_manifest(record, manifest)
+
+        self.assertEqual(errors, ["record required project skills differ from manifest"])
+
+    def test_record_manifest_comparison_accepts_matching_envelope(self) -> None:
+        manifest = {
+            "case": {"path": "cases/positive.md", "sha256": "abc"},
+            "required_project_skills": ["alpha"],
+            "execution": {
+                "mode": "green",
+                "run": "green-1",
+                "model": "gpt-test",
+                "configuration": {"sandbox": "read-only"},
+            },
+        }
+        record = {
+            "case": "cases/positive.md",
+            "case_sha256": "abc",
+            "mode": "green",
+            "run": "green-1",
+            "model": "gpt-test",
+            "configuration": {"sandbox": "read-only"},
+            "required_project_skills": ["alpha"],
+        }
+
+        self.assertEqual(
+            self.runner.validate_record_against_manifest(record, manifest),
+            [],
+        )
+
+    def test_record_manifest_comparison_detects_configuration_drift(self) -> None:
+        manifest = {
+            "case": {"path": "cases/positive.md", "sha256": "abc"},
+            "required_project_skills": ["alpha"],
+            "execution": {
+                "mode": "green",
+                "run": "green-1",
+                "model": "gpt-test",
+                "configuration": {"sandbox": "read-only"},
+            },
+        }
+        record = {
+            "case": "cases/positive.md",
+            "case_sha256": "abc",
+            "mode": "green",
+            "run": "green-1",
+            "model": "gpt-test",
+            "configuration": {"sandbox": "workspace-write"},
+            "required_project_skills": ["alpha"],
+        }
+
+        errors = self.runner.validate_record_against_manifest(record, manifest)
+
+        self.assertEqual(errors, ["record configuration differs from manifest"])
+
+    def test_manifest_arguments_are_loaded_from_the_frozen_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest_path = root / "manifest.json"
+            manifest = {
+                "manifest_version": 1,
+                "case": {"path": "cases/positive.md", "sha256": "abc"},
+                "required_project_skills": ["alpha"],
+                "execution": {
+                    "mode": "green",
+                    "run": "green-1",
+                    "model": "gpt-test",
+                    "timeout": 123,
+                    "output": "results/green-1.json",
+                    "schema": {"path": "schema.json", "sha256": "schema"},
+                },
+            }
+            manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+
+            with mock.patch.object(
+                self.runner.evaluation_manifest,
+                "validate_manifest",
+                return_value=[],
+            ):
+                args = self.runner.load_manifest_arguments(root, manifest_path)
+
+            self.assertEqual(args.case, root.resolve() / "cases/positive.md")
+            self.assertEqual(args.required_skill, ["alpha"])
+            self.assertEqual(args.output, root.resolve() / "results/green-1.json")
+            self.assertEqual(args.model, "gpt-test")
+            self.assertEqual(args.timeout, 123)
+            self.assertEqual(args.evaluation_manifest, manifest)
+            self.assertEqual(
+                args.evaluation_manifest_sha256,
+                self.runner.hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+            )
+
+    def test_manifest_arguments_reject_an_existing_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "results" / "green-1.json"
+            output.parent.mkdir()
+            output.write_text("preserved\n", encoding="utf-8")
+            manifest_path = root / "manifest.json"
+            manifest = {
+                "manifest_version": 1,
+                "case": {"path": "cases/positive.md", "sha256": "abc"},
+                "required_project_skills": ["alpha"],
+                "execution": {
+                    "mode": "green",
+                    "run": "green-1",
+                    "model": "gpt-test",
+                    "timeout": 123,
+                    "output": "results/green-1.json",
+                    "schema": {"path": "schema.json", "sha256": "schema"},
+                },
+            }
+            manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+
+            with mock.patch.object(
+                self.runner.evaluation_manifest,
+                "validate_manifest",
+                return_value=[],
+            ):
+                with self.assertRaisesRegex(
+                    self.runner.evaluation_manifest.ManifestError,
+                    "output already exists",
+                ):
+                    self.runner.load_manifest_arguments(root, manifest_path)
 
 
 if __name__ == "__main__":

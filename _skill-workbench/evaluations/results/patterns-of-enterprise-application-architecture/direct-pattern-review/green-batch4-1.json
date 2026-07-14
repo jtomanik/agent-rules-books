@@ -1,0 +1,51 @@
+{
+  "case": "_skill-workbench/evaluations/cases/patterns-of-enterprise-application-architecture/direct-pattern-review.md",
+  "case_sha256": "196e516d72d4740968a5b7442a707413cb990b929ab31d5cf8829f3a7bae9537",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc4-0cf7-7510-a5dc-0bdcd844dd65",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposal is controller-centric and ORM-shaped. Under this lens, that is the main review issue: presentation, workflow, domain rules, persistence, transaction ownership, and remote integration are all collapsed into one endpoint path.\n\nUse these smallest fitting patterns.\n\n1. Business logic: `Service Layer` plus a small `Domain Model`.\nThe current three calculations alone could fit a Transaction Script, but the stated next step matters: jurisdiction-specific exemptions and approval rules introduce policy, invariants, and lifecycle pressure. That is the point where a pure script tends to rot into a dumping ground. Keep orchestration in an application service, and move adjustment decisions into domain objects or policy components such as `Invoice.adjust(...)`, `AdjustmentPolicy`, `TaxPolicy`, `DiscountPolicy`, and `ApprovalPolicy`.\n\n2. Persistence: `Repository` backed by a `Data Mapper`.\nDo not let the controller load and mutate `InvoiceRow` directly. The service should ask an `InvoiceRepository` for the invoice in domain terms. The ORM can still be the implementation detail, but its row shape should stay behind the repository/mapper boundary. Returning the ORM row as JSON is also the wrong boundary shape; return a response DTO instead.\n\n3. Transaction pattern: explicit `Unit of Work` with short transaction boundaries, and likely `Optimistic Offline Lock` if concurrent adjustments are possible.\n`ORM flushes sometime before the response` is not acceptable transaction ownership. The application service should explicitly begin the unit of work, load the invoice, apply domain rules, persist, and commit. If two users can adjust the same invoice concurrently, add optimistic version checking.\n\n4. Boundary pattern: `Remote Facade` for the accounting system, with explicit DTO mapping at the boundary.\n`accountingClient.postAdjustment(...)` should not be called from the controller and should not receive ORM/domain objects directly. Put that call behind an `AccountingFacade` or gateway-style adapter that translates internal adjustment data into the partner contract.\n\nResponsibility placement should look like this.\n\n- Controller: parse HTTP input, authorize, call the application service, map the result to HTTP/JSON.\n- Application service: own the use case, transaction boundary, repository calls, and cross-component orchestration.\n- Domain model/policies: tax, discount, exemptions, approval rules, and invoice adjustment invariants.\n- Repository/Data Mapper: load and persist invoice aggregates; hide ORM mechanics.\n- Remote facade: post the adjustment to accounting and translate partner payloads.\n- DTOs: request/response payloads at HTTP and remote boundaries only.\n\nThe remote accounting call cannot join the database transaction, so do not pretend this is one atomic action. The safest structure is:\n\n1. Commit the invoice adjustment locally in one explicit transaction.\n2. Record that accounting sync is required.\n3. Call accounting outside that transaction, usually asynchronously.\n4. Update local sync status in a follow-up transaction.\n\nIf product insists on synchronous user feedback, you can still call accounting after the local commit in the same request, but that is now an orchestration choice, not part of the database transaction. The consequence is partial-failure handling: the invoice may be adjusted locally while accounting posting fails. That state must be explicit in the model, not hidden behind best-effort flush timing.\n\nA compact target shape is:\n\n- `POST /invoices/{id}/adjust` controller -> `InvoiceAdjustmentService.adjust(command)`\n- service loads invoice via `InvoiceRepository`\n- service invokes domain adjustment/approval policies\n- service commits explicit unit of work\n- service hands a boundary DTO to `AccountingFacade`\n- controller returns an `InvoiceAdjustmentResponse`, not `InvoiceRow`\n\nSo the pattern choices are: `Service Layer + small Domain Model`, `Repository + Data Mapper`, `Unit of Work` with explicit short transactions and probably `Optimistic Offline Lock`, and `Remote Facade` with DTO translation. That is the smallest set that keeps next quarter's rule growth from staying trapped in the controller.",
+    "selected_project_skills": [
+      "patterns-of-enterprise-application-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md",
+      ".agents/skills/patterns-of-enterprise-application-architecture/references/index.md",
+      ".agents/skills/patterns-of-enterprise-application-architecture/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "patterns-of-enterprise-application-architecture",
+        "sections": [
+          "Choosing the Business Logic Pattern",
+          "Application Workflow Rules",
+          "Persistence Pattern Rules",
+          "Identity, Caching, and Unit-of-Work Rules",
+          "Concurrency and Transaction Rules",
+          "Offline and Integration Rules",
+          "Distribution Rules",
+          "Review Rules"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "patterns-of-enterprise-application-architecture"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:17:01.434366Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc4-0cf7-7510-a5dc-0bdcd844dd65.1783984557303804000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

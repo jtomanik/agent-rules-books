@@ -1,0 +1,60 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/direct-accountable-delivery.md",
+  "case_sha256": "f417b32d5bf76be34dc02066185cc491faa87283bdc43f5ae7afb83bb9808fa6",
+  "mode": "green",
+  "run": "green-batch4-3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc9-ddda-7423-acb1-dbddbffd6325",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposal\u2019s main risk is not code style; it is that it hardens three bad defaults into the delivery path: copied tax knowledge, vendor lock-in inside domain objects, and manual-only verification.\n\nSmallest correction that still fits `12_days`:\n\n1. Make one module the authoritative owner of tax/export rules.\nReplace `copied_tax_rules` in `ui`, `api`, and `batch` with calls into one shared rules/export component. UI/API/batch may adapt inputs and outputs, but they should not each own the rule logic.\n\n2. Move vendor format handling to an adapter at the boundary.\nKeep vendor-specific serialization out of domain objects. Put it in a dedicated exporter/adapter so the `14_days` contract notice affects one replaceable edge, not core business logic.\n\n3. Add one cheap automated feedback loop.\nCreate 2-5 golden-file export fixtures in CI: input tax cases -> expected vendor export output. Keep one manual spreadsheet check for initial release confidence if needed, but make it explicitly temporary and non-authoritative.\n\n4. Make rollout executable and owned.\nWrite a short versioned runbook or script for rollout/backout and name one release owner. `tribal_knowledge` and `owner: unclear` are delivery risks, not operational details.\n\nA pragmatic corrected shape would be:\n\n```yaml\nfeature: regional-tax-export\ndeadline: 12_days\nproposal:\n  validation:\n    owner: shared_export_rules\n    ui: calls_shared_rules\n    api: calls_shared_rules\n    batch: calls_shared_rules\n  vendor:\n    format: export_adapter_at_boundary\n    contract_change_notice: 14_days\n  verification:\n    local: fixture_check_plus_optional_manual_spreadsheet_smoke\n    ci: golden_export_fixtures\n  rollout:\n    steps: versioned_runbook_or_script\n    owner: named_engineer\n```\n\nWhy this is the smallest viable correction under the Pragmatic Programmer lens:\n- It restores knowledge ownership with one source of truth.\n- It preserves reversibility by isolating the vendor contract.\n- It improves orthogonality by separating domain rules from export formatting.\n- It creates fast feedback with fixture-based CI instead of spreadsheet-only checking.\n- It assigns outcome ownership so release success is not left to folklore.\n\nIf the team must cut further, cut breadth of scenarios, not these safeguards. The thinnest acceptable slice is one real end-to-end export path with shared rules, boundary adapter, fixture CI, and a named rollout owner.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/the-pragmatic-programmer/references/index.md",
+      ".agents/skills/the-pragmatic-programmer/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "the-pragmatic-programmer",
+        "sections": [
+          "DRY Rules",
+          "Orthogonality Rules",
+          "Tracer Bullets and Iterative Delivery",
+          "Reversibility, Domain Languages, and Requirements",
+          "Prototyping Rules",
+          "Automation Rules",
+          "Feedback Loop Rules",
+          "Design by Contract and Assertions",
+          "Error Handling and Recovery",
+          "Project and Team Rules",
+          "Broken Windows Rule",
+          "Review Rules",
+          "Forbidden Patterns",
+          "Code Generation Rules",
+          "Testing Rules",
+          "Review Checklist",
+          "Final Instruction"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

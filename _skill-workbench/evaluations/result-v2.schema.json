@@ -49,7 +49,7 @@
       }
     },
     "reference_mode": {
-      "description": "Observed highest disclosure tier used during the run; exact focused-section counts are diagnostic rather than an acceptance requirement.",
+      "description": "Observed highest disclosure tier used during the run. Focused begins when an index is read and may stop there or continue into bounded full-reference sections; exact section counts are diagnostic rather than an acceptance requirement.",
       "type": "string",
       "enum": ["none", "ordinary", "focused", "comprehensive"]
     }

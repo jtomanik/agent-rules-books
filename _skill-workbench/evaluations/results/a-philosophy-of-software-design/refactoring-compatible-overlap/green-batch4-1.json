@@ -1,0 +1,38 @@
+{
+  "case": "_skill-workbench/evaluations/cases/a-philosophy-of-software-design/refactoring-compatible-overlap.md",
+  "case_sha256": "ce5731a752d3cf55c3234a7741fe553c671a8b537748ecbd971a206f3f6e55e4",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dca-c946-7422-9f74-28f92e84e442",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Use two lenses here: `refactoring` for reversible, behavior-preserving steps, and `a-philosophy-of-software-design` for the target shape. The problem is not just duplication; it is shallow boundaries plus temporal coupling. Callers currently need to know five steps, step order, mutable context contents, and cleanup rules. The stopping condition is reached when one export entrypoint owns that sequence, callers no longer orchestrate internal phases, and the public contract exposes only caller-relevant inputs/results while preserving the same observable export behavior and failure/cleanup semantics.\n\nRecommended sequence:\n\n1. Freeze the current contract in tests at the highest stable boundary.\nAdd or confirm characterization tests around the command-facing entrypoints, not just the writer/service internals: successful export, malformed input, failed write with cleanup, and exact externally visible error/return behavior. This proves later steps are safe because verification stays anchored to observable behavior.\nHow it hides complexity: it does not yet change design, but it moves confidence to the caller contract so internals can change underneath it.\n\n2. Name the five-step workflow in one place without changing control flow.\nExtract a single private helper or local function that performs `initialize -> load -> normalize -> write -> cleanup` using the same mutable `ExportContext`, and have each of the three commands call that helper instead of open-coding the sequence.\nHow it hides complexity: duplication drops from three call sites to one orchestration point; callers still see the same contract, but sequencing knowledge is already less scattered.\nWhy reversible/testable: pure code motion; command-level tests should stay green unchanged.\n\n3. Move sequence ownership down to the deepest existing object that can honestly own it.\nIntroduce one new public method on the best existing boundary candidate, likely `ExportCoordinator.export(...)` or `run(...)`, implemented by delegating to the existing five methods in the same order. Keep the old stepwise methods temporarily for compatibility, but make the three commands call only the new single operation.\nHow it hides complexity: call sites stop knowing the phase order; one module now owns workflow sequencing.\nWhy reversible/testable: old methods remain available, behavior is still implemented by the same steps, and tests can compare old and new entrypoints if needed.\n\n4. Separate caller inputs from internal workflow state.\nKeep `ExportContext` internally, but stop constructing or mutating it in outer layers. Introduce a narrow request object or argument set containing only caller-owned data, and let the new export operation create/populate `ExportContext` internally.\nHow it hides complexity: temporary paths, parser state, intermediate normalization state, and `cleanupRequired` become implementation details instead of part of the caller contract.\nWhy reversible/testable: the export operation can still populate the exact same context fields internally; characterization tests remain unchanged.\n\n5. Encapsulate cleanup as an invariant of the export operation.\nMove responsibility for calling `cleanup` into the single export operation so callers cannot forget it and no longer reason about `cleanupRequired`. Preserve current semantics exactly, including cleanup after failed writes and any no-op cleanup paths.\nHow it hides complexity: lifecycle management becomes automatic instead of protocol knowledge every caller must remember.\nWhy reversible/testable: existing failure/cleanup tests directly prove the invariant still holds.\n\n6. Collapse pass-through layers from the top down.\nOnce commands call one export operation and outer layers no longer add policy, remove or inline any controller/service/coordinator layers that only forward the same arguments/context. Keep only boundaries that add real decisions, translation, or isolation.\nHow it hides complexity: fewer names and hops, less change amplification, and less need to reconstruct where behavior actually lives.\nWhy reversible/testable: remove one middleman at a time, rerun the same command-level tests after each collapse.\n\n7. Replace the mutable context surface with explicit internal sub-objects only if pressure remains.\nIf `ExportContext` is still a grab-bag, split internal concerns such as source parsing state, output target info, and cleanup resources behind the export module. Do this only after the single-operation boundary exists.\nHow it hides complexity: internal invariants become local to the module instead of shared across every phase.\nWhy reversible/testable: this is optional follow-up refactoring; stop before speculative redesign.\n\nWhat to measure after each step:\n- Fewer call sites know phase order.\n- Fewer modules expose one-method pass-through APIs.\n- Fewer fields in the caller-visible contract are workflow internals.\n- Fewer places can forget cleanup or misuse partially initialized state.\n- All characterization tests stay unchanged.\n\nStopping condition:\nStop when the three commands invoke one export operation through a caller-centered API, all five phases are internal, cleanup is guaranteed by the operation itself, and any remaining layer can justify itself by hiding meaningful complexity rather than forwarding calls. Do not continue into deeper context/object redesign unless a concrete smell remains after that point; otherwise it becomes speculative rather than behavior-preserving refactoring.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design",
+      "refactoring"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/refactoring/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "a-philosophy-of-software-design",
+    "refactoring"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:23:55.815495Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dca-c946-7422-9f74-28f92e84e442.1783984998726234000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

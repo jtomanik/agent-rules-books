@@ -102,6 +102,16 @@ whose required set contains that skill. Direct invocation proves explicit
 retrieval; unnamed invocation proves description-based discovery. Neither must
 show that the skill was selected alone.
 
+Nano supplies the default discovery vocabulary, but it is not assumed to be an
+exhaustive catalog of distinctive activation conditions. Before freezing a new
+description, audit full-only named mechanisms and decision families represented
+by the reference index. Promote one only when it is source-backed, can be central
+to a realistic unnamed task, contributes a distinct branch, and has an explicit
+neighbor boundary. Record every promote/reject decision and source trace under
+`## Activation Coverage` in the mapping. Every promoted branch requires an
+unnamed positive discovery fixture; do not copy a full-topic inventory into the
+description.
+
 ## 3. Progressive Disclosure
 
 Question: did the package preserve useful access to normal, focused, and
@@ -113,6 +123,12 @@ exhaustive guidance?
 - `comprehensive`: an explicit exhaustive request reads the full reference end
   to end.
 
+Record any index access as focused, even when the solver stops after inspecting
+the router because `SKILL.md` already resolved the task. In that index-only
+case, `consulted_reference_sections` stays empty. Treat it as an over-read
+diagnostic; it does not demonstrate that a focused source-detail fixture reached
+the required full section.
+
 A focused fixture must contain a concrete source-detail need that the compact
 body intentionally does not answer and that the index can route to a bounded,
 coherent section set. Calling the task focused, making the decision narrow, or
@@ -120,6 +136,10 @@ mentioning several related concerns is not sufficient. If `SKILL.md` actually
 contains everything needed, record the run as ordinary and treat the mistaken
 fixture expectation as a design diagnostic rather than forcing a reference
 read.
+
+Keep the compact-body gap private in the mapping. The raw blind fixture may ask
+for the concrete detail and a bounded reference read, but must not tell the
+solver that `SKILL.md` omits it or reveal suspected conversion weaknesses.
 
 The solver record names the level-two headings it actually consulted. Use `*`
 only for an end-to-end comprehensive read. These fields are access evidence,
@@ -198,12 +218,13 @@ its book or lens name, including through a negated instruction. A neighboring
 skill's ordinary vocabulary may remain when it is part of the raw task; its
 selection is permitted and evaluated under the normal overlap policy.
 
-If post-run review proves a frozen positive fixture was assigned to the wrong
-catalog owner, preserve its fixture, required set, and results as historical
-diagnostics. Do not edit the old prompt, relax its required set, or credit it to
-a sibling after observing selection. Author a separately named replacement,
-record and independently audit its contract before execution, and keep the
-reclassification explicit in the mapping.
+If the pre-run audit proves a frozen positive fixture has the wrong owner,
+reveals private evaluation rationale, or otherwise has an invalid contract,
+preserve its fixture, hash, and required set as a not-run diagnostic. Author a
+separately named replacement and independently audit it before execution. If
+post-run review finds the defect, preserve the results too. Never edit the old
+prompt, relax its required set, or credit it to a sibling after observing
+selection; keep the replacement and reclassification explicit in the mapping.
 
 ## Durable Case Record
 
@@ -246,7 +267,20 @@ the compact body lacks the requested source detail and that the intended index
 destinations form the smallest coherent source set. Ordinary and comprehensive
 cases omit the two focused-only fields.
 
-Version 2 mappings end with a stable verdict block:
+Version 2 mappings include an independent-review block whose fields remain
+explicitly pending until the review is complete:
+
+```markdown
+## Independent Review
+
+- Reviewer: <reviewer or pending>
+- Catalog snapshot: <complete catalog used or pending>
+- Semantic verdict: <PASS | FAIL | pending>
+- Unsupported or altered guidance: <findings, none, or pending>
+```
+
+After validation evidence, version 2 mappings end with a stable verdict block;
+`## Verdicts` must be the final level-two section:
 
 ```markdown
 ## Verdicts
@@ -284,6 +318,12 @@ when policy changes; add a current-policy reclassification.
   miss or turn it into a majority-vote pass. Count a uniquely named replacement
   as current-state evidence only after a documented package, catalog, harness, or
   ownership-contract correction; retain every superseded record.
+- A solver self-report that the unchanged runner rejects only for internal
+  evidence inconsistency is not a behavioral sample. Preserve the invalid JSON,
+  then collect a uniquely named replacement with the same frozen fixture, model,
+  and configuration. This replacement completes missing evidence; it does not
+  retry or outvote a valid selection miss. If the same inconsistency repeats,
+  stop and diagnose the reporting contract or runner before continuing.
 - Use fresh solver contexts and the same model/configuration when comparing
   runs.
 - Do not reveal required skills, source IDs, suspected omissions, or conversion
@@ -298,6 +338,40 @@ model lacked the book's ideas.
 
 ## Evidence Integrity
 
+### Execution manifest
+
+Current acceptance runs use one immutable JSON manifest per run under
+`_skill-workbench/evaluations/manifests/<book>/<case>/<run>.json`. Create it only
+after the complete description catalog, fixture ownership review, mapping
+contract, runner, and result schema are frozen:
+
+```bash
+python3 _skill-workbench/scripts/evaluation_manifest.py \
+  --case _skill-workbench/evaluations/cases/<book>/<case>.md \
+  --mode green \
+  --run <run-name> \
+  --output _skill-workbench/evaluations/results/<book>/<case>/<run-name>.json \
+  --manifest _skill-workbench/evaluations/manifests/<book>/<case>/<run-name>.json
+
+python3 _skill-workbench/scripts/run_skill_eval.py \
+  --manifest _skill-workbench/evaluations/manifests/<book>/<case>/<run-name>.json
+```
+
+The builder derives the required set from the exact version 2 mapping case. It
+records the sorted `<skill-name>\t<description>\n` catalog entries and SHA-256,
+case and mapping hashes, runner and schema hashes, model, fixed configuration,
+timeout, run name, and output path. The runner recomputes all repository-derived
+values before dispatch, refuses an existing output path, and embeds both the
+manifest and its file hash in the result. It then compares the case, mode, run,
+model, configuration, and required set in the result envelope with the manifest.
+
+Any catalog, fixture, mapping, runner, or schema change invalidates an unrun
+manifest. Preserve it, create a separately named replacement after review, and
+never edit it into agreement. A pre-dispatch manifest rejection is process
+evidence, not solver behavior. Direct `run_skill_eval.py` arguments remain useful
+for exploratory or historical diagnostics but are not current acceptance
+evidence.
+
 Ask the blind solver only for its answer, selected project skills, consulted
 packaged files, consulted full-reference headings, and reference mode. Reporting
 fields are passive evidence and must never cause an extra read.
@@ -309,9 +383,16 @@ belong to a consulted skill, every consulted book path must be under
 `.agents/skills/**`, section records must match actual `full.md` reads, and the
 reported reference mode must match the files opened.
 
+Before classifying a `selection_errors` entry as behavioral evidence, compare
+the record's `required_project_skills` with the frozen mapping contract for that
+exact case. A CLI or dispatch mistake that adds, removes, or substitutes a
+required skill is an invalid invocation record, not a valid selection miss.
+Preserve it and collect a uniquely named correctly configured replacement; do
+not rewrite the recorded required set.
+
 The converter may run exploratory checks, but a different agent performs final
-semantic review. Record the live catalog descriptions and relevant runtime
-configuration with behavioral evidence.
+semantic review. Record the manifest path and catalog SHA-256 in the mapping's
+catalog snapshot evidence.
 
 ## Change-Impact Reruns
 
@@ -326,7 +407,11 @@ behavior.
 | Active technical guidance, canonical mini/nano, or a prescriptive index predicate | Source/package fidelity and affected application behavior | Repeat reverse tracing, exact wording and semantic review, then rerun affected application, pressure, attribution, and disclosure cases. Rerun discovery only if the description changed. |
 | Fixture ownership or content correction | Only the corrected contract; old evidence stays historical | Preserve the old fixture and results, create a separately named versioned replacement, audit it, then execute its frozen runs. |
 | Harness, schema, or CLI defect that prevented valid evidence | Invalid process-boundary records only | Preserve failed artifacts, repair and unit-test the harness, pass one live preflight, then use uniquely named replacements for invalid runs. Existing valid records remain valid when prompt, model, configuration, and result semantics are unchanged. |
+| Solver self-report integrity failure with a correctly rejecting runner | The internally inconsistent record only | Preserve the invalid record and collect a uniquely named replacement under the identical frozen fixture, model, and configuration. No package or catalog correction is implied. Stop for diagnosis if the same inconsistency repeats. |
 | Intentional model or material runtime-configuration change | Behavioral comparability for the current gate | Start a new named behavioral snapshot and rerun every case required for current acceptance. Never combine different models into one repetition count. |
+
+Regenerate every unrun manifest affected by a row above. Historical result JSON
+retains its embedded manifest and remains attached to the exact state it tested.
 
 After adding or changing a description:
 
@@ -354,6 +439,7 @@ A conversion passes only when:
 - Mini wording, primary bias, and final checklist fidelity pass or have a
   source-supported documented exception.
 - Nano salience is mapped without inventing or expanding rules.
+- Full-only activation candidates have source-traced decisions, and every promoted branch has an unnamed discovery fixture.
 - Every active technical directive and prescriptive router condition traces to
   canonical source.
 - Reverse tracing finds no unsupported compressed-source detail.
@@ -363,6 +449,7 @@ A conversion passes only when:
 - An independent semantic reviewer finds no unsupported strengthening,
   weakening, omission, or imported guidance.
 - Direct and unnamed positive discovery runs include every required skill.
+- Current acceptance results embed a clean mapping-derived execution manifest and its hash.
 - Progressive disclosure has no material tier collapse.
 - Source/package, original behavioral, current-state, and residual-diagnostic
   verdicts remain separate.
@@ -376,16 +463,18 @@ The following do not fail a faithful conversion by themselves:
 - Extra relevant focused sections or an inexact section count.
 - Selection in a broad, negative, or catalog-null diagnostic case.
 
-Use `_skill-workbench/scripts/run_skill_eval.py` to record behavioral evidence.
-It pins the model and read-only configuration, creates a project-skill-free
-temporary baseline workspace when requested, restricts GREEN guidance to
-packaged skills, records case hashes and thread IDs, and checks result integrity
-against `_skill-workbench/evaluations/result-v2.schema.json`. Preserved v1
-evidence continues to use `result.schema.json`.
+Use `_skill-workbench/scripts/evaluation_manifest.py` followed by
+`run_skill_eval.py --manifest <path>` to record current behavioral evidence. The
+manifest freezes the catalog and execution contract; the runner pins read-only
+execution, creates a project-skill-free temporary baseline workspace when
+requested, restricts GREEN guidance to packaged skills, records case hashes and
+thread IDs, and checks result integrity against
+`_skill-workbench/evaluations/result-v2.schema.json`. Preserved v1 evidence
+continues to use `result.schema.json`.
 
 Before dispatching parallel behavioral runs, execute one live GREEN preflight
-through the current model, CLI, and result schema using a stable direct positive
-fixture. Require a structured result, clean integrity, and successful
+through the current manifest, model, CLI, and result schema using a stable direct
+positive fixture. Require a structured result, clean integrity, and successful
 required-skill inclusion before starting the batch. A schema rejection,
 model/runtime error, missing result, or other harness failure is environment
 evidence, not a behavioral sample: preserve its JSON, repair the harness,
@@ -396,7 +485,7 @@ catalog contract before parallel dispatch. The runner must preserve Codex
 JSON-event error messages as `codex_errors` in addition to cleaned stderr so a
 process-boundary failure remains diagnosable.
 
-For a positive GREEN run, pass `--required-skill <name>` once per required
-target. The runner checks inclusion after the blind solver returns; the required
-set is not injected into the solver prompt. Additional selected skills do not
-produce a selection error.
+For a positive GREEN acceptance run, required skills come only from the frozen
+mapping through the manifest. The runner checks inclusion after the blind solver
+returns; the required set is not injected into the solver prompt. Additional
+selected skills do not produce a selection error.

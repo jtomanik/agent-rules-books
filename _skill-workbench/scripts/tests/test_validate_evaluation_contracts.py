@@ -77,6 +77,17 @@ Evaluation contract version: 2
 - Behavioral result: pending.
 - Diagnostics: none.
 
+## Independent Review
+
+- Reviewer: pending independent reviewer.
+- Catalog snapshot: pending complete catalog.
+- Semantic verdict: pending.
+- Unsupported or altered guidance: pending review.
+
+## Validation Evidence
+
+- Structural validation: pending.
+
 {verdicts}"""
 
     def test_required_skill_contract_passes_without_catalog_partition(self) -> None:
@@ -246,6 +257,37 @@ Evaluation contract version: 2
         errors = validate_evaluation_contracts.validate_repository(root)
 
         self.assertTrue(any("missing current-state gate" in error for error in errors), errors)
+
+    def test_versioned_contract_requires_independent_review_fields(self) -> None:
+        temporary, root = self.make_fixture("# placeholder\n")
+        self.addCleanup(temporary.cleanup)
+        case_path, digest = self.write_case(root)
+        mapping = root / "_skill-workbench" / "alpha" / "mapping.md"
+        mapping.write_text(
+            self.versioned_mapping(case_path, digest).replace(
+                "- Semantic verdict: pending.\n", ""
+            ),
+            encoding="utf-8",
+        )
+
+        errors = validate_evaluation_contracts.validate_repository(root)
+
+        self.assertTrue(any("missing independent review semantic verdict" in error for error in errors), errors)
+
+    def test_versioned_contract_requires_verdicts_as_final_section(self) -> None:
+        temporary, root = self.make_fixture("# placeholder\n")
+        self.addCleanup(temporary.cleanup)
+        case_path, digest = self.write_case(root)
+        mapping = root / "_skill-workbench" / "alpha" / "mapping.md"
+        mapping.write_text(
+            self.versioned_mapping(case_path, digest)
+            + "\n## Postscript\n\n- Note: this must not follow verdicts.\n",
+            encoding="utf-8",
+        )
+
+        errors = validate_evaluation_contracts.validate_repository(root)
+
+        self.assertTrue(any("Verdicts must be the final level-two section" in error for error in errors), errors)
 
     def test_case_level_version_opt_in_enforces_new_fields_in_legacy_mapping(self) -> None:
         temporary, root = self.make_fixture("# placeholder\n")

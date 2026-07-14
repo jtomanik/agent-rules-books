@@ -1,0 +1,46 @@
+{
+  "case": "_skill-workbench/evaluations/cases/a-philosophy-of-software-design/focused-comments-first-interface.md",
+  "case_sha256": "5e727d01a805bab695acf37792bb373918af7bba60ef6f3369472615ccaa0d41",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc8-075b-78d1-9a63-25f03bb02483",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Use comments-first design with explicit comparison of candidate public contracts before implementation.\n\nCompare at least two plausible designs. Judge them by:\n- interface simplicity\n- information hiding\n- reduction of special cases\n- future cognitive load on callers\n\nFor this case, sketch the API and its explanatory contract comments first, before writing implementation. Those comments should describe caller-visible semantics such as:\n- what counts as the same request for duplicate/idempotent retries\n- what result or guarantee applies when stock is unavailable\n- what the caller can rely on if event publication fails\n- any stable success/failure guarantees the caller must know\n\nThose comments should not explain stock-check sequencing, idempotency storage, or publisher mechanics, because callers should not depend on those internals.\n\nA complicated explanatory comment is a design signal: the abstraction is still wrong, vague, or leaking implementation details, so the interface should be revised rather than defended with more prose.\n\nApplied to the two options, `reserve(request) -> ReservationResult` is the direction more likely to survive this test, because `retryMode` and `publishEvent` visibly leak internal policy choices into the public interface. But the main technique is not \u201cpick object parameter form\u201d; it is \u201ccompare at least two plausible contracts, write the contract comments first, and reject the design whose guarantees need a long, complicated explanation.\u201d",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/a-philosophy-of-software-design/references/index.md",
+      ".agents/skills/a-philosophy-of-software-design/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "a-philosophy-of-software-design",
+        "sections": [
+          "Interface Design Rules",
+          "Comment Rules",
+          "Design Alternatives and Comments-First Design"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "a-philosophy-of-software-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

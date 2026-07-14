@@ -38,6 +38,12 @@ VERSION_2_VERDICT_FIELDS = (
     "current-state gate",
     "residual diagnostics",
 )
+VERSION_2_INDEPENDENT_REVIEW_FIELDS = (
+    "reviewer",
+    "catalog snapshot",
+    "semantic verdict",
+    "unsupported or altered guidance",
+)
 
 
 def live_catalog(root: Path) -> set[str]:
@@ -97,16 +103,16 @@ def mapping_cases(lines: list[str]) -> list[tuple[str, dict[str, str]]]:
     return cases
 
 
-def mapping_fields(lines: list[str]) -> dict[str, str]:
+def section_fields(lines: list[str], heading: str) -> dict[str, str]:
     fields: dict[str, str] = {}
-    in_case = False
+    in_section = False
     for line in lines:
-        if CASE_HEADING.match(line):
-            in_case = True
+        if line == f"## {heading}":
+            in_section = True
             continue
-        if in_case and line.startswith("## "):
-            in_case = False
-        if in_case:
+        if in_section and line.startswith("## "):
+            break
+        if not in_section:
             continue
         field = FIELD_LINE.match(line)
         if field:
@@ -195,10 +201,23 @@ def validate_repository(root: Path) -> list[str]:
             errors.extend(validate_fixture(root, label, fields))
 
         if version == 2:
-            fields = mapping_fields(lines)
             mapping_label = str(mapping.relative_to(root))
+            headings = [line for line in lines if line.startswith("## ")]
+            if not headings or headings[-1] != "## Verdicts":
+                errors.append(
+                    f"{mapping_label}: Verdicts must be the final level-two section"
+                )
+
+            review_fields = section_fields(lines, "Independent Review")
+            for field in VERSION_2_INDEPENDENT_REVIEW_FIELDS:
+                if not review_fields.get(field):
+                    errors.append(
+                        f"{mapping_label}: missing independent review {field}"
+                    )
+
+            verdict_fields = section_fields(lines, "Verdicts")
             for field in VERSION_2_VERDICT_FIELDS:
-                if not fields.get(field):
+                if not verdict_fields.get(field):
                     errors.append(f"{mapping_label}: missing {field}")
     return errors
 

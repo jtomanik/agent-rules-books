@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/direct-accountable-delivery.md",
+  "case_sha256": "f417b32d5bf76be34dc02066185cc491faa87283bdc43f5ae7afb83bb9808fa6",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc4-014e-75d2-b5cb-c8e59e476fcd",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The proposal has three structural risks that will outlive the 12-day deadline if shipped as written.\n\n1. `validation.ui/api/batch: copied_tax_rules` creates three owners for one business fact. That is direct knowledge duplication, so the first regional tax change will drift across surfaces.\n2. `vendor.format: hard_coded_into_domain_objects` turns a 14-day external notice period into an internal code-coupling problem. That makes the vendor contract harder to reverse than it needs to be.\n3. `verification.local: manual_spreadsheet_check`, `ci: none`, and `rollout.steps: tribal_knowledge`, `owner: unclear` mean the delivery has no fast feedback loop and no accountable operator.\n\nThe smallest correction that still fits the deadline is:\n\n- Define one authoritative tax-rule representation in a shared module or data file, and make UI, API, and batch all read from it instead of copying rules.\n- Move the vendor export format out of domain objects into a thin exporter/adapter layer with explicit mapping. Keep the domain model about tax meaning; keep vendor layout as a boundary detail.\n- Add one automated golden-file check in CI: given a fixed tax-rule fixture, generate the export and compare it to an approved sample. That replaces permanent spreadsheet-only verification with a cheap repeatable signal.\n- Write a short versioned rollout runbook in the repo and assign one named rollout owner.\n\nThat is enough because it fixes the permanent risks without demanding a larger redesign. You are not being asked to build a full rule engine or exhaustive test suite; only to establish:\n\n- one owner for tax knowledge,\n- one reversible boundary for vendor format,\n- one automated end-to-end feedback check,\n- one explicit accountable operator.\n\nA deadline-compatible revised proposal would look like this:\n\n```yaml\nfeature: regional-tax-export\ndeadline: 12_days\nproposal:\n  validation:\n    source_of_truth: shared_tax_rule_module\n    consumers: [ui, api, batch]\n  vendor:\n    format: exporter_adapter_mapping\n    contract_change_notice: 14_days\n  verification:\n    local: fixture_export_diff\n    ci: golden_file_export_check\n  rollout:\n    steps: repo_runbook\n    owner: named_engineer\n```\n\nIf you need to cut further, cut breadth, not these protections. For example, support fewer regional variants in the first release, but do not keep copied rules, domain-level vendor encoding, or manual-only verification.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:16:19.771432Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc4-014e-75d2-b5cb-c8e59e476fcd.1783984554318947000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

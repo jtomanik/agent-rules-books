@@ -148,9 +148,10 @@ The description is the always-visible router into the skill. It must:
 2. Describe only the conditions under which the skill should be loaded, not its application sequence or a summary of its rules.
 3. Name genuinely distinct invocation branches.
 4. Include important nano-derived code or system symptoms when Codex may discover them after inspecting the task.
-5. Establish a positive activation threshold by saying what must be central or blocked before the skill applies.
-6. Distinguish the skill from neighboring book skills.
-7. Remain concise enough to survive description shortening.
+5. Audit distinctive full-only mechanisms that may be central even though nano does not name them.
+6. Establish a positive activation threshold by saying what must be central or blocked before the skill applies.
+7. Distinguish the skill from neighboring book skills.
+8. Remain concise enough to survive description shortening.
 
 Keep the description at or below 500 characters. The opening capability clause should identify the lens, not summarize its rules or application sequence.
 
@@ -191,6 +192,43 @@ python3 _skill-workbench/scripts/validate_evaluation_contracts.py
 ```
 
 Do not let concurrent converters evaluate against partial sibling catalogs. The batch-level reconciliation gate checks that every intended target remains discoverable after sibling descriptions are present. Extra selections, catalog-null behavior, and broad overlap remain diagnostic unless they cause materially wrong or contradictory guidance.
+
+### Activation coverage audit
+
+Nano is the default source of activation salience, not proof that every
+distinctive discovery condition appears there. After the full-section inventory
+and candidate index routes exist, inspect each full-only named mechanism or
+decision family that could be central to a realistic task. The audit asks whether
+an unnamed prompt can require this book's distinctive judgment without using the
+book title, lens name, or nano vocabulary.
+
+Record the audit in `mapping.md`:
+
+```markdown
+## Activation Coverage
+
+| Full-only candidate | Source trace | Nano coverage | Neighbor boundary | Decision and evidence |
+| --- | --- | --- | --- | --- |
+```
+
+Record `none found` when no candidate qualifies. Promote a full-only term into
+the description only when all of these are true:
+
+- The canonical full rule explicitly states or clearly entails the term and its
+  activation condition.
+- The mechanism can be central to a realistic task rather than merely a detail
+  consulted after selection.
+- The term contributes a distinct discovery branch instead of another synonym
+  for an existing branch.
+- Neighbor ownership and the 500-character description budget remain clear.
+- The mapping gives an exact source trace and an unnamed positive fixture tests
+  the promoted branch.
+
+Do not summarize every index row in metadata or assume that any full-only topic
+deserves activation. A promoted source-backed term changes description discovery
+only; it does not rewrite mini or nano. Freeze the description catalog only after
+this audit and rerun the normal description change-impact matrix after any
+promotion.
 
 ## Translating Nano
 
@@ -269,6 +307,10 @@ failure semantics from mini and nano into the canonical full rule. If a retained
 detail is merely plausible book knowledge but is not stated or clearly entailed
 by the full rule, stop the conversion and repair mini, nano, and traceability
 through `_rule-workbench/PROCESS.md` before regenerating the skill.
+
+Treat the changed-clause diff as a locator, not the review boundary. Source/package
+acceptance covers every prescriptive clause newly activated by `SKILL.md`, including
+unchanged mini or nano text that predates the conversion branch.
 
 Use the existing traceability IDs to settle fidelity questions.
 
@@ -451,6 +493,11 @@ Evaluation contract version: 2
 | Branch | Trigger wording | Distinguishes from |
 | --- | --- | --- |
 
+## Activation Coverage
+
+| Full-only candidate | Source trace | Nano coverage | Neighbor boundary | Decision and evidence |
+| --- | --- | --- | --- | --- |
+
 ## Catalog Collision Cases
 
 | Prompt | Expected skills | Reason |
@@ -504,13 +551,6 @@ Evaluation contract version: 2
 - Behavioral result:
 - Diagnostics:
 
-## Verdicts
-
-- Source/package verdict:
-- Original behavioral observation:
-- Current-state gate:
-- Residual diagnostics:
-
 ## Independent Review
 
 - Reviewer:
@@ -527,6 +567,13 @@ Evaluation contract version: 2
 - Invocation evaluation:
 - Application evaluation:
 - Remaining risks:
+
+## Verdicts
+
+- Source/package verdict:
+- Original behavioral observation:
+- Current-state gate:
+- Residual diagnostics:
 ```
 
 The mapping file is authoring evidence, not runtime context. Keep it outside the skill package. Historical mappings may retain required/allowed/forbidden partitions, ordering, RED/GREEN, and exact-section contracts. Preserve them as historical diagnostics; only required-skill inclusion, package fidelity, and material disclosure collapse affect current acceptance.
@@ -541,7 +588,7 @@ Before authoring, inventory the canonical source, define representative positive
 
 Each positive case names the minimum required skill set. Do not classify every other live skill as allowed or forbidden. Define semantic ordinary, focused, or comprehensive expectations without requiring an exact selected-skill set or exact focused-section count. A skill-disabled baseline is optional diagnostic evidence; it is not needed to prove that the source conversion is faithful.
 
-After all batch descriptions exist and before behavioral execution, require an independent fixture-ownership audit against the complete catalog. Each required skill must contribute a distinctive central judgment, not merely share topic vocabulary with the prompt. If the audit or later evidence proves a fixture was misclassified, preserve it as a diagnostic and freeze a separately named replacement before running it; never rewrite failed evidence or retroactively relax its required set.
+After all batch descriptions exist and before behavioral execution, require an independent fixture-ownership audit against the complete catalog. Each required skill must contribute a distinctive central judgment, not merely share topic vocabulary with the prompt. If the pre-run audit rejects a frozen fixture, preserve its content, hash, and contract as a not-run diagnostic, then freeze a separately named replacement. If later evidence rejects a fixture, preserve its runs too. Never rewrite evidence or retroactively relax a required set.
 
 Record each new case's distinctive judgment, neighboring ownership boundary, independent ownership verdict, exact fixture hash, and intended disclosure mode using evaluation contract version 2. A focused probe also names the source-detail need absent from `SKILL.md` and its intended index destinations; a narrow implementation decision alone does not qualify.
 
@@ -555,9 +602,9 @@ Completion criterion: the mapping document names a distinctive lens and explains
 
 ### 3. Design invocation
 
-Derive candidate branches from nano, the mini `When to use` statement, and distinctive full-rule triggers. Compare the candidate description with every existing skill description.
+Derive candidate branches from nano, the mini `When to use` statement, and distinctive full-rule triggers. Compare the candidate description with every existing skill description. Record provisional full-only candidates for the activation coverage audit.
 
-Completion criterion: the description has a compact lens identifier, distinct trigger branches, a positive scope boundary, no workflow summary, and catalog collision cases with expected outcomes.
+Completion criterion: the description has a compact lens identifier, distinct trigger branches, a positive scope boundary, no workflow summary, provisional full-only candidates, and catalog collision cases with expected outcomes.
 
 ### 4. Map nano
 
@@ -573,9 +620,9 @@ Completion criterion: every mini ID has exactly one authoritative destination, r
 
 ### 6. Build reference routing
 
-Write `Read when` guidance for every full section. Define ordinary, focused, and comprehensive branches.
+Write `Read when` guidance for every full section. Define ordinary, focused, and comprehensive branches. Complete the activation coverage audit against the resulting full-section inventory, then finalize the description before the catalog freeze.
 
-Completion criterion: every full section is reachable, focused scenarios identify a bounded set of sections, and comprehensive scenarios require the full reference.
+Completion criterion: every full section is reachable, focused scenarios identify a bounded set of sections, comprehensive scenarios require the full reference, and every full-only activation candidate has a source-traced promote/reject decision.
 
 ### 7. Write metadata and account for context
 
@@ -610,15 +657,42 @@ python3 _skill-workbench/scripts/check_rule_wording.py \
   --skill .agents/skills/clean-code/SKILL.md
 ```
 
-Completion criterion: all structural, mapping, equality, anchor, range, link, placeholder, required-skill, versioned case-field, fixture-hash, and verdict-block checks pass, and every wording difference is removed or explicitly justified.
+Completion criterion: all structural, mapping, equality, anchor, range, link, placeholder, required-skill, versioned case-field, fixture-hash, independent-review, and final-verdict-block checks pass, and every wording difference is removed or explicitly justified.
 
 ### 9. Run behavioral evaluation
 
 Use fresh agents with the same prompts, artifacts, model, and configuration. When a skill-disabled baseline is useful, keep its configuration matched. Evaluate required-skill discovery, application, disclosure, and package fidelity separately. Do not reveal the expected answer, required skills, suspected weakness, source trace, or conversion rationale. Restrict runtime guidance reads to `.agents/skills/**`; canonical rule or workbench reads invalidate the run. The blind solver reports observed selection and consulted files, while an independent reviewer performs source tracing afterward.
 
-Before parallel dispatch, require one live GREEN preflight through the current CLI, model, and result schema using a stable direct positive fixture as specified in `EVALUATION.md`. Preserve any failed harness record, repair the evaluator, and verify a uniquely named successful replacement before treating later runs as behavioral evidence. A valid required-skill miss is catalog evidence, not a harness failure; preserve it and stop parallel dispatch for diagnosis.
+After catalog and ownership review, create one immutable evaluation manifest per
+acceptance run with `_skill-workbench/scripts/evaluation_manifest.py`. The builder
+derives the exact required set from the version 2 mapping contract and freezes the
+catalog payload, case and mapping hashes, runner and schema hashes, model,
+configuration, run name, and output path. Review the generated required sets and
+catalog hash before dispatch. Run each manifest through
+`run_skill_eval.py --manifest <path>`; do not repeat those fields manually.
 
-Pass each positive target to the runner with a repeated `--required-skill <name>` option. The runner evaluates `required <= selected` after the blind result is recorded, so expected targets never appear in the solver prompt.
+Before parallel dispatch, require one live GREEN preflight through the current CLI, model, result schema, and manifest path using a stable direct positive fixture as specified in `EVALUATION.md`. Preserve any failed harness record, repair the evaluator, and verify a uniquely named successful replacement before treating later runs as behavioral evidence. A valid required-skill miss is catalog evidence, not a harness failure; preserve it and stop parallel dispatch for diagnosis.
+
+If the runner correctly rejects only a solver-produced reporting inconsistency,
+preserve that JSON and use a uniquely named same-configuration replacement to
+complete the missing sample. Do not overwrite the invalid record or treat the
+replacement as a retry of a valid selection miss. A repeated inconsistency is a
+stop condition for reporting-contract or harness diagnosis.
+
+During that diagnosis, compare the observed file-access shape with every state
+the result schema can express. If no state represents the evidence truthfully,
+add a failing integrity test and minimally repair the reporting contract before
+collecting a replacement. Do not relabel or rewrite historical JSON after the
+schema clarification.
+
+For acceptance evidence, the runner evaluates the manifest-derived
+`required <= selected` contract after the blind result is recorded, so expected
+targets never appear in the solver prompt. It rejects catalog, case, mapping,
+runner, or schema drift before launching Codex, refuses to overwrite an existing
+result, embeds the manifest and its hash in the result, and compares the result
+envelope with the manifest afterward. Direct runner arguments and manual
+`--required-skill` values remain available only for exploratory or historical
+runs; they do not satisfy the current acceptance contract.
 
 Completion criterion: every positive run includes all required skills, no disclosure probe shows material tier collapse, and the independent source review finds no unsupported package guidance. Extra skill selections, selection order, general solver knowledge, and exact focused-section differences are diagnostic.
 
@@ -676,6 +750,7 @@ Completion criterion: the independent reviewer finds no unsupported strengthenin
 - Near-neighbor and generic prompts are retained as context-cost diagnostics when useful.
 - Description branches do not merely repeat synonyms.
 - Description remains useful if truncated from the end.
+- Full-only activation candidates have source-traced promote/reject decisions; every promoted branch has an unnamed positive fixture.
 - Every positive case has an explicit required skill set.
 - Every version 2 case records distinctive judgment, neighbor ownership, completed ownership review, and a matching fixture hash.
 
@@ -698,6 +773,8 @@ Completion criterion: the independent reviewer finds no unsupported strengthenin
 - The evaluator is not told expected skills, source IDs, or suspected weaknesses.
 - An agent other than the converter performs final semantic review.
 - Rerun scope follows the documented change-impact class; different models are never combined into one repetition count.
+- Every acceptance run uses a mapping-derived manifest whose catalog, case, mapping, runner, and schema hashes validate before dispatch.
+- Every result embeds the manifest and its hash, preserves the configured output name, and has no manifest-envelope error.
 - Source/package, original behavioral, current-state, and residual-diagnostic verdicts remain separate.
 
 ## Pilot Validation Shapes
@@ -752,6 +829,7 @@ Agents must not:
 A conversion is complete only when:
 
 - The description includes the target skill for direct and distinctive unnamed positive prompts; additional relevant selections are permitted.
+- The activation coverage audit records every full-only candidate and tests each promoted description branch.
 - Every nano and mini traceability ID is mapped.
 - Primary bias, mini rule wording, and final checklist wording and order are preserved verbatim except for documented, necessary changes.
 - Every newly authored technical directive and prescriptive router condition traces to canonical source; packaging-only prose adds no technical claim.
@@ -763,6 +841,7 @@ A conversion is complete only when:
 - Structural and semantic validation passes.
 - Behavioral tests cover required-skill discovery, application, and all three disclosure tiers; near-neighbor and null behavior is diagnostic.
 - Direct and distinctive unnamed positive cases include every required skill in three independent runs.
+- Current acceptance runs use immutable mapping-derived manifests and preserve their manifest hashes in result evidence.
 - Progressive disclosure has no material tier collapse; exact focused-section counts are not required.
 - An independent reviewer approves semantic fidelity.
 - Remaining risks are documented in the mapping file.

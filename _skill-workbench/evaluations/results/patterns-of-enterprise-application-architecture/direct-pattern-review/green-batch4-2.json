@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/patterns-of-enterprise-application-architecture/direct-pattern-review.md",
+  "case_sha256": "196e516d72d4740968a5b7442a707413cb990b929ab31d5cf8829f3a7bae9537",
+  "mode": "green",
+  "run": "green-batch4-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc5-73cc-7d32-a5d3-a62bc3943eee",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Current design is too controller-heavy. It collapses presentation, application workflow, domain rules, persistence mutation, transaction timing, and remote integration into one endpoint. The smallest fitting pattern set is:\n\n1. Business logic: `Domain Model` plus a thin `Service Layer`.\nThe rules are already more than trivial arithmetic, and next quarter adds jurisdiction exemptions and approval rules. That is the point where `Transaction Script` starts to rot into duplicated branching and controller logic. Put adjustment policy on the domain side, for example `Invoice.adjust(command, policy)` or an `InvoiceAdjustmentPolicy`/domain service if the rules need collaborators. Keep the application service responsible only for the use-case flow.\n\n2. Persistence: `Repository` over `Data Mapper`/ORM, with explicit `Unit of Work` semantics.\nThe controller should not load and mutate `InvoiceRow` directly. Treat the ORM row as persistence detail, not the business object. A repository should load and save an `Invoice` domain object or aggregate-shaped model in domain terms. The ORM can still implement the mapper underneath. Also make commit timing explicit; \"flushes sometime before the response\" is the wrong ownership model.\n\n3. Transaction pattern: one short database transaction owned by the application service.\nThe service should begin the use case, load the invoice, invoke domain adjustment logic, persist changes, and commit explicitly. Because the accounting call is remote and cannot join the DB transaction, do not hold the DB transaction open across that call.\n\n4. Remote boundary: `Remote Facade` with `DTO` translation.\n`accountingClient.postAdjustment(...)` should sit behind an integration boundary that exposes one coarse adjustment operation in application terms. That boundary translates internal adjustment data into the partner payload and hides transport/vendor details.\n\nResponsibility placement:\n\n- Controller: parse HTTP input, call the application service, map the result to response DTO/JSON. No tax, discount, exemption, or approval logic. No ORM mutation. No remote client orchestration.\n- Application service: own the use-case workflow and transaction boundary. Load invoice through repository, call domain behavior, save/commit, then trigger follow-up integration according to the chosen consistency approach.\n- Domain model/domain service: own adjustment calculations, exemption rules, approval decisions, and invariants such as whether an invoice is adjustable and what states require approval.\n- Repository/mapper: load and persist invoice state; hide ORM rows, flush behavior, and query details.\n- Remote facade: send the accounting adjustment using boundary DTOs; handle translation, retries/error mapping policy, and partner-specific contract concerns.\n\nBecause the accounting call cannot be atomic with the database write, the cleanest POEAA-aligned split is: commit invoice adjustment first, then publish/dispatch the accounting side effect from the application boundary. That means you must choose an explicit failure policy instead of pretending one transaction exists. At minimum, persist enough state to know the accounting sync is pending/posted/failed; otherwise the endpoint can return adjusted JSON while the accounting system diverges.\n\nA practical shape is:\n\n`POST /invoices/{id}/adjust` -> controller -> `InvoiceAdjustmentService.adjust(invoiceId, command)` -> repository loads `Invoice` -> domain computes adjustment and approval requirement -> service commits invoice changes -> remote facade posts accounting adjustment, or schedules it for reliable follow-up -> service returns response DTO.\n\nIf product growth stays on the current trajectory, `Domain Model` is the right smallest pattern now. `Transaction Script` would only be defensible if you were certain the rules would remain flat and independent, which the roadmap already disproves.",
+    "selected_project_skills": [
+      "patterns-of-enterprise-application-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "patterns-of-enterprise-application-architecture"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:17:56.911683Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc5-73cc-7d32-a5d3-a62bc3943eee.1783984649164823000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

@@ -1,0 +1,37 @@
+{
+  "case": "_skill-workbench/evaluations/cases/a-philosophy-of-software-design/unnamed-shallow-wrapper-spread.md",
+  "case_sha256": "acd6f765d1b76bbe359c038c37c2b59cb154d4db2c7cca238d0c6eeac124e954",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc4-eff8-7470-ae5c-9892f555af01",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The current boundary is too thin in the middle and too leaky at the top.\n\nThe boundaries that earn their existence are:\n- `OrderController`, as a transport adapter. It should translate HTTP or RPC input into an application call and translate the returned domain result into a response.\n- One application-facing order module, for example `CreateOrder` or `OrderApplicationService`, if it owns the full use case: validate business rules, construct the domain command/entity, persist it, and return a domain result.\n- One persistence adapter behind a port such as `OrderStore` or `Orders`, if it hides SQL, row shape, parameter binding, and database-specific error taxonomy.\n\nThe boundaries that do not currently earn their cost are:\n- `OrderService`, because it mostly forwards and exposes workflow details to the controller.\n- `OrderRepository` and `SqlOrderGateway`, because each only renames one database operation without hiding meaningful complexity.\n\nThe main design fix is to move all create-order workflow knowledge behind one interface that an ordinary caller can use without coordination. The controller should not know:\n- that validation happens before mapping\n- that mapping to a row exists at all\n- that duplicate-key is a database error that must be translated\n- that normal writes require `validateOnly=false`\n\nA better boundary is:\n\n```text\nOrderController\n  -> CreateOrder.handle(request)\n       -> validate business invariants\n       -> create Order / OrderDraft / CreateOrderCommand\n       -> Orders.save(order)\n            -> SQL adapter maps to row/sql\n            -> SQL adapter translates duplicate-key to OrderConflict\n```\n\nWhat should move downward:\n- Row mapping belongs in the SQL adapter, because a database row is a storage detail.\n- Duplicate-key handling belongs in the persistence adapter, because database error codes are infrastructure knowledge.\n- Validation sequencing belongs in the use case, because it is part of the application action.\n\nWhat the public contract should become:\n- Normal path: `createOrder(request) -> Created | ValidationError | DuplicateOrder | ...`\n- If \"validate only\" is a real product need, make it a separate operation such as `validateCreateOrder(request)` or `previewCreateOrder(request)`. Do not use a boolean mode flag, because it forces callers to know an internal branch and makes one method represent two use cases.\n\nThis reduces caller coordination to one fact: \"call create order and handle domain results.\" It also reduces change amplification. Adding a required field should usually affect:\n- the request/domain model\n- the use case validation/construction\n- the persistence adapter mapping\n\nThat is a reasonable boundary. Needing six files today is a symptom that storage shape and workflow sequencing are leaking across modules.\n\nIn short: collapse the shallow middle layers, keep one deep application boundary for the use case, keep one real persistence boundary for infrastructure details, and make callers depend on domain results instead of internal workflow facts.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design",
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "a-philosophy-of-software-design"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:17:42.154394Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc4-eff8-7470-ae5c-9892f555af01.1783984615417380000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

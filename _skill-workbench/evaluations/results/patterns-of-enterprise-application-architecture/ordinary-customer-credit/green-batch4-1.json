@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/patterns-of-enterprise-application-architecture/ordinary-customer-credit.md",
+  "case_sha256": "d44659ce0adf9b5dcd41c5b935a55283e6afd9fe8fd4849d4165e6bd2975cb76",
+  "mode": "green",
+  "run": "green-batch4-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc9-ae40-7a22-a767-ee30f0eef564",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Use a small `Service Layer` operation, not a broader model rewrite.\n\nDefine these structures:\n- `AdjustCustomerCreditController`: parses `req.params.id` and `req.body.amount`, calls the application service, maps domain/application errors to HTTP responses.\n- `AdjustCustomerCreditService`: the transaction script for this use case. It owns the workflow and the transaction boundary.\n- `CustomerRepository`: provides `getForUpdate(customerId, tx)` and `updateCredit(customerId, newCredit, tx)` or one `save(customer, tx)` if an entity already exists.\n- `CreditAuditRepository`: inserts one audit row inside the same transaction.\n- `CustomerCreditPolicy` or `validateCreditAdjustment(currentCredit, amount)`: enforces `amount !== 0` and `currentCredit + amount >= 0`.\n\nResponsibility split:\n- Controller does transport only.\n- Service does: open transaction, load customer with write protection (`FOR UPDATE` style lock or equivalent guarded update), validate rules, persist new credit, insert audit row, commit, return DTO.\n- Policy/function owns the business rules. Keep it small; this does not justify a larger domain model by itself.\n- Repositories hide ORM details and keep SQL/locking choices out of the controller/service interface.\n\nThe critical design correction is that the customer update and audit insert must be one atomic unit. Also avoid the current read-modify-write race: either lock the customer row in the transaction before computing the new balance, or use a single guarded update that cannot drive credit below zero.\n\nA concrete service flow:\n1. Start DB transaction.\n2. Load customer for update.\n3. Compute `newCredit = currentCredit + amount` through `CustomerCreditPolicy`.\n4. Update customer credit.\n5. Insert `credit_audit` row with `customerId`, `amount`, `previousCredit`, `newCredit`, timestamp.\n6. Commit.\n7. Return the updated customer DTO.\n\nTest outline:\n- Unit: policy rejects `amount = 0`.\n- Unit: policy rejects adjustments that would make credit negative.\n- Unit: policy accepts valid positive and negative adjustments.\n- Service: valid adjustment updates customer credit and writes exactly one audit row.\n- Service: audit insert failure rolls back the credit update.\n- Service: customer update failure rolls back and no audit row remains committed.\n- Service/integration: concurrent adjustments do not lose updates or allow a negative balance; verify the chosen lock/guard behavior.\n- Controller: maps validation failure to the expected client error response and success to the updated payload.\n\nThis keeps the change local: one application service, two repositories, one small rule component, and transaction-scoped tests.",
+    "selected_project_skills": [
+      "patterns-of-enterprise-application-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/patterns-of-enterprise-application-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "patterns-of-enterprise-application-architecture"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-13T23:22:55.527690Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dc9-ae40-7a22-a767-ee30f0eef564.1783984926272957000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

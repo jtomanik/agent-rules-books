@@ -1,0 +1,7 @@
+interface:
+  display_name: "The Pragmatic Programmer"
+  short_description: "Own adaptable delivery and fast feedback"
+  default_prompt: "Use $the-pragmatic-programmer to review this change for accountable and adaptable delivery."
+
+policy:
+  allow_implicit_invocation: true

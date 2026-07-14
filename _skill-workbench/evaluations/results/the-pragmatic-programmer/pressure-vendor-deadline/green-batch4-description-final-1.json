@@ -1,0 +1,54 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/pressure-vendor-deadline.md",
+  "case_sha256": "7318fcfaaf8d2ebe0cbdcaa22b683d539d8ddc521126ab483269f1b19dd5d13a",
+  "mode": "green",
+  "run": "green-batch4-description-final-1",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5e01-af2f-71d2-9c45-175fda5b5e44",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "Decision: protect the seven-day pilot by narrowing scope, but change direction at the boundary now. Do not keep building the system around `vendor_a_generated_types`. Freeze that as an adapter detail, introduce a small internal pilot domain for only the workflows that must demo, and move business rules into one owned place used by API/worker/UI instead of copying them into each layer.\n\nWhat must change now:\n- Stop treating Vendor A schema classes as the domain model. Map them at the edge into a small internal model or command layer.\n- Stop copying business rules into `api`, `worker`, and `admin_ui`. Put them behind one shared policy/service boundary.\n- Replace `manual_commands_on_one_laptop` with a single reproducible release script for build, deploy, and rollback, even if the infrastructure stays simple for the pilot.\n- Add fast feedback immediately: a few contract tests around the internal rules and mappings, plus one end-to-end smoke test for the pilot path.\n- Stop discarding failure context. Keep structured error details and reduce noise with filtering, not deletion.\n\nWhat can be a thin real slice:\n- One pilot-critical workflow end to end, running through the new internal boundary.\n- A minimal internal model covering only the concepts that workflow needs.\n- Vendor A mapping only for the fields used by that slice.\n- A scripted release to a simple target, with a smoke check after deploy.\n\nWhat shortcut cannot silently become the production default:\n- Using Vendor A generated schema types as the system\u2019s domain model. With weekly Vendor A schema churn and a required Vendor B trial next month, that shortcut destroys ownership, adaptability, and reversibility. If any pilot shortcut remains, it must stay explicitly marked as adapter/prototype code with an expiry decision, not become the architecture by inertia.\n\nThis keeps the seven-day pilot achievable while preserving one owner for business rules, a reversible vendor boundary, and fast enough feedback to avoid shipping blind.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/the-pragmatic-programmer/references/index.md",
+      ".agents/skills/the-pragmatic-programmer/references/full.md"
+    ],
+    "consulted_reference_sections": [
+      {
+        "skill": "the-pragmatic-programmer",
+        "sections": [
+          "DRY Rules",
+          "Orthogonality Rules",
+          "Tracer Bullets and Iterative Delivery",
+          "Reversibility, Domain Languages, and Requirements",
+          "Prototyping Rules",
+          "Automation Rules",
+          "Feedback Loop Rules",
+          "Error Handling and Recovery",
+          "Code Generation Rules",
+          "Testing Rules",
+          "Final Instruction"
+        ]
+      }
+    ],
+    "reference_mode": "focused"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:23:18.171166Z  WARN codex_core_plugins::manager: failed to warm remote plugin catalog cache error=remote plugin catalog request to https://chatgpt.com/backend-api/ps/plugins/list failed with status 400 Bad Request: {\"detail\":\"Invalid pageToken\"}"
+}

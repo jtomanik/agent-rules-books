@@ -1,0 +1,35 @@
+{
+  "case": "_skill-workbench/evaluations/cases/a-philosophy-of-software-design/direct-deep-module-review.md",
+  "case_sha256": "851e898c10218a0877d43967de6597a1c80e2f78384f8647bfba974c4250df72",
+  "mode": "green",
+  "run": "green-batch4-3",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dc4-1cfe-7b50-ad55-e30fc3d8d92d",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The module is too shallow. Most of the real complexity is still carried by callers: they must preserve a handle, remember call ordering, choose a normalization mode that is coupled to archive format, and own failure cleanup for temporary storage. By A Philosophy of Software Design standards, that is a leaky interface with strong temporal coupling. The API is exposing workflow mechanics instead of a deep operation.\n\nThe main information that should be hidden is:\n- Export sequencing: callers should not need to know the internal phase order.\n- Handle lifecycle: the existence and validity rules of the handle are internal state management.\n- Format-to-normalization coupling: if `format` implies a compatible normalization, that decision belongs inside the export module.\n- Temp directory management and rollback semantics: cleanup on partial failure is ownership, not caller ceremony.\n- Intermediate row representation: if rows need loading and normalization before archival, that pipeline detail should stay inside the boundary.\n\nThe repeated handler logic is a strong signal that the public contract is at the wrong level. If three handlers all restage the same five-step protocol plus cleanup, the abstraction boundary is below the real use case.\n\nA better public contract is a single intention-level operation owned by the export module, for example `exportArchive(options)` or `runExport(request) -> result`. The request should describe what the caller wants exported and in what final format, not how to stage the work. The module should own preparation, row loading, normalization choice, archive writing, and all cleanup. If streaming or progress reporting is required, expose that as a higher-level protocol such as an `ExportJob` with a minimal lifecycle like `start` and `awaitResult`, not five manually ordered internal phases.\n\nOwnership boundary:\n- Callers own export intent: source selection, user-visible options, destination, and handling the final success/failure result.\n- Export module owns execution strategy: staging, temporary resources, normalization rules, format-specific behavior, retries/rollback, and invariant enforcement.\n- Internal subcomponents may still exist for `load`, `normalize`, and `write`, but they should be private collaborators behind the module boundary.\n\nDesign judgment: the current API is not deep enough because it decomposes by execution order rather than by responsibility visible to callers. The public surface should move up to the level of \u201cproduce this export safely,\u201d with the module absorbing the pipeline knowledge and cleanup burden. That would reduce cognitive load, eliminate repeated error choreography, and create a clearer ownership boundary.",
+    "selected_project_skills": [
+      "a-philosophy-of-software-design"
+    ],
+    "consulted_files": [
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "a-philosophy-of-software-design"
+  ],
+  "selection_errors": [],
+  "stderr": ""
+}

@@ -1,0 +1,39 @@
+{
+  "case": "_skill-workbench/evaluations/cases/the-pragmatic-programmer/unnamed-outcome-ownership.md",
+  "case_sha256": "d869553f51c12d27bb19473b82db8448dc7c3c58408000fcda992863b5071a60",
+  "mode": "green",
+  "run": "green-batch4-description-final-2",
+  "model": "gpt-5.4",
+  "codex_version": "codex-cli 0.144.1",
+  "configuration": {
+    "ignore_user_config": true,
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "green_workspace": "/Users/jakubtomanik/github/agent-rules-books",
+    "baseline_workspace": "temporary directory without project skills"
+  },
+  "thread_id": "019f5dff-b445-7913-a416-0e3f0002348d",
+  "exit_code": 0,
+  "codex_errors": [],
+  "result": {
+    "answer": "The delivery manager\u2019s position is not defensible. It fragments ownership of one outcome across three entry points, treats framework defaults as architecture decisions, normalizes tribal release knowledge, and defers feedback until after the highest-risk duplication is already in place. That is how a ten-day push creates a permanent maintenance tax.\n\nThe export result needs one accountable owner: a single feature owner or directly named export lead who owns correctness of eligibility, vendor format generation, and release repeatability across API, nightly job, and admin preview. The entry-point teams can own adapters, but they should not each own the rule or the export shape.\n\nThe knowledge that needs one authority is:\n- Eligibility calculation.\n- Mapping from domain data to vendor export format.\n- Release procedure and validation checks.\n\nThose should each exist once. The thin slice is:\n1. Extract one export application path that computes eligibility once and produces one canonical export payload.\n2. Keep vendor-specific serialization at the edge, not written back into domain records.\n3. Wire only one entry point end-to-end first, preferably admin preview, because it is fastest to inspect and safest to iterate.\n4. Add a fixture-based comparison test around that path, plus one scripted release command that runs generation and validation deterministically.\n\nThat first slice is reviewable because it proves the key architectural claim without finishing all three entry points. Reviewers can inspect whether policy moved to one place, whether vendor coupling stayed outside the domain, and whether the release path became executable instead of folklore.\n\nThe commitment that should remain reversible is the vendor integration boundary. Do not encode the new vendor format directly into domain records. Keep an internal export model or use-case response and a vendor adapter/serializer outside it. That preserves the ability to change vendors, support a second format, or revise field mapping without rewriting domain state.\n\nFeedback before the deadline should arrive as a tracer-bullet loop, not after all entry points are done:\n- Day 1-2: one shared export path and one adapter wired into admin preview.\n- Day 3: golden-file or fixture tests for eligibility and output mapping.\n- Day 4: script the release flow so anyone can run the same commands and get machine-checkable diffs.\n- Day 5: reuse the same export path in the nightly job.\n- Day 6-7: reuse it in the API.\n- Remaining days: defect fixing, edge cases, and release rehearsal.\n\nThis keeps the risky decisions visible early: whether the shared rule is correct, whether the vendor mapping belongs outside the domain, and whether release verification is reproducible. If those are wrong, you learn while the change is still cheap.\n\nIn short: one owner for the outcome, one authority for the rules and mapping, one reversible boundary around vendor details, and one automated feedback path before broad rollout. Shipping all three entry points in the old style is not speed; it is prepaid rework.",
+    "selected_project_skills": [
+      "the-pragmatic-programmer",
+      "a-philosophy-of-software-design",
+      "clean-architecture"
+    ],
+    "consulted_files": [
+      ".agents/skills/the-pragmatic-programmer/SKILL.md",
+      ".agents/skills/a-philosophy-of-software-design/SKILL.md",
+      ".agents/skills/clean-architecture/SKILL.md"
+    ],
+    "consulted_reference_sections": [],
+    "reference_mode": "ordinary"
+  },
+  "integrity_errors": [],
+  "required_project_skills": [
+    "the-pragmatic-programmer"
+  ],
+  "selection_errors": [],
+  "stderr": "2026-07-14T00:21:49.728664Z  WARN codex_core::shell_snapshot: Failed to delete shell snapshot at AbsolutePathBuf(\"/Users/jakubtomanik/.codex/shell_snapshots/019f5dff-b445-7913-a416-0e3f0002348d.1783988466771739000.sh\"): Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+}

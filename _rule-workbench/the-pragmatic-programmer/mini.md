@@ -11,11 +11,11 @@ Do not optimize only for the local edit, requested feature, or familiar ritual. 
 ## Decision rules
 
 - Be pragmatic, not dogmatic: choose the practice, formality, quality level, and stopping point that improves real outcomes for the users, risks, and codebase.
-- Own the result. Surface tradeoffs, risks, uncertainty, and avoidable design costs instead of blaming tools, framework defaults, schedule pressure, or existing style.
+- Own the result. Surface tradeoffs, risks, uncertainty, and avoidable design costs instead of blaming tools, framework defaults, or existing style.
 - Think beyond the local edit: quick fixes that multiply future maintenance cost are usually a bad bargain; leave touched areas better where the cost is low.
-- Keep one authoritative representation for each piece of system knowledge. Business rules, validation, status semantics, mappings, calculations, schemas, configuration meaning, generated output, and manual process steps should derive from or trace to one owner.
+- Keep one authoritative representation for each piece of system knowledge. Business rules, validation, status semantics, mappings, calculations, schemas, configuration meaning, and generated output should derive from or trace to one owner; duplicated manual process steps should be automated.
 - Preserve orthogonality: keep components independent, responsibilities non-overlapping, interfaces narrow, collaborator knowledge small, and policy, mechanism, data, presentation, orchestration, and computation separated.
-- Keep volatile decisions reversible where practical. Do not hard-code vendors, platforms, databases, deployment environments, policies, or requirements before evidence justifies the commitment.
+- Keep volatile decisions reversible where practical. Avoid irreversible commitments to requirements, vendors, platforms, databases, or deployment environments until evidence makes them worth the cost.
 - Use domain vocabulary and small domain languages only when they make rules clearer to the people who must validate or change them.
 - Prefer thin end-to-end tracer bullets over piles of isolated pieces. Keep the first slice simple but real enough to validate architecture, integration, and assumptions.
 - Use prototypes to learn, not to pretend the work is done. State what the prototype proves, what it does not prove, and which shortcuts must be discarded or hardened.
@@ -28,27 +28,27 @@ Do not optimize only for the local edit, requested feature, or familiar ritual. 
 - Prefer inspectable plain text, open formats, scripts, explicit serialization, and version-aware configuration when longevity, diffability, automation, migration, or interoperability matter.
 - Treat shared mutable state, ambient context, globals, temporal coupling, and asynchronous complexity as costs that must earn themselves and be made visible.
 - Use tooling as leverage for correctness and speed, but understand generated code, formal methods, specifications, and tool output before relying on them.
-- Debug from reproduced facts: observe, isolate, explain, fix, and verify before guessing or blaming compilers, operating systems, libraries, or vendors.
+- Debug from reproduced facts: reproduce, observe, isolate, explain, fix, and verify instead of guessing.
 - Break work into small deliverable increments with honest uncertainty, visible risk, and estimates that can be corrected by feedback.
 - Communicate through code, names, docs, comments, commit messages, scripts, tests, and artifacts. Use comments for rationale, contracts, or non-obvious behavior, not as substitutes for encoded rules.
 - Build pragmatic teams around shared responsibility, explicit expectations, automation, fast feedback, visible quality, and artifacts you are willing to stand behind.
-- Apply the broken windows rule: fix or visibly contain small quality decay before bad code, unclear ownership, weak design, or broken process becomes normal.
+- Apply the broken windows rule: fix or visibly contain small quality decay before it becomes normal.
 
 ## Trigger rules
 
-- When the same fact appears in multiple artifacts, choose one owner and derive, generate, validate, or trace the rest.
+- When the same fact appears in multiple artifacts, choose one owner and derive, generate, or trace the rest.
 - When one change requires edits in many unrelated places, repair the missing boundary or hidden coupling before it spreads.
-- When volatile details are hard-coded, move them into validated, controlled, versioned configuration, metadata, or an explicit abstraction.
+- When a volatile requirement, vendor, platform, database, or deployment environment is becoming an irreversible commitment, preserve reversibility or delay commitment until evidence justifies it.
 - When uncertainty is high or a decision is hard to reverse, reduce risk with tracer feedback, a prototype, a smaller reversible step, or a delayed commitment.
-- When prototype code, generated scaffolds, diagrams, specs, formal models, or tool output start becoming production truth, inspect, understand, harden, replace, or reject them deliberately.
-- When prose specifications keep growing without reducing uncertainty, build a working slice, example, or prototype that forces feedback.
-- When hidden assumptions live only in comments, caller folklore, or tribal setup steps, move them into code, contracts, tests, scripts, or checked configuration.
+- When prototype code is becoming production, harden or replace it deliberately; do not rely on generated code, tools, specifications, or formal methods you do not understand.
+- When prose specifications keep growing without reducing uncertainty, start building a working slice.
+- When hidden assumptions live only in comments, caller folklore, or tribal setup steps, move them into code, contracts, tests, scripts, or explicit configuration.
 - When an error or resource crosses a boundary, decide who can recover, what context survives, and who owns cleanup.
 - When shared state, async behavior, locks, ordering, or temporal coupling appears, make ownership, synchronization, cleanup, and ordering requirements explicit.
 - When repeated manual steps, human checks, environment rituals, or release procedures appear, automate and version them.
 - When tests are slow, flaky, environment-dependent, or require excessive unrelated setup, improve the feedback path rather than normalizing skipped checks.
-- When a human finds a bug, add or improve an automatic regression test around the protected contract.
-- When code works for reasons nobody can explain, stop and prove the behavior with data before depending on it.
+- When repeated toolchain friction appears, improve the toolchain.
+- When code works for reasons nobody can explain, reproduce and observe the behavior before depending on it.
 - When local decay appears in touched code, fix it if cheap or leave an explicit containment or cleanup path.
 
 ## Final checklist
