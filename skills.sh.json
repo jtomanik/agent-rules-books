@@ -1,0 +1,50 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Code Quality",
+      "description": "Guidance for readable, deliberate software construction.",
+      "skills": [
+        "clean-code",
+        "code-complete",
+        "the-pragmatic-programmer"
+      ]
+    },
+    {
+      "title": "Refactoring",
+      "description": "Guidance for improving existing and legacy code.",
+      "skills": [
+        "refactoring",
+        "refactoring-guru",
+        "working-effectively-with-legacy-code"
+      ]
+    },
+    {
+      "title": "Architecture",
+      "description": "Guidance for module, application, and enterprise design.",
+      "skills": [
+        "clean-architecture",
+        "a-philosophy-of-software-design",
+        "patterns-of-enterprise-application-architecture"
+      ]
+    },
+    {
+      "title": "Domain Modeling",
+      "description": "Guidance for strategic and implementation-level domain-driven design.",
+      "skills": [
+        "domain-driven-design",
+        "domain-driven-design-distilled",
+        "implementing-domain-driven-design"
+      ]
+    },
+    {
+      "title": "Production Systems",
+      "description": "Guidance for reliable distributed and production systems.",
+      "skills": [
+        "designing-data-intensive-applications",
+        "release-it"
+      ]
+    }
+  ]
+}
